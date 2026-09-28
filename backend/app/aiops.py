@@ -141,18 +141,23 @@ async def models_list(u: dict = Depends(require_teacher)):
     d = db.get_db()
     cur_raw = db.get_setting(d, "ai_model")
     d.close()
+    cur = json.loads(cur_raw) if cur_raw else None
+    # 直连模式：目录即直连模型，不依赖 DSH（部署服务器只有直连通道）
+    dcfg = llm_direct.get_cfg()
+    if dcfg:
+        return {"items": [{"id": "direct", "name": "直连通道（OpenAI 兼容接口）", "short": "直连",
+                           "models": [{"id": dcfg["model"], "name": dcfg["model"] + "（直连）"}]}],
+                "current": cur, "routable": False, "direct": True}
     if _model_cache["value"] and time.time() - _model_cache["at"] < 600:
-        return {"items": [_group_friendly(g) for g in _model_cache["value"]],
-                "current": json.loads(cur_raw) if cur_raw else None}
-    sid = await _task_session()
+        return {"items": [_group_friendly(g) for g in _model_cache["value"]], "current": cur}
     try:
+        sid = await _task_session()
         cat = await dsh_client.call(client, "session.models", {"sessionId": sid})
     except Exception as e:
-        raise HTTPException(502, f"获取模型目录失败：{e}")
+        return {"items": [], "current": cur, "routable": False, "warning": f"DSH 中继不可用：{e}"}
     _model_cache.update(at=time.time(), value=cat.get("groups", []))
     return {"items": [_group_friendly(g) for g in cat.get("groups", [])],
-            "current": json.loads(cur_raw) if cur_raw else None,
-            "routable": cat.get("routable", False),
+            "current": cur, "routable": cat.get("routable", False),
             "current_session": cat.get("current")}
 
 

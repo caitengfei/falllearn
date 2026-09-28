@@ -9,10 +9,12 @@ PORT="${1:-8010}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PY=python3
 
-echo "==> [1/5] 检查 Python 3.10+ ..."
-if ! command -v $PY >/dev/null 2>&1; then
-  (command -v apt-get >/dev/null && apt-get update -y && apt-get install -y python3 python3-pip python3-venv) \
-    || (command -v yum >/dev/null && yum install -y python3 python3-pip)
+echo "==> [1/5] 检查 Python 3.10+ 及 venv/pip（Ubuntu 云镜像默认缺 python3-venv，统一补齐）..."
+if command -v apt-get >/dev/null 2>&1; then
+  apt-get update -y >/dev/null 2>&1 || true
+  apt-get install -y python3 python3-pip python3-venv git curl >/dev/null 2>&1 || apt-get install -y python3 python3-pip python3-venv git curl
+elif command -v yum >/dev/null 2>&1; then
+  yum install -y python3 python3-pip git curl
 fi
 $PY --version
 

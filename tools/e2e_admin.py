@@ -99,7 +99,7 @@ with sync_playwright() as pw:
     try:
         pg.wait_for_selector(".mp", timeout=60000)
         nmodel = pg.locator(".mp").count()
-        check("AI页·模型目录加载", nmodel >= 2, str(nmodel) + " 个模型")
+        check("AI页·模型目录加载", nmodel >= 1, str(nmodel) + " 个模型")
     except Exception:
         check("AI页·模型目录加载", False, pg.locator(".card").first.inner_text()[:80])
     pg.locator(".pill", has_text="知识库").click()

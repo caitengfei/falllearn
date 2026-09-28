@@ -77,10 +77,14 @@ ok = (r["cards"]["students"] >= 3 and len(r["trend"]) == 7 and len(r["clusters"]
       and r["rank_points"] and r["hours"] and "active" in r)
 check("数据大屏 overview", ok, f'cards={r["cards"]}')
 
-# 19 AI 模型目录（DSH 实时）
+# 19 AI 模型目录（直连模式=直连模型；DSH 模式=实时目录）
+dr = requests.get(BASE + "/api/admin/ai/direct", headers=H, timeout=10).json()
 r = requests.get(BASE + "/api/admin/ai/models", headers=H, timeout=60).json()
 ids = [m["id"] for g in r.get("items", []) for m in g.get("models", [])]
-check("AI 模型目录（含 deepseek/qwen）", any("deepseek" in i for i in ids) and any("qwen" in i for i in ids), str(ids))
+if dr.get("configured"):
+    check("AI 模型目录（直连模式）", any("deepseek" in i for i in ids), str(ids))
+else:
+    check("AI 模型目录（含 deepseek/qwen）", any("deepseek" in i for i in ids) and any("qwen" in i for i in ids), str(ids))
 
 # 20 知识库列表
 r = requests.get(BASE + "/api/admin/ai/kb", headers=H, timeout=10).json()

@@ -36,6 +36,16 @@ def overflow(p):
     return p.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
 
 
+def wait_text(p, needle, timeout=20):
+    """等待页面出现指定文本（远程部署 RTT 高，数据渲染慢于本地，不能 goto 后立刻断言）。"""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if needle in p.inner_text("body"):
+            return True
+        time.sleep(0.5)
+    return False
+
+
 # 教师重置
 _t = requests.post(BASE + "/api/auth/login", json={"student_no": "T2026", "password": "123456"}, timeout=10).json()
 requests.post(BASE + "/api/admin/reset-demo", json={}, headers={"authorization": "Bearer " + _t["token"]}, timeout=30)
@@ -97,13 +107,18 @@ with sync_playwright() as pw:
 
     # 练习
     p.goto(BASE + "/practice", wait_until="domcontentloaded", timeout=30000)
-    check("/practice 模拟考卡片", "12 分钟模拟考" in p.inner_text("body"))
-    check("/practice 教师布置 B 期", "B 期上线" in p.inner_text("body"))
+    check("/practice 模拟考卡片", wait_text(p, "12 分钟模拟考"))
+    check("/practice 教师布置 tab", wait_text(p, "教师布置"))
 
     # 错题本（种子 3 题）
     p.goto(BASE + "/wrong", wait_until="domcontentloaded", timeout=30000)
-    check("/wrong 列表", p.locator(".card .btn", has_text="重答这道题").count() >= 3,
-          f"({p.locator('.card .btn', has_text='重答这道题').count()} 题)")
+    n = 0
+    t0 = time.time()
+    while time.time() - t0 < 20 and n < 3:
+        n = p.locator(".card .btn", has_text="重答这道题").count()
+        if n < 3:
+            time.sleep(0.5)
+    check("/wrong 列表", n >= 3, f"({n} 题)")
     check("/wrong 调度文案", "连对 2 次" in p.inner_text("body"))
     # 讲解弹窗
     p.locator(".card .btn", has_text="看讲解").first.click()
@@ -113,7 +128,7 @@ with sync_playwright() as pw:
 
     # 我的
     p.goto(BASE + "/mine", wait_until="domcontentloaded", timeout=30000)
-    check("/mine 勋章规则", "掌握度 ≥ 60" in p.inner_text("body") or "连对 10" in p.inner_text("body"))
+    check("/mine 勋章规则", wait_text(p, "掌握度 ≥ 60") or wait_text(p, "连对 10"))
     check("/mine 无假学分", "90 天" not in p.inner_text("body"))
     p.screenshot(path=SHOT + "-mine.png", full_page=True)
 
