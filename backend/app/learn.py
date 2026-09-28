@@ -16,7 +16,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from . import db, dsh_client
+from . import db, dsh_client, llm_direct
 from .auth import current_user
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
@@ -168,7 +168,29 @@ async def ask(body: AskIn, u: dict = Depends(current_user)):
     lv = {r["cluster_id"]: r["level"] for r in d.execute(
         "SELECT cluster_id, level FROM mastery WHERE student_id=?", (u["id"],)).fetchall()}
     weak = [f"{db.CLUSTER_NAMES[c]} {int(v)}" for c, v in lv.items() if v < 60]
-    ctx = f"（学习档案·薄弱簇：{'、'.join(weak) if weak else '无'}）\n学生提问：{q}"
+    profile = f"（学习档案·薄弱簇：{'、'.join(weak) if weak else '无'}）"
+    # —— 直连通道优先（settings.ai_direct 配置存在即启用；否则回落 DSH 中继）——
+    if llm_direct.get_cfg():
+        sid = str(uuid.uuid4())
+        d.execute(
+            "INSERT INTO student_sessions(student_id,dsh_session_id,dsh_preset,created_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(student_id) DO UPDATE SET dsh_session_id=excluded.dsh_session_id,"
+            " dsh_preset=excluded.dsh_preset, created_at=excluded.created_at",
+            (u["id"], sid, "direct", int(time.time())))
+        log_id = d.execute(
+            "INSERT INTO chat_logs(student_id,dsh_session_id,question,answer,clusters_touched,created_at,dsh_base_seq) VALUES(?,?,?,?,?,?,?)",
+            (u["id"], sid, q, "", "", int(time.time()), 0)).lastrowid
+        # 提问积分（日上限 20）
+        today_pts = d.execute(
+            "SELECT COALESCE(SUM(delta),0) FROM points_log WHERE student_id=? AND reason='AI 问答' AND created_at > ?",
+            (u["id"], int(time.time()) - 86400)).fetchone()[0]
+        if today_pts < 20:
+            db.add_points(d, u["id"], 2, "AI 问答", str(log_id))
+        d.commit()
+        d.close()
+        asyncio.create_task(llm_direct.run_direct_ask(sid, u["id"], q, profile, log_id))
+        return {"session_id": sid, "log_id": log_id, "status": "running"}
+    ctx = profile + "\n学生提问：" + q
     # 创建/复用 DSH 会话并转发；会话在 DSH 端丢失（实例重启等）时自愈重建
     # base_seq = 提问前会话事件水位线：status 只认水位线之后的事件，
     # 防止同会话第二问把上一问的答案当成自己的（实测竞态串档）
@@ -213,12 +235,18 @@ class AnswerIn(BaseModel):
 @router.post("/answer", response_model=None)
 async def answer(body: AnswerIn, u: dict = Depends(current_user)):
     d = db.get_db()
-    row = d.execute("SELECT dsh_session_id FROM student_sessions WHERE student_id=?", (u["id"],)).fetchone()
+    row = d.execute("SELECT dsh_session_id, dsh_preset FROM student_sessions WHERE student_id=?", (u["id"],)).fetchone()
     log = d.execute("SELECT * FROM chat_logs WHERE id=? AND student_id=?", (body.log_id, u["id"])).fetchone()
     if not row or not log:
         d.close()
         raise HTTPException(403, "会话/记录不存在")
     sid = row["dsh_session_id"]
+    if row["dsh_preset"] == "direct":
+        d.close()
+        ok, label = llm_direct.continue_direct(sid, body.option_index)
+        if not ok:
+            raise HTTPException(400, label)
+        return {"ok": True, "method": "direct", "label": label}
     try:
         h = await dsh_client.get_history(client, sid, 200)
         events = h.get("events", [])
@@ -254,10 +282,13 @@ async def answer(body: AnswerIn, u: dict = Depends(current_user)):
 @router.get("/status", response_model=None)
 async def status(session_id: str, log_id: int, u: dict = Depends(current_user)):
     d = db.get_db()
-    row = d.execute("SELECT dsh_session_id FROM student_sessions WHERE student_id=?", (u["id"],)).fetchone()
+    row = d.execute("SELECT dsh_session_id, dsh_preset FROM student_sessions WHERE student_id=?", (u["id"],)).fetchone()
     if not row or row["dsh_session_id"] != session_id:
         d.close()
         raise HTTPException(403, "会话不属于你")
+    if row["dsh_preset"] == "direct":
+        d.close()
+        return llm_direct.direct_status(session_id, log_id)
     # 只取本次提问水位线之后的事件（防串档）
     log = d.execute("SELECT dsh_base_seq, created_at FROM chat_logs WHERE id=? AND student_id=?",
                     (log_id, u["id"])).fetchone()

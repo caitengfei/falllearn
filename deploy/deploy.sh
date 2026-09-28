@@ -19,7 +19,7 @@ $PY --version
 echo "==> [2/5] 创建虚拟环境并安装依赖 ..."
 cd "$ROOT/backend"
 $PY -m venv venv 2>/dev/null || $PY -m pip install --user virtualenv && $PY -m virtualenv venv
-./venv/bin/pip install -q -r requirements.txt
+./venv/bin/pip install -q -i "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}" -r requirements.txt
 
 echo "==> [3/5] 初始化数据库（首次自动建库：题库 + 演示账号）..."
 # 若已有库则保留，不覆盖

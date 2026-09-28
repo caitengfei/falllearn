@@ -12,12 +12,15 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from . import db, dsh_client
+from . import db, dsh_client, llm_direct
 from .auth import require_teacher
 
 router = APIRouter(prefix="/api/admin/ai", tags=["aiops"])
 
-KB = r"E:\lilei\跌倒-岗课赛证知识库"
+# 知识库目录：默认仓库内 knowledge/（可移植到服务器；与 DSH preset 工作区内容一致，
+# 2026-09-28 逐文件 hash 核对 26/26），可用 env FALLLEARN_KB 覆盖
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+KB = os.environ.get("FALLLEARN_KB") or os.path.join(_PROJECT_ROOT, "knowledge")
 PRESET = "gksc-student"
 AIOPS_SID = "falllearn-aiops"
 client = dsh_client.make_client()
@@ -184,6 +187,72 @@ async def model_select(m: ModelIn, u: dict = Depends(require_teacher)):
     return {"ok": True, "selected": r.get("selected")}
 
 
+# ================= AI 直连通道（OpenAI 兼容，默认 DeepSeek） =================
+class DirectIn(BaseModel):
+    base_url: str
+    model: str
+    api_key: str | None = None
+
+
+@router.get("/direct")
+async def direct_get(u: dict = Depends(require_teacher)):
+    return llm_direct.public_view(llm_direct.get_cfg())
+
+
+@router.post("/direct")
+async def direct_save(b: DirectIn, u: dict = Depends(require_teacher)):
+    """保存直连配置（settings.ai_direct）。api_key 留空=沿用现有密钥（无现存则 400）。"""
+    base_url = (b.base_url or "").strip().rstrip("/")
+    model = (b.model or "").strip()
+    if not base_url.startswith(("http://", "https://")):
+        raise HTTPException(400, "base_url 需以 http:// 或 https:// 开头")
+    if not model:
+        raise HTTPException(400, "model 不能为空")
+    d = db.get_db()
+    raw = db.get_setting(d, "ai_direct")
+    d.close()
+    old = {}
+    if raw:
+        try:
+            old = json.loads(raw)
+        except Exception:
+            old = {}
+    key = (b.api_key or "").strip() or (old.get("api_key") or "")
+    if not key:
+        raise HTTPException(400, "请填写 api_key（留空表示沿用现有密钥，当前未设置）")
+    d = db.get_db()
+    db.set_setting(d, "ai_direct",
+                   json.dumps({"base_url": base_url, "model": model, "api_key": key}, ensure_ascii=False))
+    d.commit()
+    d.close()
+    llm_direct.kb_fresh(max_age=0)
+    return {"ok": True, "selected": {"base_url": base_url, "model": model}}
+
+
+@router.delete("/direct")
+async def direct_clear(u: dict = Depends(require_teacher)):
+    """清除直连配置 → 学生端 AI 问答/出题/判卷回落 DSH 中继（仅本机可用）。"""
+    d = db.get_db()
+    db.set_setting(d, "ai_direct", "")
+    d.commit()
+    d.close()
+    return {"ok": True, "cleared": True}
+
+
+@router.post("/direct/test")
+async def direct_test(u: dict = Depends(require_teacher)):
+    cfg = llm_direct.get_cfg()
+    if not cfg:
+        raise HTTPException(400, "直连通道未配置")
+    t0 = time.time()
+    try:
+        text = await llm_direct.complete(cfg, [{"role": "user", "content": "只回复「好的」两个字"}],
+                                         max_tokens=200, timeout=60)
+        return {"ok": True, "latency": round(time.time() - t0, 1), "reply": text[:80]}
+    except Exception as e:
+        raise HTTPException(502, f"连接测试失败：{e}")
+
+
 # ================= 知识库 =================
 @router.get("/kb")
 def kb_list(u: dict = Depends(require_teacher)):
@@ -272,7 +341,8 @@ async def gen_questions(g: GenIn, u: dict = Depends(require_teacher)):
     d = db.get_db()
     model_raw = db.get_setting(d, "ai_model")
     d.close()
-    model_name = json.loads(model_raw)["model"] if model_raw else "默认"
+    dcfg = llm_direct.get_cfg()
+    model_name = dcfg["model"] + "（直连）" if dcfg else (json.loads(model_raw)["model"] if model_raw else "默认")
     prompt = (
         f"这是管理后台系统任务（不适用四栏格式、不要提问）：请基于工作区知识库（01-岗/02-课/03-赛/04-证 目录的真实文档，先 grep/read 取材）"
         f"为「{cname}」出 {count} 道题，题型分布：{('、'.join(qtypes))}。\n"
@@ -282,12 +352,18 @@ async def gen_questions(g: GenIn, u: dict = Depends(require_teacher)):
         f'多选: {{"qtype":"多选","stem":"...","options":["...","...","...","..."],"answer":"AB","difficulty":2}}\n'
         f'判断: {{"qtype":"判断","stem":"陈述句","options":[],"answer":"A","difficulty":1}}（A=对 B=错）'
     )
-    sid = await _task_session()
     t0 = time.time()
-    try:
-        text, _base = await _run_task(sid, prompt, timeout=300)
-    except Exception as e:
-        raise HTTPException(502, f"AI 出题失败：{e}")
+    if llm_direct.get_cfg():
+        try:
+            text = await llm_direct.run_task_direct(prompt, timeout=300)
+        except Exception as e:
+            raise HTTPException(502, f"AI 出题失败：{e}")
+    else:
+        sid = await _task_session()
+        try:
+            text, _base = await _run_task(sid, prompt, timeout=300)
+        except Exception as e:
+            raise HTTPException(502, f"AI 出题失败：{e}")
     data = _extract_json(text)
     if not data:
         raise HTTPException(502, "AI 未返回可解析的题目 JSON：" + text[:200])
@@ -375,12 +451,18 @@ async def ai_grade(g: GradeIn, u: dict = Depends(require_teacher)):
         + "\n\n".join(lines)
         + '\n只输出一个 JSON 数组（不要 markdown 包裹、不要解释）：[{"qid":123,"correct":true,"reason":"一句话"}]'
     )
-    sid = await _task_session()
     t0 = time.time()
-    try:
-        text, _ = await _run_task(sid, prompt, timeout=300)
-    except Exception as e:
-        raise HTTPException(502, f"AI 判卷失败：{e}")
+    if llm_direct.get_cfg():
+        try:
+            text = await llm_direct.run_task_direct(prompt, timeout=300)
+        except Exception as e:
+            raise HTTPException(502, f"AI 判卷失败：{e}")
+    else:
+        sid = await _task_session()
+        try:
+            text, _ = await _run_task(sid, prompt, timeout=300)
+        except Exception as e:
+            raise HTTPException(502, f"AI 判卷失败：{e}")
     data = _extract_json(text)
     if not data:
         raise HTTPException(502, "AI 未返回可解析的判卷 JSON：" + text[:200])

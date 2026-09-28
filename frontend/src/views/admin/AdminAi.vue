@@ -66,6 +66,57 @@ async function applyModel() {
   modelLoading.value = false
 }
 
+// ================= 直连通道（OpenAI 兼容，默认 DeepSeek） =================
+const directCfg = ref({ configured: false, base_url: '', model: '', has_key: false })
+const directForm = ref({ base_url: 'https://api.deepseek.com', model: 'deepseek-flash', api_key: '' })
+const directBusy = ref(false)
+const directMsg = ref('')
+const directMsgOk = ref(true)
+function directSay(m, ok = true) { directMsg.value = m; directMsgOk.value = ok; setTimeout(() => (directMsg.value = ''), 5000) }
+
+async function loadDirect() {
+  try {
+    const r = await api.aiDirect()
+    directCfg.value = r
+    if (r.configured && r.base_url) directForm.value.base_url = r.base_url
+    if (r.configured && r.model) directForm.value.model = r.model
+  } catch (e) { /* 不阻塞页面 */ }
+}
+onMounted(loadDirect)
+
+async function saveDirect() {
+  directBusy.value = true
+  directMsg.value = ''
+  try {
+    await api.aiDirectSave({ ...directForm.value, api_key: directForm.value.api_key || null })
+    await loadDirect()
+    directForm.value.api_key = ''
+    directSay('✓ 已保存：学生端 AI 问答 / AI 出题 / AI 判卷 现在走直连')
+  } catch (e) {
+    directSay('⚠ ' + e.message, false)
+  }
+  directBusy.value = false
+}
+async function testDirect() {
+  directBusy.value = true
+  directMsg.value = ''
+  try {
+    const r = await api.aiDirectTest()
+    directSay(`✓ 直连测试成功（${r.latency}s）：${r.reply}`)
+  } catch (e) {
+    directSay('⚠ ' + e.message, false)
+  }
+  directBusy.value = false
+}
+async function clearDirect() {
+  if (!confirm('清除直连通道配置？AI 问答 / 出题 / 判卷将回落 DSH 中继（仅本机可用）。')) return
+  try {
+    await api.aiDirectClear()
+    await loadDirect()
+    directSay('已清除直连（回落 DSH 中继）')
+  } catch (e) { alert(e.message) }
+}
+
 // ================= 知识库 =================
 const kb = ref([])
 const kbRoot = ref('')
@@ -183,7 +234,7 @@ const diffName = (n) => ({ 1: '低', 2: '中', 3: '高' }[n] || n)
   <div class="page">
     <div style="font-size: 19px; font-weight: 700; margin-bottom: 6px">AI 管理</div>
     <p style="font-size: 12.5px; color: var(--text-3); margin-bottom: 14px">
-      模型自由选择（本机 DSH 实时目录）· 知识库维护 · AI 按簇出题入库 · AI 复核判卷
+      模型自由选择（直连通道 / 本机 DSH 实时目录）· 知识库维护 · AI 按簇出题入库 · AI 复核判卷
     </p>
     <div class="pills">
       <span v-for="t in tabs" :key="t.id" class="pill" :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</span>
@@ -192,6 +243,29 @@ const diffName = (n) => ({ 1: '低', 2: '中', 3: '高' }[n] || n)
 
     <!-- ============ 模型选择 ============ -->
     <template v-if="tab === 'model'">
+      <div class="card" style="margin-bottom: 14px; border-width: 2px" :style="{ borderColor: directCfg.configured ? '#86efac' : 'var(--line)' }">
+        <div class="card-title">
+          直连 AI 通道（OpenAI 兼容接口）
+          <span v-if="directCfg.configured" class="tag green" style="margin-left: 8px">已启用：{{ directCfg.model }}</span>
+          <span v-else class="tag" style="margin-left: 8px">未启用（当前用 DSH 中继 · 仅本机）</span>
+        </div>
+        <p style="font-size: 12.5px; color: var(--text-3); margin: -4px 0 12px">
+          填写密钥并启用后，学生端 AI 问答、AI 出题、AI 判卷全部直连此接口——服务器 / 演示链接无需安装 DSH。
+          DeepSeek 示例：地址 <code>https://api.deepseek.com</code>，模型 <code>deepseek-flash</code>。密钥只保存在本机数据库，不随源码发布。
+        </p>
+        <div v-if="directMsg" style="font-size: 13px; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid"
+             :style="{ borderColor: directMsgOk ? '#86efac' : '#fca5a5', background: directMsgOk ? '#f0fdf4' : '#fef2f2', color: directMsgOk ? '#15803d' : '#b91c1c' }">{{ directMsg }}</div>
+        <div class="mgrid c3" style="margin-bottom: 12px">
+          <div class="field" style="margin: 0"><label>API 地址（base_url）</label><input v-model="directForm.base_url" placeholder="https://api.deepseek.com" /></div>
+          <div class="field" style="margin: 0"><label>模型（model）</label><input v-model="directForm.model" placeholder="deepseek-flash" /></div>
+          <div class="field" style="margin: 0"><label>API Key <span style="color: var(--text-3)">（留空=保持当前）</span></label><input v-model="directForm.api_key" type="password" :placeholder="directCfg.has_key ? '已设置（留空保持）' : 'sk-…'" /></div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <button class="btn sm" :disabled="directBusy" @click="saveDirect">{{ directBusy ? '处理中…' : (directCfg.configured ? '保存并更新' : '启用直连通道') }}</button>
+          <button class="btn sm ghost" :disabled="directBusy || !directCfg.configured" @click="testDirect">测试连接</button>
+          <button v-if="directCfg.configured" class="btn sm ghost" :disabled="directBusy" style="color: #b91c1c" @click="clearDirect">清除直连（回落 DSH）</button>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title">
           AI 模型选择
