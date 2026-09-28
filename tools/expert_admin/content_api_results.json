@@ -1,0 +1,816 @@
+{
+ "errors": {
+  "login_teacher": {
+   "status": 200,
+   "body": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwic25vIjoiVDIwMjYiLCJyb2xlIjoidGVhY2hlciIsImV4cCI6MTc5MzE2MTc3M30.iKKTLP9CEAXj0_AcSaGez3FEmM71s9_ZQ1CchRopAD0",
+    "user": {
+     "id": 4,
+     "student_no": "T2026",
+     "name": "陈老师",
+     "role": "teacher"
+    }
+   }
+  },
+  "login_student": {
+   "status": 200,
+   "body": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwic25vIjoiUzIwMjYwMDEiLCJyb2xlIjoic3R1ZGVudCIsImV4cCI6MTc5MzE2MTc3M30.YMtZJM-6m9qlTMCSi8PO33URYnn7DR_ef0HFJ6Mwdls",
+    "user": {
+     "id": 1,
+     "student_no": "S2026001",
+     "name": "张小明",
+     "role": "student"
+    }
+   }
+  },
+  "admin_no_token": {
+   "status": 401,
+   "body": {
+    "detail": "未登录"
+   }
+  },
+  "admin_student_token": {
+   "status": 403,
+   "body": {
+    "detail": "需要教师角色"
+   }
+  },
+  "login_bad_pwd": {
+   "status": 401,
+   "body": {
+    "detail": "密码错误"
+   }
+  },
+  "login_unknown_t": {
+   "status": 401,
+   "body": {
+    "detail": "学号不存在"
+   }
+  },
+  "learn_bad_token": {
+   "status": 401,
+   "body": {
+    "detail": "token 无效或过期"
+   }
+  },
+  "notice_422_empty": {
+   "status": 422,
+   "body": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "title"
+      ],
+      "msg": "Field required",
+      "input": {}
+     }
+    ]
+   }
+  },
+  "banner_422_empty": {
+   "status": 422,
+   "body": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "title"
+      ],
+      "msg": "Field required",
+      "input": {}
+     }
+    ]
+   }
+  },
+  "student_422_empty": {
+   "status": 422,
+   "body": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "name"
+      ],
+      "msg": "Field required",
+      "input": {}
+     }
+    ]
+   }
+  },
+  "training_422_empty": {
+   "status": 422,
+   "body": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "title"
+      ],
+      "msg": "Field required",
+      "input": {}
+     }
+    ]
+   }
+  },
+  "kbwrite_422": {
+   "status": 422,
+   "body": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "content"
+      ],
+      "msg": "Field required",
+      "input": {
+       "path": ""
+      }
+     }
+    ]
+   }
+  },
+  "notice_whitespace_title": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "id": 1
+   }
+  },
+  "student_dup_sno": {
+   "status": 400,
+   "body": {
+    "detail": "学号已存在"
+   }
+  },
+  "account_dup_sno": {
+   "status": 400,
+   "body": {
+    "detail": "账号已存在"
+   }
+  },
+  "account_bad_role": {
+   "status": 400,
+   "body": {
+    "detail": "角色仅支持 student/teacher"
+   }
+  },
+  "account_self_disable": {
+   "status": 400,
+   "body": {
+    "detail": "不能停用自己的账号"
+   }
+  },
+  "account_self_delete": {
+   "status": 400,
+   "body": {
+    "detail": "不能删除自己的账号"
+   }
+  },
+  "exam_detail_404": {
+   "status": 404,
+   "body": {
+    "detail": "考试记录不存在"
+   }
+  },
+  "training_404": {
+   "status": 404,
+   "body": {
+    "detail": "Not Found"
+   }
+  },
+  "upload_too_big": {
+   "status": 400,
+   "body": {
+    "detail": "图片超过 4MB 上限"
+   }
+  },
+  "upload_txt": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "url": "/uploads/banner-1790569773-d1e9e5.png"
+   }
+  },
+  "upload_ok_png": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "url": "/uploads/banner-1790569773-3cf28b.png"
+   }
+  },
+  "kb_traversal": {
+   "status": 400,
+   "body": {
+    "detail": "仅允许操作知识库目录内的 .md 文件"
+   }
+  },
+  "kb_too_deep": {
+   "status": 400,
+   "body": {
+    "detail": "路径最多两级（目录/文件.md）"
+   }
+  },
+  "kb_write_new": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "path": "EXPERT-content-kb-覆盖测试.md"
+   }
+  },
+  "kb_write_same_path": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "path": "EXPERT-content-kb-覆盖测试.md"
+   }
+  },
+  "kb_delete_missing": {
+   "status": 404,
+   "body": {
+    "detail": "文件不存在"
+   }
+  },
+  "ai_gen_bad_cluster": {
+   "status": 400,
+   "body": {
+    "detail": "cluster_id 非法"
+   }
+  },
+  "ai_grade_missing": {
+   "status": 404,
+   "body": {
+    "detail": "考试记录不存在"
+   }
+  },
+  "ai_models_get": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": "deepseek-official",
+      "name": "DeepSeek",
+      "models": [
+       {
+        "id": "deepseek-v4-flash",
+        "name": "DeepSeek-V4-Flash",
+        "reasoning": {
+         "efforts": [
+          {
+           "id": "off",
+           "name": "Off"
+          },
+          {
+           "id": "low",
+           "name": "Low"
+          },
+          {
+           "id": "high",
+           "name": "High"
+          },
+          {
+           "id": "max",
+           "name": "Max"
+          }
+         ],
+         "defaultEffort": "high"
+        }
+       },
+       {
+        "id": "deepseek-v4-pro",
+        "name": "DeepSeek-V4-Pro",
+        "reasoning": {
+         "efforts": [
+          {
+           "id": "off",
+           "name": "Off"
+          },
+          {
+           "id": "low",
+           "name": "Low"
+          },
+          {
+           "id": "high",
+           "name": "High"
+          },
+          {
+           "id": "max",
+           "name": "Max"
+          }
+         ],
+         "defaultEffort": "high"
+        }
+       }
+      ]
+     },
+     {
+      "id": "qwen-gateway",
+      "name": "Qwen3.6-27B (本地网关)",
+      "models": [
+       {
+        "id": "qwen3.6-27b",
+        "name": "qwen3.6-27b"
+       }
+      ]
+     },
+     {
+      "id": "freehub-deepseek-v4-flash-glm5-2-3",
+      "name": "freehub-deepseek-v4-flash-glm5-2-3",
+      "models": [
+       {
+        "id": "glm-5.2",
+        "name": "glm-5.2"
+       },
+       {
+        "id": "deepseek-v4-flash",
+        "name": "deepseek-v4-flash"
+       },
+       {
+        "id": "sensenova-6.7-flash-lite",
+        "name": "sensenova-6.7-flash-lite"
+       }
+      ]
+     }
+    ],
+    "current": null,
+    "routable": true,
+    "current_session": {
+     "provider": "qwen-gateway",
+     "model": "qwen3.6-27b"
+    }
+   }
+  },
+  "ai_grades_list": {
+   "status": 200,
+   "body": {
+    "items": []
+   }
+  },
+  "pub_banners": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 1,
+      "title": "老年人跌倒 · 预防与应急处置",
+      "tag": "世赛 × 省赛 GZ063 双对标",
+      "sub": "岗课赛证融通 · 把技能学成肌肉记忆",
+      "image": "",
+      "link": "/",
+      "sort": 0
+     },
+     {
+      "id": 2,
+      "title": "12 分钟理论模拟考",
+      "tag": "限时 12 分钟 · 10 题 100 分",
+      "sub": "对标竞赛情景模块 · 倒计时自动交卷",
+      "image": "",
+      "link": "/practice?menu=mock",
+      "sort": 1
+     },
+     {
+      "id": 3,
+      "title": "比赛资料 · 官方规程与评分标准",
+      "tag": "26 份真实文档",
+      "sub": "世赛/省赛规程 · M8 六项评分 · 常见扣分点 · 三证考核标准",
+      "image": "",
+      "link": "/competition",
+      "sort": 2
+     },
+     {
+      "id": 4,
+      "title": "错题本 · 次日到期 → 第 3 天",
+      "tag": "间隔复习 · 连对 2 次掌握",
+      "sub": "每道错题自动入本 · 重答 / 讲解双模式",
+      "image": "",
+      "link": "/wrong",
+      "sort": 3
+     }
+    ]
+   }
+  },
+  "pub_notices": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 1,
+      "title": "   ",
+      "summary": "x",
+      "created_at": 1790569773
+     }
+    ]
+   }
+  },
+  "student_me": {
+   "status": 200,
+   "body": {
+    "id": 1,
+    "student_no": "S2026001",
+    "name": "张小明",
+    "role": "student",
+    "points": 128,
+    "mastery": {
+     "cpr": 29.0,
+     "env": 71.0,
+     "five": 41.0,
+     "fracture": 38.0,
+     "morse": 62.0,
+     "record": 55.0
+    },
+    "badge_count": 0,
+    "practice_count": 0,
+    "last_score": null,
+    "wrong_due": 0
+   }
+  },
+  "crud_notice_create": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "id": 2
+   }
+  },
+  "crud_notice_pub_visible": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 2,
+      "title": "EXPERT-content-课程预告",
+      "summary": "EXPERT 测试摘要",
+      "created_at": 1790569773
+     },
+     {
+      "id": 1,
+      "title": "   ",
+      "summary": "x",
+      "created_at": 1790569773
+     }
+    ]
+   }
+  },
+  "crud_notice_update": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "crud_notice_pub_after_disable": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 1,
+      "title": "   ",
+      "summary": "x",
+      "created_at": 1790569773
+     }
+    ]
+   }
+  },
+  "crud_banner_create": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "id": 5
+   }
+  },
+  "crud_banner_pub": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 1,
+      "title": "老年人跌倒 · 预防与应急处置",
+      "tag": "世赛 × 省赛 GZ063 双对标",
+      "sub": "岗课赛证融通 · 把技能学成肌肉记忆",
+      "image": "",
+      "link": "/",
+      "sort": 0
+     },
+     {
+      "id": 2,
+      "title": "12 分钟理论模拟考",
+      "tag": "限时 12 分钟 · 10 题 100 分",
+      "sub": "对标竞赛情景模块 · 倒计时自动交卷",
+      "image": "",
+      "link": "/practice?menu=mock",
+      "sort": 1
+     },
+     {
+      "id": 3,
+      "title": "比赛资料 · 官方规程与评分标准",
+      "tag": "26 份真实文档",
+      "sub": "世赛/省赛规程 · M8 六项评分 · 常见扣分点 · 三证考核标准",
+      "image": "",
+      "link": "/competition",
+      "sort": 2
+     },
+     {
+      "id": 4,
+      "title": "错题本 · 次日到期 → 第 3 天",
+      "tag": "间隔复习 · 连对 2 次掌握",
+      "sub": "每道错题自动入本 · 重答 / 讲解双模式",
+      "image": "",
+      "link": "/wrong",
+      "sort": 3
+     },
+     {
+      "id": 5,
+      "title": "EXPERT-content-轮播卡",
+      "tag": "EXPERT",
+      "sub": "测试副标题",
+      "image": "",
+      "link": "/practice",
+      "sort": 99
+     }
+    ]
+   }
+  },
+  "crud_student_create": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "id": 5,
+    "student_no": "S2026004"
+   }
+  },
+  "crud_new_student_login": {
+   "status": 200,
+   "body": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwic25vIjoiUzIwMjYwMDQiLCJyb2xlIjoic3R1ZGVudCIsImV4cCI6MTc5MzE2MTc3M30.9gYI1Z3CnIUAmDy-ULzee1A8wI05imK08DMyOWx1pWM",
+    "user": {
+     "id": 5,
+     "student_no": "S2026004",
+     "name": "EXPERT-content-新同学",
+     "role": "student"
+    }
+   }
+  },
+  "crud_training_create": {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "id": 3
+   }
+  },
+  "crud_training_setstatus": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "crud_training_list": {
+   "status": 200,
+   "body": {
+    "items": [
+     {
+      "id": 3,
+      "title": "EXPERT-content-培训",
+      "batch": "EXPERT",
+      "start_date": "2026-10-01",
+      "end_date": "2026-10-07",
+      "teacher_id": 4,
+      "capacity": 5,
+      "note": "EXPERT 测试",
+      "created_at": 1790569773,
+      "teacher_name": "陈老师",
+      "enrolled": 1,
+      "done": 1,
+      "rate": 100.0,
+      "students": [
+       {
+        "id": 5,
+        "student_no": "S2026004",
+        "name": "EXPERT-content-新同学",
+        "status": "done"
+       }
+      ]
+     },
+     {
+      "id": 2,
+      "title": "跌倒应急演练班·第 1 期",
+      "batch": "2026 秋",
+      "start_date": "2026-10-08",
+      "end_date": "2026-10-30",
+      "teacher_id": 4,
+      "capacity": 30,
+      "note": "含 12 分钟模拟考考核",
+      "created_at": 1790566960,
+      "teacher_name": "陈老师",
+      "enrolled": 0,
+      "done": 0,
+      "rate": 0,
+      "students": []
+     },
+     {
+      "id": 1,
+      "title": "跌倒应急演练班·第 1 期",
+      "batch": "2026 秋",
+      "start_date": "2026-10-08",
+      "end_date": "2026-10-30",
+      "teacher_id": 4,
+      "capacity": 30,
+      "note": "含 12 分钟模拟考考核",
+      "created_at": 1790566886,
+      "teacher_name": "陈老师",
+      "enrolled": 0,
+      "done": 0,
+      "rate": 0,
+      "students": []
+     }
+    ]
+   }
+  },
+  "crud_stats_trainings": {
+   "status": 200,
+   "body": {
+    "trainings": [
+     {
+      "id": 3,
+      "title": "EXPERT-content-培训",
+      "batch": "EXPERT",
+      "start_date": "2026-10-01",
+      "end_date": "2026-10-07",
+      "teacher_id": 4,
+      "capacity": 5,
+      "note": "EXPERT 测试",
+      "created_at": 1790569773,
+      "teacher_name": "陈老师",
+      "enrolled": 1,
+      "done": 1,
+      "rate": 100.0
+     },
+     {
+      "id": 2,
+      "title": "跌倒应急演练班·第 1 期",
+      "batch": "2026 秋",
+      "start_date": "2026-10-08",
+      "end_date": "2026-10-30",
+      "teacher_id": 4,
+      "capacity": 30,
+      "note": "含 12 分钟模拟考考核",
+      "created_at": 1790566960,
+      "teacher_name": "陈老师",
+      "enrolled": 0,
+      "done": 0,
+      "rate": 0
+     },
+     {
+      "id": 1,
+      "title": "跌倒应急演练班·第 1 期",
+      "batch": "2026 秋",
+      "start_date": "2026-10-08",
+      "end_date": "2026-10-30",
+      "teacher_id": 4,
+      "capacity": 30,
+      "note": "含 12 分钟模拟考考核",
+      "created_at": 1790566886,
+      "teacher_name": "陈老师",
+      "enrolled": 0,
+      "done": 0,
+      "rate": 0
+     }
+    ],
+    "students": [
+     {
+      "id": 1,
+      "student_no": "S2026001",
+      "name": "张小明",
+      "enrolled": 0,
+      "done": 0,
+      "hours": 0,
+      "practice": 0,
+      "ai_ask": 1
+     },
+     {
+      "id": 2,
+      "student_no": "S2026002",
+      "name": "李小红",
+      "enrolled": 0,
+      "done": 0,
+      "hours": 0,
+      "practice": 0,
+      "ai_ask": 0
+     },
+     {
+      "id": 3,
+      "student_no": "S2026003",
+      "name": "王大锤",
+      "enrolled": 0,
+      "done": 0,
+      "hours": 0,
+      "practice": 0,
+      "ai_ask": 0
+     },
+     {
+      "id": 5,
+      "student_no": "S2026004",
+      "name": "EXPERT-content-新同学",
+      "enrolled": 1,
+      "done": 1,
+      "hours": 0,
+      "practice": 0,
+      "ai_ask": 0
+     }
+    ],
+    "teachers": [
+     {
+      "id": 4,
+      "name": "陈老师",
+      "trainings": 3,
+      "students": 4
+     }
+    ]
+   }
+  },
+  "clean_notice_ws_1": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "clean_notice": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "clean_banner": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "clean_training": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "clean_student_account": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  },
+  "clean_kb_own": {
+   "status": 200,
+   "body": {
+    "ok": true
+   }
+  }
+ },
+ "crud": {
+  "whitespace_notice_ids": [
+   1
+  ],
+  "txt_upload_url": "/uploads/banner-1790569773-d1e9e5.png",
+  "png_upload_url": "/uploads/banner-1790569773-3cf28b.png",
+  "ai_model_current": null,
+  "ai_model_groups": [
+   "deepseek-official",
+   "qwen-gateway",
+   "freehub-deepseek-v4-flash-glm5-2-3"
+  ],
+  "csv_status": 200,
+  "csv_bom": true,
+  "csv_head_text": "学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态\r\n",
+  "s2026001_mastery": {
+   "cpr": 29.0,
+   "env": 71.0,
+   "five": 41.0,
+   "fracture": 38.0,
+   "morse": 62.0,
+   "record": 55.0
+  },
+  "new_student": {
+   "sno": "S2026004",
+   "id": 5
+  }
+ },
+ "cleanup": {
+  "notice_ws_1": true,
+  "notice": true,
+  "banner": true,
+  "training": true,
+  "student_account": true,
+  "uploaded_file_txt_upload_url": true,
+  "uploaded_file_png_upload_url": true
+ },
+ "notes": [],
+ "self_check": {
+  "announcements": [],
+  "banners": [],
+  "trainings": [],
+  "accounts": [],
+  "kb": []
+ }
+}

@@ -1,0 +1,73 @@
+{
+  "tag": "perf",
+  "date": "2026-09-28 12:30:21",
+  "db_copy": "E:\\lilei\\platform\\tools\\expert_admin\\perf_sim.db",
+  "scale": "30 students (27 synthetic)",
+  "students": 30,
+  "indexes_before": [
+    "idx_answers_attempt",
+    "idx_attempts_student",
+    "idx_chat_student",
+    "idx_enrolls_training",
+    "idx_pointslog_student",
+    "idx_questions_cluster",
+    "idx_study_student",
+    "sqlite_autoindex_checkins_1",
+    "sqlite_autoindex_mastery_1",
+    "sqlite_autoindex_training_enrolls_1"
+  ],
+  "before": {
+    "students_list_current": {
+      "queries": 241,
+      "ms": 15.79
+    },
+    "students_list_fixed": {
+      "queries": 8,
+      "ms": 1.27
+    },
+    "stats_overview_current": {
+      "queries": 159,
+      "ms": 15.98
+    },
+    "stats_overview_fixed": {
+      "queries": 16,
+      "ms": 4.11
+    }
+  },
+  "indexes_added": [
+    "points_log(created_at)",
+    "chat_logs(created_at)",
+    "training_enrolls(student_id)",
+    "attempts(status)",
+    "mastery(cluster_id)",
+    "answers(question_id)",
+    "checkins(date)"
+  ],
+  "after_indexes": {
+    "students_list_current": {
+      "queries": 241,
+      "ms": 15.71
+    },
+    "students_list_fixed": {
+      "queries": 8,
+      "ms": 1.29
+    },
+    "stats_overview_current": {
+      "queries": 159,
+      "ms": 13.1
+    },
+    "stats_overview_fixed": {
+      "queries": 16,
+      "ms": 4.03
+    }
+  },
+  "query_plans_after_indexes": {
+    "points_log_7d_trend": "SEARCH points_log USING INDEX idx_pointslog_created (created_at>? AND created_at<?)",
+    "chat_logs_7d_asks": "SEARCH chat_logs USING INDEX idx_chat_created (created_at>? AND created_at<?)",
+    "enrolls_by_student": "SEARCH training_enrolls USING COVERING INDEX idx_enrolls_student (student_id=?)",
+    "attempts_status_done": "SEARCH attempts USING COVERING INDEX idx_attempts_status (status=?)",
+    "mastery_by_cluster": "SEARCH mastery USING INDEX idx_mastery_cluster (cluster_id=?)",
+    "weak_join_cluster": "SEARCH q USING COVERING INDEX idx_questions_cluster (cluster_id=?) | SEARCH a USING INDEX idx_answers_question (question_id=?)",
+    "checkins_by_date": "SEARCH checkins USING INDEX idx_checkins_date (date>?)"
+  }
+}

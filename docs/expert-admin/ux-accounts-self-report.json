@@ -1,0 +1,46 @@
+{
+ "self_row_probe": {
+  "found": true,
+  "firstCell": "T2026 我",
+  "meTag": true,
+  "hasDeleteBtn": false,
+  "hasResetBtn": true
+ },
+ "self_disable_alert": [
+  "不能停用自己的账号"
+ ],
+ "self_enabled_after": [
+  {
+   "id": 4,
+   "student_no": "T2026",
+   "name": "陈老师",
+   "role": "teacher",
+   "enabled": 1,
+   "created_at": 1790551292
+  },
+  {
+   "id": 1,
+   "student_no": "S2026001",
+   "name": "张小明",
+   "role": "student",
+   "enabled": 1,
+   "created_at": 1790551292
+  },
+  {
+   "id": 2,
+   "student_no": "S2026002",
+   "name": "李小红",
+   "role": "student",
+   "enabled": 1,
+   "created_at": 1790551292
+  },
+  {
+   "id": 3,
+   "student_no": "S2026003",
+   "name": "王大锤",
+   "role": "student",
+   "enabled": 1,
+   "created_at": 1790551292
+  }
+ ]
+}

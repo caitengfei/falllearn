@@ -1,0 +1,168 @@
+{
+  "tag": "qa",
+  "role": "QA 功能专家（功能正确性与边界处理）",
+  "platform": "防跌学堂 FallLearn B 期管理后台（教师端）",
+  "target": "http://127.0.0.1:8010",
+  "method": "代码审读（backend/app/*.py + frontend/src/views/admin/*.vue + api.js）+ 真实黑盒实测（requests API 117 项断言 + Playwright headless Edge UI 21 项断言）",
+  "test_scripts": [
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_common.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_crud.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_errors.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_ui.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_cleanup.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_cleanup2.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\qa_final_check.py"
+  ],
+  "screenshots_dir": "E:\\lilei\\platform\\docs\\expert-admin\\shots\\",
+  "cleaned": true,
+  "cleanup_note": "所有 EXPERT-qa- 前缀数据已全部清理并复核：EXPERT 学生账号 4 个（含 E2E 交卷学生，级联删除其 attempts/answers/mastery/points/study_events）、培训 2 个、公告 4 条（含 2 次脚本崩溃遗留的 3 条'EXPERT-qa-过期公告'）、轮播 1 张、KB 测试文件 1 个、上传文件 3 个、settings.ai_model 恢复为空、孤儿 exams/exam_items（E2E 产生）已清除。终态核对：users=4 基线账号、banners=4 种子卡、announcements=0、trainings=2（均为测试前遗留、非 EXPERT 前缀、未动）、questions=1358（含 5 道 AI 生成，未动）、attempts/answers/exams/study_events/ai_grades/settings=0、KB=26 文档。uploads 目录余 1 个文件 banner-1790569953-24c9d3.png，时间戳早于本人首个上传、无法归属为本人创建（同期有其他专家并行测试），按红线未删除。红线遵守：未调用 POST /api/admin/reset-demo；未触发 ai generate-questions 真实生成（仅测 cluster_id=nonexistent 同步 400 路径；count=2/21 会钳制后进入真实生成，按红线未调用，行为由 aiops.py:227 代码确认）；未触发 ai grade 真实判卷（仅测 attempt_id=999999 同步 404 路径）；种子轮播卡、S2026001-3、T2026、已有 KB 文档、5 道 AI 生成题均未改动。注：基线描述为'1 个培训'，实测开始时 trainings 表已有 2 行（均'跌倒应急演练班·第 1 期'、0 报名、无 EXPERT 前缀），为早前遗留，未触碰。",
+  "summary": "117 项 API 断言 + 21 项 UI 断言，共发现 15 个问题：4 major、11 minor，无 critical，全程无 500。核心缺陷：① 停用账号仍可登录拿到 30 天 token（auth.py 登录不查 enabled），与学生端'停用后无法登录'的 UI 承诺相悖；② 考试页学生筛选下拉是装饰性的——列表请求从不携带 student_id（api.js 未实现该参数，仅 CSV 导出传），浏览器抓包实锤；③ AI 模型选择 POST 先落库后校验，切换失败(502)后平台设置仍指向不存在的模型且 UI 将其显示为'当前'，且无清除接口；④ reset-demo 实际按 student_no LIKE 'S%' 清数据+清空整张 exams 表，远超 UI 文案'清空 3 个演示学生'（代码审读，按红线未实测）。CRUD 主循环（公告/轮播/培训/学生/账号/考试 E2E）全部通过：创建/编辑/启停/置顶/排序/删除/级联/自动学号/重复姓名/重复报名幂等/完成率口径/公开接口 enabled+日期窗过滤/学生表与 stats 学时一致性均正确。错误路径绝大多数为干净中文 4xx；500 为零。",
+  "findings": [
+    {
+      "id": "QA-1",
+      "severity": "major",
+      "title": "停用账号仍可登录并拿到有效 token，'停用后无法登录'仅对后续请求生效",
+      "where": "POST /api/auth/login — backend/app/auth.py:38-46（login 未检查 enabled）；UI 承诺：frontend/src/views/admin/AdminAccounts.vue:31",
+      "evidence": "实测：PUT /api/admin/students/6 {enabled:0} → 200；随后 POST /api/auth/login {\"student_no\":\"S2026005\",\"password\":\"123456\"} → HTTP 200 {\"token\":\"eyJhbGciOiJIUzI1NiIs...\"}（正常发 token）；再用该 token GET /api/auth/me → 403 '账号已停用，请联系管理员'。前端影响：Login.vue 登录成功分支照常跳首页并 auth.save，顶栏显示已登录；学生端各页请求全部 403，而 api.js 只对 401 做清除重定向（403 不触发），用户卡在'已登录但处处报错'状态，只能手动退出。",
+      "repro": "教师登录 → /admin/students 关闭某学生启用开关 → 用该学生账号在登录页登录 → 登录成功（HTTP 200、发 token）进入学生端 → 每个页面请求均 403'账号已停用'。",
+      "suggestion": "auth.py login() 中 bcrypt.checkpw 通过后增加：if not u[\"enabled\"]: raise HTTPException(403, \"账号已停用，请联系管理员\")。同时建议在 api.js 的 401 分支把 403+'账号已停用' 也并入 auth.clear() 处理，保证前端状态一致。"
+    },
+    {
+      "id": "QA-2",
+      "severity": "major",
+      "title": "考试页'学生筛选'下拉对列表不生效：列表请求从不携带 student_id 参数",
+      "where": "/admin/exams — frontend/src/api.js:109（adminExams 只拼 status）+ frontend/src/views/admin/AdminExams.vue:16（load() 未传 fStudent）、:57-62（下拉 @change 只触发 load）",
+      "evidence": "浏览器实测（Playwright 抓 XHR）：在考试页学生下拉选择'张小明（S2026001）'后，仅发出 1 个请求 GET /api/admin/exams?status=done（无 student_id），列表仍显示 1 行（E2E 学生 S2026004 的已交卷，score=30），截图 qa_4_exam_filter_bug.png。对照 API 层：GET /api/admin/exams?status=done&student_id=5 → 1 条（命中），student_id=1 → 0 条——后端筛选逻辑本身正确，缺陷在前端未传参。仅 CSV 导出（AdminExams.vue:38 exportCsv 拼了 ?student_id=）使用该筛选值，与列表行为不一致。",
+      "repro": "让任意学生交一份卷 → 教师进 /admin/exams → 学生下拉选择另一名学生（无交卷者）→ 列表行数不变（仍显示其他学生的卷）；导出 CSV 则按该生过滤，两行为不一致。",
+      "suggestion": "api.js:109 改为 adminExams: (status = '', student_id = 0) => request(`/api/admin/exams?status=${status}${student_id ? `&student_id=${student_id}` : ''}`)；AdminExams.vue:16 改为 api.adminExams(fStatus.value, fStudent.value)。"
+    },
+    {
+      "id": "QA-3",
+      "severity": "major",
+      "title": "AI 模型选择 POST 先落库后校验：切换失败(502)后平台设置仍持久指向不存在的模型，且 UI 显示为'当前'",
+      "where": "POST /api/admin/ai/model — backend/app/aiops.py:139-151（set_setting 在 select_model 之前，:143-144）",
+      "evidence": "实测：基线 settings 表为空 → POST /api/admin/ai/model {\"provider\":\"EXPERT-qa-bogus\",\"model\":\"no-such-model\"} → HTTP 502 {\"detail\":\"模型切换失败（设置已保存，新会话将使用）：session.selectModel error: model-unavailable no adapter registered for provider...\"}；请求后读库 settings.ai_model='{\"provider\": \"EXPERT-qa-bogus\", \"model\": \"no-such-model\"}'（已持久化，测试后已恢复为空）；期间 GET /api/admin/ai/models 响应的 current 字段即该非法值（前端'当前：xxx'标签会显示失效模型）。无 API 可清除/重置该设置。学生端 AI 问答有兜底（learn.py:55-75 _apply_model 捕获异常后 pass，沿用会话当前模型），故不阻断使用，但管理端状态与实际不符、且教师无法从 UI 恢复到'未设置'。",
+      "repro": "/admin/ai → 模型选择 tab → 构造一个 DSH 目录外的 provider/model 提交（或直接 API 调用）→ 页面显示 502 错误文案 → 刷新页面，'当前：no-such-model'仍显示；此后每次 GET /models 的 current 都是该失效值。",
+      "suggestion": "aiops.py model_select() 把 db.set_setting 移到 select_model 成功之后（成功才持久化）；或在保存前先用 session.models 目录校验 provider/model 存在（400 中文提示）。另外建议提供清除 ai_model 的端点（或允许 model 字段传空恢复默认）。"
+    },
+    {
+      "id": "QA-4",
+      "severity": "major",
+      "title": "reset-demo 实际清理范围远超 UI 文案：按 student_no LIKE 'S%' 清全部学生数据并清空整张 exams/exam_items 表",
+      "where": "POST /api/admin/reset-demo — backend/app/admin.py:47-68（L55 SIDS=\"SELECT id FROM users WHERE student_no LIKE 'S%'\"，L63-64 DELETE FROM exams / exam_items 全表）；UI 文案 frontend/src/views/admin/AdminOverview.vue:162-164",
+      "evidence": "代码审读（按任务红线未实际调用该端点，标注'未实测'）：SIDS 子查询匹配所有 S 前缀账号——教师新建的任何学生（自动 S2026xxx 或手填 S 开头学号）的 mastery/wrong_records/chat_logs/points_log/attempts/study_events/training_enrolls 等都会被物理删除，而 UI 弹窗仅写'清空 3 个演示学生（S2026001-3）……教师账号与题库、管理数据不受影响'；且 L63-64 对 exams/exam_items 全表 DELETE，会把所有学生（含非演示学生）的组卷记录一并清掉，attempts 经 SIDS 删除后 exam_items 成为无引用残留（实际是全删，更直接）。密码重置范围（4 个演示账号）与 UI 一致，但数据清理范围与文案严重不符，误点'确认重置'将造成教师自建学生数据不可恢复丢失。",
+      "repro": "（未实测，代码路径）教师新建学生 S2026004 并让其完成练习 → /admin 点'演示数据重置'并确认 → S2026004 的学习痕迹被一并清空（预期只有 S2026001-3 受影响）。",
+      "suggestion": "admin.py reset_demo() 将 SIDS 改为显式白名单 SELECT id FROM users WHERE student_no IN ('S2026001','S2026002','S2026003')；exams/exam_items 的清理限定为 created_by 属于这 3 个演示学生（或干脆不动 exams 表，attempts 删除后由前端 LEFT JOIN 容错）；同步修改 AdminOverview.vue 弹窗文案与实际范围一致，或对该按钮加二次输入确认（如输入 RESET）。"
+    },
+    {
+      "id": "QA-5",
+      "severity": "minor",
+      "title": "得分颜色/班级弱项错误率的三元表达式写在静态 style 属性里，CSS 无效、条件着色永不生效",
+      "where": "/admin/exams — frontend/src/views/admin/AdminExams.vue:75（style=\"... color: a.score >= 60 ? '#15803d' : 'var(--primary)'\"）；/admin — frontend/src/views/admin/AdminOverview.vue:131（style=\"... color: w.rate > 50 ? 'var(--primary)' : 'var(--text-2)'\"）",
+      "evidence": "浏览器实测：E2E 卷 score=30（<60 应为红色 var(--primary)=#e4393c），getComputedStyle 实得 rgb(31, 36, 48)（默认深色，声明被浏览器丢弃），截图 qa_4_exam_filter_bug.png；数据总览'班级弱项'截图 qa_1_overview.png 中 100%/100%/66.7% 均为深色、无一红色，与静态 style 三元失效一致。Vue 静态 style 属性不做表达式求值，整条 color 声明为非法 CSS 被丢弃。",
+      "repro": "学生交卷后教师进 /admin/exams：得分数字颜色不随及格/不及格变化；/admin 班级弱项错误率 >50% 不高亮红色。",
+      "suggestion": "AdminExams.vue:75 改 :style=\"{ color: a.score >= 60 ? '#15803d' : 'var(--primary)' }\"；AdminOverview.vue:131 改 :style=\"{ color: w.rate > 50 ? 'var(--primary)' : 'var(--text-2)' }\"（保留其余静态样式可拆分到 class）。"
+    },
+    {
+      "id": "QA-6",
+      "severity": "minor",
+      "title": "AI 判卷'选择已交卷'下拉不自动加载，教师必须手动点'刷新卷单'才能选卷",
+      "where": "/admin/ai AI 判卷 tab — frontend/src/views/admin/AdminAi.vue:123-145（loadAttempts 仅绑定 :281 刷新按钮，无 onMounted/watch 调用）",
+      "evidence": "浏览器实测：登录教师直接进 /admin/ai → AI 判卷 tab，下拉初始仅 1 个占位 option（'请选择…'）——此时 DB 中已有 1 份 E2E 已交卷（/api/admin/exams?status=done 返回 1 条）；点击'↻ 刷新卷单'后选项数变 2（占位+E2E 卷），截图 qa_5_ai_grade_tab.png。首次进入无法直接判卷。",
+      "repro": "存在已交卷时，教师首次打开 /admin/ai → AI 判卷 tab → 下拉为空，必须手动点'刷新卷单'。",
+      "suggestion": "AdminAi.vue 在 onMounted 或 watch(() => tab.value, v => { if (v === 'grade') loadAttempts() }) 中调用 loadAttempts()（判卷 tab 首次切入即加载）。"
+    },
+    {
+      "id": "QA-7",
+      "severity": "minor",
+      "title": "轮播图上传不校验文件类型：非图片 .txt 文件返回 200 并被改名存为 .png",
+      "where": "POST /api/admin/upload — backend/app/manage.py:77-89（仅查大小；L83-85 非白名单扩展名静默改写为 png）",
+      "evidence": "实测：POST /api/admin/upload（file 名 EXPERT-qa-note.txt，内容 'EXPERT-qa not an image'，content-type text/plain）→ HTTP 200 {\"ok\": true, \"url\": \"/uploads/banner-1790570133-50e7db.png\"}，纯文本内容以 .png 落盘（测试后已删）。对照：>4MB 文件正确返回 400 '图片超过 4MB 上限'。端点 docstring 声明'仅接受图片'。后果：轮播卡保存后学生端首页 <img src> 加载失败显示破图。",
+      "repro": "/admin/content → 新增轮播卡 → 背景图选择任意 .txt 文件 → 提示'图片已上传'并回填 .png 链接 → 保存轮播卡 → 学生端首页该卡图片破图。",
+      "suggestion": "manage.py upload_image：扩展名不在白名单时直接 raise HTTPException(400, \"仅支持 png/jpg/jpeg/webp/gif 图片\")，不要静默改写扩展名；进一步可用 magic bytes（PNG \\x89PNG / JPEG \\xFF\\xD8 / GIF / WEBP）二次校验内容。"
+    },
+    {
+      "id": "QA-8",
+      "severity": "minor",
+      "title": "公告空标题可入库（服务端无校验）；banner/announcement 对不存在 id 的 PUT/DELETE 静默返回 200",
+      "where": "POST/PUT/DELETE /api/admin/announcements、/api/admin/banners — backend/app/manage.py:93-140（NoticeIn.title 无 min_length/strip 校验）、:57-74（update/delete 不检查影响行数）",
+      "evidence": "实测：POST /api/admin/announcements {\"title\":\"\"} → 200 {\"ok\":true,\"id\":...}（空标题公告入库，测试后立即删除）；PUT /api/admin/announcements/999999 → 200 {\"ok\":true}；DELETE /api/admin/announcements/999999 → 200 {\"ok\":true}；PUT/DELETE /api/admin/banners/999999 同样 200。对照：学生/账号端点对不存在 id 正确返回 404 中文。前端有标题非空拦截（AdminContent.vue:27,50），但 API 层无防护，旧客户端/直接调用可产生空标题公告（学生端首页公告条显示空白条）。",
+      "repro": "直接调 POST /api/admin/announcements {\"title\":\"\"} → 200，管理端列表出现无标题行。",
+      "suggestion": "NoticeIn/BannerIn 增加 title 校验（validator：strip 后非空，否则 400 '请填写标题'）；banners_update/banners_delete/announcements_update/announcements_delete 先 SELECT 或检查 cursor.rowcount，不存在则 404 '记录不存在'。"
+    },
+    {
+      "id": "QA-9",
+      "severity": "minor",
+      "title": "账号更新只传 password 时 enabled 被静默重置为 1（停用的账号被'重置密码'顺带重新启用）",
+      "where": "PUT /api/admin/accounts/{uid} — backend/app/manage.py:390-411（AccountPatch.enabled 默认 1，:403 sets 恒含 enabled）",
+      "evidence": "实测：S2026005 停用（PUT /students/6 enabled=0 → 200，列表显示停用）→ PUT /api/admin/accounts/6 {\"password\":\"123456\"}（body 不含 enabled）→ 200 {\"ok\":true} → GET /api/admin/accounts 该行 enabled=1（停用状态被静默清除）。当前 UI 两处调用都显式传了 enabled（AdminAccounts.vue:33,40），故线上不可复现，属 API 契约陷阱：任何遗漏 enabled 的调用方都会把账号重新启用。",
+      "repro": "停用某账号 → 调 PUT /api/admin/accounts/{id} 仅带 {\"password\":\"123456\"} → 该账号变回启用。",
+      "suggestion": "manage.py AccountPatch.enabled 改为 Optional[int] = None；accounts_update 中仅当 enabled is not None 时才把 'enabled=?' 加入动态 SET。"
+    },
+    {
+      "id": "QA-10",
+      "severity": "minor",
+      "title": "培训 capacity 无下限校验（0 可建），且报名/一键补报完全不检查容量",
+      "where": "POST/PUT /api/admin/trainings、POST /api/admin/trainings/{tid}/enroll — backend/app/manage.py:415-423（TrainingIn.capacity: int = 30 无 ge）、:480-496（enroll 不读 capacity）",
+      "evidence": "实测：POST /api/admin/trainings {\"title\":\"EXPERT-qa-容量0\",\"capacity\":0,\"student_ids\":[]} → 200 {\"ok\":true,\"id\":4}（测试后已删）。enroll 端点逐条 INSERT，不比较 enrolled 与 capacity；UI'一键补报'（AdminTrainings.vue:38-42）对全部启用学生补报，容量 5 的培训可报 50 人，capacity 字段实际无约束力。",
+      "repro": "新建培训容量填 0（或 1）→ 创建成功；'一键补报'后报名人数超过声明容量，页面容量与报名人数并排显示自相矛盾。",
+      "suggestion": "TrainingIn.capacity 用 Field(default=30, ge=1, le=999)（若业务需要'不限'，显式用 0 表示并在文案说明）；trainings_enroll 中 capacity>0 时检查 SELECT COUNT(*) < capacity，满员返回 400 '培训已满员（capacity 人）'，并在 enrollAll 前端提示。"
+    },
+    {
+      "id": "QA-11",
+      "severity": "minor",
+      "title": "exams?status=badvalue 返回 200 空列表、export?student_id=999999 返回仅表头 CSV（均非 4xx）",
+      "where": "GET /api/admin/exams、/api/admin/exams/export — backend/app/manage.py:175-193（status 无白名单校验）、:196-222（student_id 不校验存在性）",
+      "evidence": "实测：GET /api/admin/exams?status=badvalue → 200 {\"items\":[]}；GET /api/admin/exams/export?student_id=999999 → 200 text/csv，body 仅 '学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态\\r\\n' 一行表头。无 500、功能不崩，但非法/不存在的过滤值没有干净的 4xx 反馈，教师导出'不存在的学生'得到空文件而无提示。",
+      "repro": "按上述 URL 直接请求（或 UI 下拉选学生后把 student_id 篡改为 999999 导出）。",
+      "suggestion": "exams_list 对 status 做白名单校验（open/done，否则 400 'status 仅支持 open/done'）；exams_export 中 student_id>0 时先查 users 存在性，不存在 404 '学生不存在'（或保留空导出但在响应头/前端提示'该学生无记录'）。"
+    },
+    {
+      "id": "QA-12",
+      "severity": "minor",
+      "title": "培训 set_status 对不存在的（培训,学生）组合静默返回 200 ok",
+      "where": "POST /api/admin/trainings/{tid}/students/{uid}/status — backend/app/manage.py:499-508（UPDATE 无存在性检查，rowcount 恒忽略）",
+      "evidence": "实测：POST /api/admin/trainings/3/students/999999/status {\"status\":\"done\"}（培训 3 存在、学生 999999 不存在）→ 200 {\"ok\":true}（UPDATE 影响 0 行）。前端 setDone 只对本培训已列出的学生触发（AdminTrainings.vue:43-45），UI 路径安全，但 API 契约上'成功'与'实际未发生'不可区分，调用方无法感知失败。",
+      "repro": "对任意培训 id + 不存在学生 id 调用该端点 → 200 ok，数据库无变化。",
+      "suggestion": "manage.py trainings_set_status：执行 UPDATE 后 if d.total_rowcount == 0: raise HTTPException(404, \"培训记录不存在\")（或先 SELECT training_enrolls 校验）。"
+    },
+    {
+      "id": "QA-13",
+      "severity": "minor",
+      "title": "删除账号不清理该账号产生的 exams/exam_items 行（孤儿数据，created_by 指向已删用户）",
+      "where": "DELETE /api/admin/accounts/{uid} — backend/app/manage.py:369-387（清理表清单 :378-383 不含 exams/exam_items）",
+      "evidence": "实测：E2E 学生（uid=5）POST /api/quiz/start 生成 exams 行（id=1 '理论模拟考·跌倒风险与急救', kind=mock, created_by=5）+ exam_items 10 行 → DELETE /api/admin/accounts/5 → 200，users/attempts/answers 等全部清除，但 SELECT * FROM exams WHERE created_by IN (5,6) 仍返回该 exams 行 + 10 条 exam_items（测试数据已由收尾脚本清除，取证记录在 qa_cleanup.py 输出）。exams.created_by 无外键，删除后永久残留。",
+      "repro": "任意学生开卷（/api/quiz/start）后教师删除其账号 → DB 中 exams/exam_items 残留该行（考试页因 attempts 已删而不可见，但表持续膨胀）。",
+      "suggestion": "manage.py accounts_delete 在 DELETE FROM users 之前补两行：DELETE FROM exam_items WHERE exam_id IN (SELECT id FROM exams WHERE created_by=?)；DELETE FROM exams WHERE created_by=?。"
+    },
+    {
+      "id": "QA-14",
+      "severity": "minor",
+      "title": "FastAPI 参数校验错误返回英文 detail（与平台其余中文错误风格不一致）",
+      "where": "所有 query/body 类型校验失败路径，如 GET /api/admin/exams?student_id=abc",
+      "evidence": "实测：GET /api/admin/exams?status=done&student_id=abc → 422 {\"detail\":[{\"type\":\"int_parsing\",\"loc\":[\"query\",\"student_id\"],\"msg\":\"Input should be a valid integer, unable to parse string as an integer\",\"input\":\"abc\"}]}。平台其他错误均为中文 detail（'学号已存在''status 仅支持 enrolled/done'等），此处 UI 会原样弹出英文技术信息。",
+      "repro": "管理端任意 int 参数传非数字（或直接构造 URL）。",
+      "suggestion": "main.py 注册全局异常处理器：@app.exception_handler(RequestValidationError) 返回 400 + 中文 detail（如'参数格式错误：student_id 需为数字'）；可选地把 405/404 兜底一并中文化。"
+    },
+    {
+      "id": "QA-15",
+      "severity": "minor",
+      "title": "KB 写入接受 '/etc/x.md' 型绝对路径（lstrip('/') 后落入 KB 内部，未逃逸但行为反直觉）",
+      "where": "POST /api/admin/ai/kb — backend/app/aiops.py:177-199（_kb_abs L178 lstrip('/')）",
+      "evidence": "实测：POST /api/admin/ai/kb {\"path\":\"/etc/EXPERT-qa-x.md\"} → 200 {\"ok\":true,\"path\":\"etc\\\\EXPERT-qa-x.md\"}，文件写在 KB 根下新增 etc/ 目录（测试后经 API 删除并移除空目录）。对照：'../../x.md' → 400 '仅允许操作知识库目录内的 .md 文件'；'C:/Windows/EXPERT-qa-x.md' → 400 同文案（Windows 绝对路径被 normpath+startswith 拦截，未逃逸）。即绝对路径无安全风险（被限制在 KB 内），但用户输入以 '/' 开头的相对意图（如想建 '01-岗/x.md' 误敲前导 /）会静默创建 KB 根部杂散目录，且前端提示'相对路径（二级以内）'与该行为不一致。另注：_kb_abs 的 startswith(normpath(KB)) 前缀判断理论上是经典弱点（兄弟目录'…知识库-evil'可绕过），但当前被'路径最多两级'的深度限制完全中和（逃逸路径必含 ≥2 级 ../），暂无实际利用路径。",
+      "repro": "直接调 POST /api/admin/ai/kb {\"path\":\"/etc/EXPERT-qa-x.md\",\"content\":\"x\"} → 200，KB 下出现 etc/ 目录。",
+      "suggestion": "aiops.py _kb_abs 开头增加：if b.path.startswith(\"/\") or \":\" in os.path.splitdrive(b.path.replace(\"\\\\\",\"/\"))[0]: raise HTTPException(400, \"请填写相对路径（如 01-岗/xxx.md）\")；startswith 判断可顺手改为 p == kb_root or p.startswith(kb_root + os.sep) 作为防御加固。"
+    }
+  ],
+  "verified_ok": [
+    "CRUD 主循环全通过：公告(建/改/置顶排序/启停/删)、轮播(建含 600x340 png 上传/改/上下移动交换 sort/启停/删)、培训(建含初始报名/重复报名幂等/标记完成 rate=50.0/一键补报/删级联)、学生(自动学号 S2026004/重复姓名允许且学号递增/显式重复学号 400)、账号(学生+教师自动号/非法角色 400/自停自删 400/删除后两表消失)",
+    "考试 E2E：学生开卷 mock 10 题→交卷(全 A, score=30)→管理端列表/学生筛选(API 层)/逐题明细 10 题/CSV 导出均正确；学生表学时与 stats/overview hours 一致(0.0=0.0)；六簇 mastery 色块数据源正确",
+    "公开接口一致性：enabled=0 公告/轮播不出现在 /api/content/*；end_date=昨天 的启用公告公开不出现、管理可见",
+    "上传 >4MB → 400 '图片超过 4MB 上限'；上传文件回读 200 image/png",
+    "KB 边界全通过：三级路径 400、非 .md 400、../../ 穿越 400、C:/ 绝对路径 400、二级写入+列表+1+删除恢复、删不存在 404 '文件不存在'",
+    "AI 同步错误路径：generate-questions cluster_id=nonexistent → 400 'cluster_id 非法'（未触发生成）；grade attempt_id=999999 → 404 '考试记录不存在'（未触发判卷）；GET ai/models 200 返回 3 组目录（0s，命中 600s 缓存；首次实测 1-3s 量级）；GET ai/grades 空列表 200",
+    "鉴权：无 token 401 '未登录'；学生 token 访问 /api/admin/* 403 '需要教师角色'；错误密码 401 '密码错误'；不存在学号 401 '学号不存在'",
+    "UI 渲染：/admin 六指标卡+7 日趋势+排行榜三 tab+弱项+学时表；/admin/content 4 张种子卡未动；/admin/trainings 报名3/完成1/33.3% 正确；/admin/stats 三 tab+教师带训计数 3 正确；/admin/accounts T2026 有'我'标记且删除按钮隐藏",
+    "全程零 500（117 项 API + 21 项 UI 断言）；红线端点（reset-demo/真实 AI 生成/真实判卷）未调用"
+  ]
+}

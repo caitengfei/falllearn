@@ -1,0 +1,18 @@
+{
+ "reset_button_style": {
+  "bg": "rgb(55, 65, 81)",
+  "color": "rgb(255, 255, 255)",
+  "cls": "btn sm dark"
+ },
+ "reset_modal_open": true,
+ "reset_modal_text": "演示数据重置✕ 将清空 3 个演示学生（S2026001-3）的积分、掌握度、练习、错题、对话、学时等全部学习痕迹，并把 S2026001 恢复到标准演示基线（128 分 / 3 道错题 / 一条四栏问答）。教师账号与题库、管理数据不受影响。 确认重置取消",
+ "reset_modal_style": {
+  "position": "static",
+  "background": "rgba(0, 0, 0, 0)",
+  "w": 1180,
+  "top": 1024
+ },
+ "reset_modal_closed_via_x": true,
+ "lb_tab_hours_first_row": "🥇张小明 S20260010",
+ "refresh_btn_label_while_loading": "↻ 刷新"
+}

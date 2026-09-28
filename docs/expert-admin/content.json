@@ -1,0 +1,189 @@
+{
+  "tag": "content",
+  "role": "内容专家 · 防跌学堂 B 期管理后台（教师端）文案与信息质量评审",
+  "date": "2026-09-28",
+  "method": "源码审读（8 管理页 + 学生端 6 页 + 后端 9 模块）+ 黑盒实测（requests API 4xx/CRUD 生命周期 + headless Playwright(channel=msedge) DOM 文案采集）+ SQLite 只读比对；未调用 reset-demo、未跑真实 AI 出题/判卷",
+  "evidence_files": [
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_api.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_api_results.json",
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_dom.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_dom_results.json",
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_verify.py",
+    "E:\\lilei\\platform\\tools\\expert_admin\\content_verify_results.json"
+  ],
+  "cleaned": true,
+  "cleanup_note": "本专家创建的全部数据（EXPERT-content- 前缀：预告 2 条（含 1 条空白标题测试数据）、轮播卡 2 张、学生账号 S2026004、培训 1 期、KB 文件 1 个、上传文件 3 个）已全部删除；收尾自查 announcements/banners/trainings/accounts/students/KB 列表 EXPERT-content 命中均为 0，backend/uploads 无本专家残留。环境观察：测试期间 QA 专家并行创建 EXPERT-qa- 数据（4 条过期公告、1 个含 3 人报名的培训）与 1 个无前后缀的重复培训「跌倒应急演练班·第 1 期」，非本专家数据，未动。",
+  "findings": [
+    {
+      "id": "CT-1",
+      "severity": "minor",
+      "title": "后端 422 校验错误经前端弹窗显示为「[object Object]」，教师完全无法理解",
+      "where": "frontend/src/api.js:49-54（throw new Error(data.detail)）+ 各管理页 alert(e.message)（如 AdminContent.vue:54）",
+      "evidence": "实测 POST /api/admin/announcements {} → 422 {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"title\"],\"msg\":\"Field required\",...}]}；JS 实测（Playwright evaluate）new Error(detail数组).message === \"[object Object]\"（content_verify_results.json:js_error_array_render）。真实 UI 触发路径：轮播卡弹窗清空「排序」数字框→保存→PUT sort=null→实测 422 int_type（content_verify_results.json:sort_null_422）。",
+      "repro": "1) /admin/content 新增轮播卡，清空「排序」输入框；2) 点保存；3) 弹窗显示 [object Object]。或直接用 API 提交缺字段请求。",
+      "suggestion": "api.js request() 里 !res.ok 时若 Array.isArray(data.detail)，规范化为 data.detail.map(e => `${e.loc?.slice(1).join('.')}: ${e.msg}`).join('；') 再抛错；顺带在中文前缀提示「保存失败：」。"
+    },
+    {
+      "id": "CT-2",
+      "severity": "minor",
+      "title": "课程预告/轮播标题后端不校验空白，纯空格标题可入库并原样下发学生端",
+      "where": "backend/app/manage.py:111-120（notices_create）、46-54（banners_create）无 strip/非空校验；前端仅 AdminContent.vue:27 有 trim 校验",
+      "evidence": "实测 POST /api/admin/announcements {\"title\":\"   \",\"summary\":\"x\"} → 200 {\"ok\":true,\"id\":1}；GET /api/content/announcements（学生端公开接口）返回 {\"title\":\"   \",\"summary\":\"x\"} → 学生首页公告条渲染为空白 <b> 标题 +「· x」。",
+      "repro": "curl -X POST /api/admin/announcements -H 教师token -d '{\"title\":\"   \"}' → 200；学生登录首页可见空标题公告条。",
+      "suggestion": "manage.py 的 notices_create/banners_create 入口做 title=title.strip() 且空则 raise HTTPException(400, \"标题不能为空\")（与前端提示一致，API 层兜底）。"
+    },
+    {
+      "id": "CT-3",
+      "severity": "minor",
+      "title": "首页首张种子轮播卡 CTA「去看看 ›」点击后停留在原地（link=\"/\" 是死跳转）",
+      "where": "backend/app/db.py:192（种子 banner #1 link=\"/\"）+ frontend/src/views/Home.vue:26（CTA_BY_LINK 兜底 '去看看'）、191（.b-cta 点击）",
+      "evidence": "实测 GET /api/content/banners 第一条 {id:1, title:\"老年人跌倒 · 预防与应急处置\", link:\"/\"}；Playwright 实测首页首屏 CTA 文本「去看看 ›」，点击后 location.href 仍为 http://127.0.0.1:8010/（content_dom_results.json:home_cta1_landed）。学生看到可点击按钮却无任何反应。",
+      "repro": "学生登录 → 首页第一张轮播 → 点「去看看 ›」→ 页面无任何变化。",
+      "suggestion": "db.py 种子卡 link 改 \"/learn\"（对应 CTA 自动变「开始学习」）；或 Home.vue 中 link==='/' 时不渲染 .b-cta 按钮。"
+    },
+    {
+      "id": "CT-4",
+      "severity": "minor",
+      "title": "学生端知识卡各簇题数为前端硬编码，「五步处置 79 题」已过期（实际 84 题）",
+      "where": "frontend/src/api.js:163（CLUSTER_QCOUNT，注释自称「真实入库数」）+ Home.vue:277/296 + Learn.vue:292",
+      "evidence": "SQLite 实测 questions 表 five=84（含 5 道 origin=AI生成，ai_generated_by_cluster=[['five',5]]），UI DOM 显示「五步处置 79 题」（content_dom_results.json:10_student_home）；总题库 1358 在管理端是动态的，唯六簇卡是静态值（morse20/env58/fracture9/record35/cpr2 当前仍一致，five 已偏 5 题）。",
+      "repro": "学生登录 → 首页知识卡「五步处置」显示 79 题；管理员在 AI 出题页再入库任意 five 簇题目后偏差继续扩大。",
+      "suggestion": "新增 /api/meta/clusters 返回六簇实时题量+名称+颜色（同时解决 GBrain 遗留#146 前后端双份硬编码），替换 CLUSTER_QCOUNT/CLUSTERS 静态表。"
+    },
+    {
+      "id": "CT-5",
+      "severity": "minor",
+      "title": "模型选择页「切换后立即生效」措辞不准确，且平台未设置模型时界面无法看出学生问答实际在用哪个模型",
+      "where": "frontend/src/views/admin/AdminAi.vue:162-164（说明文案）、47（toast「现在使用」）；机制见 backend/app/learn.py:180（_apply_model 在 ask() 内）、aiops.py:28-50/141（任务会话下次任务前切换）",
+      "evidence": "后端 docstring 明确「学生端 AI 问答下一问即生效」（aiops.py:141），即正在进行的对话/任务不切换，「立即生效」与「现在使用」均夸大。另实测 GET /api/admin/ai/models 返回 current:null（平台未设置）而 current_session:{provider:\"qwen-gateway\",model:\"qwen3.6-27b\"}（学生问答实际模型），API 已提供该字段但前端只读 r.items/r.current（AdminAi.vue:24-27），导致「当前：xxx」绿标缺失（DOM ai_current_tag=null），教师无从得知问答实际跑在 qwen3.6-27b 上。",
+      "repro": "1) /admin/ai 模型选择 tab：未设置过时标题旁无「当前」标记；2) 代码核对 learn.py _apply_model 调用时机。",
+      "suggestion": "文案改为「保存后，学生下一次提问、下一次出题/判卷即使用所选模型」；卡片标题同时展示 current_session（实际会话模型）与已保存设置（若不同，标注「下次提问生效」）。"
+    },
+    {
+      "id": "CT-6",
+      "severity": "minor",
+      "title": "AI 判卷「约 1–2 分钟」时长提示与项目实测（10 题卷 6s）相差一个数量级",
+      "where": "frontend/src/views/admin/AdminAi.vue:279（'AI 判卷中…（约 1–2 分钟）'）",
+      "evidence": "B 期交付会话项目记录（GBrain fact #145）：AI 判卷「实测 6s 且 diff=0」（10 题卷）；aiops.py:87-111 _run_task 每 6s 轮询、解析出 JSON 立即返回，10 题规模通常远小于 1 分钟。本次评审按纪律未重跑真实判卷（未复现，依据项目记录降级为 minor）。",
+      "repro": "有已交卷时点「开始 AI 判卷」，按钮文案提示 1–2 分钟，实际通常 10–60s 即返回（完成后界面本就显示真实耗时 elapsed）。",
+      "suggestion": "按钮文案改为「AI 判卷中…（通常 1 分钟内，视题量与模型）」；出题的「约 1–3 分钟」本次未实测，暂保留但建议同样改为区间+完成态显示耗时。"
+    },
+    {
+      "id": "CT-7",
+      "severity": "minor",
+      "title": "知识库「新增/删除即时影响新会话」表述低估实际生效范围（既有会话下一问即可检索）",
+      "where": "frontend/src/views/admin/AdminAi.vue:189（说明）、84（写入成功 toast「新会话提问即可检索到」）",
+      "evidence": "学生/任务会话（preset gksc-student，tool-fs 只读挂载）每次问答时实时 grep/read 磁盘文件（learn.py/aiops.py 链路），新增文档对既有对话的下一问即可被检索，删除同理即时生效，并非仅「新会话」；aiops.py:335-339 出题/判卷任务同样实时取材。",
+      "repro": "代码审读：learn.py ask()/status() 与 aiops.py _run_task() 每次任务均现场读 KB 目录，无会话级文档缓存。",
+      "suggestion": "两处文案统一为「新增/删除后，各 AI 问答与出题/判卷任务即时生效（含已有对话的下一问）」。"
+    },
+    {
+      "id": "CT-8",
+      "severity": "minor",
+      "title": "知识库按已存在路径写入时静默覆盖原文件，无任何提示或 409",
+      "where": "backend/app/aiops.py:190-199（kb_write 无存在性检查）+ frontend AdminAi.vue:77-86（saveKbNew 成功 toast 一律「已写入知识库」）",
+      "evidence": "实测：POST /api/admin/ai/kb {path:\"EXPERT-content-kb-覆盖测试.md\", content:\"# 第一版\"} → 200；同路径再写 \"# 第二版（覆盖）\" → 200 ok，无 409/无覆盖警告（content_api_results.json:kb_write_same_path）。当前 UI 默认预填路径「05-元数据/补充说明.md」恰好不存在故暂未触发，但教师手输已有文档名（如 02-课/知识点梳理.md）会静默清空原文档——KB 里是 26 份真实教研材料，覆盖即事故。",
+      "repro": "教师 /admin/ai 知识库 → 新增文档 → 路径填「02-课/知识点梳理.md」→ 写入 → 原 4 节知识点文档被新内容覆盖且无提示。",
+      "suggestion": "aiops.py kb_write 中 if os.path.exists(p): raise HTTPException(400, \"该路径已存在（现有 N KB 文档），覆盖请确认后重试\")；前端 catch 后 confirm(\"已存在同名文档，确认覆盖？\") 再带 ?force 重写。"
+    },
+    {
+      "id": "CT-9",
+      "severity": "minor",
+      "title": "同一界面三套后台名称：顶栏「教师管理后台」vs 侧栏头「管理后台」vs 页签「数据总览 · 大屏」",
+      "where": "frontend/src/App.vue:76（顶栏「教师管理后台」）、101（侧栏头「管理后台」）、36（侧栏「数据总览 · 大屏」）；AdminOverview.vue:44（页面标题同样带「· 大屏」）",
+      "evidence": "DOM 实测（content_dom_results.json:02_admin_overview）：同屏顶部显示「教师管理后台」，左侧边栏头部显示「管理后台」；「数据总览 · 大屏」页签与页面标题均带「大屏」，但该页是常规后台表格布局，无任何大屏展示。",
+      "repro": "教师登录 /admin，对照顶栏与侧栏头部文案。",
+      "suggestion": "统一为「教师管理后台」（侧栏头同）；去掉「· 大屏」后缀（或确实做全屏大屏模式后再用该词）。"
+    },
+    {
+      "id": "CT-10",
+      "severity": "minor",
+      "title": "模型目录第三个分组的「名称」直接显示内部路由 id（freehub-deepseek-v4-flash-glm5-2-3）",
+      "where": "frontend/src/views/admin/AdminAi.vue:170（{{ m.providerName }}）+ backend/app/aiops.py:115-131（models_list 原样透传 DSH 分组）",
+      "evidence": "实测 GET /api/admin/ai/models：分组 {id:\"freehub-deepseek-v4-flash-glm5-2-3\", name:\"freehub-deepseek-v4-flash-glm5-2-3\"}，其下 3 个模型（glm-5.2 / deepseek-v4-flash / sensenova-6.7-flash-lite）的 description 均为 null；DOM 列表 3 处副标题显示该长 id（content_dom_results.json:ai_models_shown）。对比另两组名称为「DeepSeek」「Qwen3.6-27B (本地网关)」，风格不一致。",
+      "repro": "教师 /admin/ai → 模型选择，查看 glm-5.2 等 3 个模型下方的 provider 名。",
+      "suggestion": "aiops.py models_list 对分组做友好名映射（如 name 缺失或形如 'freehub-*' 时显示「FreeHub（GLM/DeepSeek/SenseNova）」），并把模型 description 透传展示。"
+    },
+    {
+      "id": "CT-11",
+      "severity": "minor",
+      "title": "术语不一致合集：学习榜单/排行榜、进行中/作答中、重练/重答、学号/工号/账号、「B 期上线」过期标签、「完整四栏」行话",
+      "where": "Home.vue:68（学习榜单）vs 240（排行榜）；AdminExams.vue:54（进行中）vs 76（作答中）；Practice.vue:18（错题重练）vs Wrong.vue:93（重答这道题）vs db.py:195（重答/讲解双模式）；Login.vue:53（学号/工号）vs AdminAccounts.vue:63（账号列表头）vs AdminStudents.vue:56（学号）；Practice.vue:96（off-tag「B 期上线」）；AdminOverview.vue:64（「完整四栏」）",
+      "evidence": "DOM 实测：学生首页同页出现「学习榜单」（九宫格图标）与「排行榜」（卡片标题）（content_dom_results.json:10_student_home）；考试页过滤 pill「进行中」与行内状态 tag「作答中」同指 open 状态（源码 54/76 行）；练习菜单「错题重练」入口进入的却是 Wrong.vue 的「重答」流程；登录标签「学号 / 工号」而账号管理表头叫「账号」、学生管理叫「学号」；「教师布置」灰按钮标「B 期上线」，但本评审对象即 B 期交付（GBrain #145：B 期已含培训管理承载教师任务），标签在交付当下即过期；管理端指标「AI 问答总量 / 完整四栏」中「完整四栏」为内部概念，教师需自行理解。",
+      "repro": "逐页对照上述文件行号即可（均无需数据前提）。",
+      "suggestion": "统一词表：榜单类统一「排行榜」；考试状态统一「进行中」；错题动作统一「重答」（练习菜单改「错题重答」）；账号标识统一「学号/工号」（账号表头改「学号/工号」）；「教师布置」要么接线培训数据、要么改「C 期上线」；指标副文案改「四栏格式问答」。"
+    },
+    {
+      "id": "CT-12",
+      "severity": "minor",
+      "title": "数字/单位/格式不一致：0h vs 0 h、100.0% vs 100%、结果页「用时」实为限时、CSV 枚举值英文、难度 2 无图例、复习学时口径含糊",
+      "where": "AdminOverview.vue:150（{{ h.hours }} h）vs AdminStudents.vue:76（{{ s.hours }}h）vs AdminStats.vue:83（{{ s.hours }}h）；manage.py:433（rate 保留 1 位小数）vs AdminStats.vue:27（hero 卡 Math.round 整数）；ExamTake.vue:134（用时列恒显 12:00/不限时）；manage.py:211-218（CSV 类型/状态列写 daily/mock、done/open）；AdminAi.vue:250（难度 {{ q.difficulty }} 裸数字 1-3）；AdminOverview.vue:142（「复习按次」未说明按 1 分钟/次，见 db.py:80/wrong.py:81）",
+      "evidence": "DOM 实测：数据总览学时表「0 h」，学生管理同值「0h」，培训画像「0h」（content_dom_results.json 02/05/08）；实测培训 rate=100.0 → 培训管理页渲染「100.0%」，同页统计 hero 卡同口径为「0%」（整数，content_api_results.json:crud_training_list）；ExamTake 结果页 mock 卷无论实际用时多少都显示「用时 12:00」（12:00 是 time_limit 不是耗时，daily 卷显示「不限时」与「用时」标签矛盾）；CSV 实测表头中文带 BOM（好），但数据行类型/状态将输出英文枚举（当前 0 条交卷无法出数据行，代码证据 manage.py:214-217）；AI 出题预览「难度 2」无说明。",
+      "repro": "对照各页面截图/DOM 与源码行号；CSV 需任一交卷后导出观察。",
+      "suggestion": "统一「X 学时」或「X h」（建议表格用「0 学时」）；完成率统一整数 %（前端 toFixed(0) 或后端 round 整数）；ExamTake 结果页列名改「限时」，另加「实际用时」（submit 响应已含时间戳可算，或后端返回 elapsed）；CSV 类型/状态映射为「日常练习/模拟考」「已交卷/进行中」；难度显示「难度：中（2/3）」或加一行图例；学时表注释改「复习按次计 1 分钟」。"
+    },
+    {
+      "id": "CT-13",
+      "severity": "minor",
+      "title": "「学时」只有教师端可见：学生端（首页/我的）没有任何自己学时的展示",
+      "where": "frontend/src/views/Mine.vue:85-90（概览仅积分/完成练习/上次得分/勋章）+ Home.vue（无学时）；backend/app/auth.py:85-93（/me 不返回 hours）",
+      "evidence": "DOM 实测「我的」页概览卡四项为「128 积分 / 0 完成练习 / — 上次得分 / 0 勋章」（content_dom_results.json:mine_overview_stats）；/api/auth/me 实测响应无学时字段；而管理端数据总览有「累计学时」「学时排行」「学时统计表」三处学时展示，学生看不到自己的学时。",
+      "repro": "学生登录 → 首页/我的，找不到任何学时信息。",
+      "suggestion": "auth.py /me 增加 hours: db.student_hours(d, u['id'])，Mine.vue 概览卡加第 5 项「累计学时 X h」，与管理端口径一致。"
+    },
+    {
+      "id": "CT-14",
+      "severity": "minor",
+      "title": "「答案均出自知识库」表述过绝对；AI 四栏识别失败时的内部备注「已按现有内容落库」直接暴露给学生",
+      "where": "frontend/src/views/Learn.vue:201（副标题「岗课赛证融通 · 答案均出自知识库」）；backend/app/learn.py:291-295（150s 兜底把内部备注拼进答案返回前端）",
+      "evidence": "DOM 实测学习中心副标题「答案均出自知识库」（content_dom_results.json:11_student_learn）。但 AI 对越界/寒暄问题按 persona 返回边界话术、150s 内无【岗】【证】标记时走兜底路径，答案尾部追加「（注：本次回答未识别出完整四栏结构，已按现有内容落库。）」——「落库」是后端存储术语，学生视角无意义且暴露内部实现；「均出自知识库」对兜底回答与边界话术也不成立。对照 Home.vue:306「每栏标注知识库原文出处」的表述更准确。",
+      "repro": "代码审读 learn.py:292-295；构造 150s 内模型漏掉四栏标记的回答即可在学生气泡看到该备注（本次未真实触发）。",
+      "suggestion": "副标题改「答案基于知识库作答并标注来源」；兜底备注改学生可读话术，如「（本次回答结构不完整，建议换个问法再试一次）」，「落库」等内部词移出学生可见文案。"
+    },
+    {
+      "id": "CT-15",
+      "severity": "minor",
+      "title": "知识地图「仅看薄弱（<60）」空态文案写反：实际是「全簇达标」时提示「全部簇都在薄弱区」",
+      "where": "frontend/src/views/Learn.vue:268（提示文案）、137-145（kcards 过滤 + allWeakEmpty 计算）",
+      "evidence": "逻辑审读：allWeakEmpty = onlyWeak && kcards.length===0，而 kcards 在 onlyWeak 下只显示 level<60 的簇；kcards 为空 ⇔ 六簇全部 ≥60（无薄弱簇），此时提示却说「全部簇都在薄弱区，取消筛选查看全部 6 簇」，与事实完全相反。演示数据 S2026001 掌握度 62/71/41/38/55/29（实测 /me）存在薄弱簇，无法在演示环境触发该空态——未复现，仅代码级确认。",
+      "repro": "需要一个六簇掌握度全部 ≥60 的学生账号勾选「仅看薄弱」；演示账号不具备该状态。",
+      "suggestion": "文案改为「六簇全部达标（≥60），没有薄弱簇需要显示」；或该状态下自动提示「已无需薄弱筛选」。"
+    },
+    {
+      "id": "CT-16",
+      "severity": "minor",
+      "title": "未知 API 路径与上传文件 404 返回英文 {\"detail\":\"Not Found\"}，与全站中文错误文案不一致",
+      "where": "backend/app/main.py:43（/uploads/{name} 404）、54（SPA 回退里 api/ 前缀 404）",
+      "evidence": "实测 GET /api/admin/trainings/999999（教师 token）→ 404 {\"detail\":\"Not Found\"}（content_api_results.json:training_404）；同类还有 /uploads/不存在.png → 404 Not Found。其余业务错误均为中文（学号已存在/不能停用自己的账号等）。",
+      "repro": "访问任一未定义的 /api/* 路径。",
+      "suggestion": "main.py 两处改 {\"detail\":\"资源不存在\"}，与业务错误风格统一。"
+    },
+    {
+      "id": "CT-17",
+      "severity": "minor",
+      "title": "登录报错「学号不存在」与输入框标签「学号 / 工号」不一致：教师输错工号时被提示学号问题",
+      "where": "backend/app/auth.py:43（HTTPException 401 \"学号不存在\"）+ frontend/src/views/Login.vue:53（label「学号 / 工号」）",
+      "evidence": "实测 POST /api/auth/login {student_no:\"T9999\"} → 401 {\"detail\":\"学号不存在\"}（content_api_results.json:login_unknown_t）。教师账号 T 开头是工号，该提示会让教师误以为是「学号」体系的问题；「密码错误」提示则正常。",
+      "repro": "登录页工号输入 T9999 → 密码任意 → 登录。",
+      "suggestion": "auth.py 改 401 \"账号不存在（学号/工号）\"，或按角色分别提示。"
+    },
+    {
+      "id": "CT-18",
+      "severity": "minor",
+      "title": "新建账号「留空自动生成 S2026/T2026 递增」标签有歧义：实际教师号是 T2026+三位序号",
+      "where": "frontend/src/views/admin/AdminAccounts.vue:94（label）+ backend/app/manage.py:352（f\"{prefix}2026{n + 1:03d}\"）",
+      "evidence": "实测创建学生返回 S2026004（S2026+004，content_api_results.json:crud_student_create）；教师同理生成 T2026001，而标签「T2026 递增」易被读成 T2027/T2028 式顺延。",
+      "repro": "/admin/accounts 新建教师账号留空 → 实际得到 T2026001 而非「T2026 递增」的直觉值。",
+      "suggestion": "label 改为「账号（留空自动分配 S2026xxx / T2026xxx 递增）」。"
+    },
+    {
+      "id": "CT-19",
+      "severity": "minor",
+      "title": "「教师带训」表「带训学生（启用）」列对所有教师显示同一数字（班级启用学生总数，与教师无关）",
+      "where": "frontend/src/views/admin/AdminStats.vue:101/106（列名与取值）+ backend/app/manage.py:652-655（n_s 为全局 COUNT，未按 teacher_id 过滤）",
+      "evidence": "代码审读 manage.py:654：n_s = SELECT COUNT(*) FROM users WHERE role='student' AND enabled=1 —— 无 teacher 条件，每位教师的「带训学生（启用）」都是全班启用学生数；同列右侧说明文案「培训在『培训管理』创建时自动归属当前登录教师」也表明学生没有教师归属关系，列名承诺的语义（该教师带的学生数）不成立。",
+      "repro": "/admin/stats 教师带训 tab：当前 1 名教师看不出问题，新增第 2 名教师后两行数字必然相同。",
+      "suggestion": "列名改「班级启用学生」（如实表达全局口径）；若确需按教师统计，先建立学生-教师归属（培训报名可作归属来源：统计其名下培训的去重报名学生）。"
+    }
+  ]
+}

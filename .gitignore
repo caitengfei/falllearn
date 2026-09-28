@@ -1,0 +1,24 @@
+# 依赖（体积大、可重建）
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# 运行时数据 —— 首次启动由后端自动重建（init_db + 题库种子 + 演示账号）
+*.db
+*.db-shm
+*.db-wal
+backend/uploads/
+
+# DSH 内部调试残留（与平台无关，禁止入库）
+tools/dsh_probe*
+tools/ws_frames.json
+tools/*_out.txt
+tools/shots/
+tools/**/_tmp*
+
+# 杂项
+*.log
+.DS_Store
+Thumbs.db

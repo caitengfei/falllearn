@@ -1,0 +1,195 @@
+{
+  "tag": "ux",
+  "role": "UX 交互专家",
+  "baseline": {
+    "server": "http://127.0.0.1:8010",
+    "accounts": "T2026/123456 登录实测；学生/培训/公告/轮播/KB 全程 EXPERT-ux- 前缀",
+    "cleaned": true,
+    "cleanup_note": "本测试共创建并已全部删除：公告 2（40 字标题测试）、轮播卡 2、学生 2（S2026004 两次）、教师 1（T2026002）、培训 1、KB 文件 1（05-元数据 长路径测试）。收尾审计（ux_final_audit.py）：users=基线 4、banners sort=基线 0-3、trainings=基线 2 条、enrolls=0、KB EXPERT 文件=0、AI 生成题=5（未动）。未触碰 reset-demo / 真实 AI 出题判卷。"
+  },
+  "screenshots_dir": "E:\\lilei\\platform\\docs\\expert-admin\\（ux-*.png 共 28 张）",
+  "scripts_dir": "E:\\lilei\\platform\\tools\\expert_admin\\（ux_common.py + ux_1_nav ~ ux_6_overview_reset + ux_final_audit.py）",
+  "findings": [
+    {
+      "id": "UX-1",
+      "severity": "critical",
+      "title": "弹窗体系整体失效：.mask/.modal/.modal-h 没有任何 CSS 定义，全部 10+ 个对话框以无样式内容行内渲染在页面底部（无遮罩/无居中/无卡片），长页面里弹窗打开在视口外，用户根本看不到",
+      "where": "frontend/src/styles/main.css（全文无 .mask/.modal/.modal-h；main.js 仅 import 此一个全局 CSS）；使用方 AdminContent.vue:145/164、AdminExams.vue:86、AdminStudents.vue:90、AdminAccounts.vue:80、AdminTrainings.vue:105、AdminOverview.vue:159 及学生端 Home.vue/Wrong.vue",
+      "evidence": "实测计算样式：.mask {position:static, background:transparent, zIndex:auto}，.modal {width:1180px(通栏), maxWidth:none, borderRadius:0, position:static}；mask 与 modal 的 bounding rect 完全相同 (244,387,1180,465) → 遮罩不存在。截图 ux-content-modal-open.png：「新建课程预告」表单以裸文本排在表格下方；ux-overview-reset-modal.png：总览页弹窗 top=1024px（900px 视口之外），点击「演示数据重置」后界面无任何可见变化。附带后果：@click.self 关弹窗功能永远无法触发（mask 面积=modal 面积，无独立可点区域），弹窗打开时背景表格仍可继续操作（无遮挡）",
+      "repro": "T2026 登录 → /admin/content → 点「＋ 新建预告」：对话框出现在页面最底部（需滚动才可见），无半透明遮罩、无白色卡片、无圆角，标题/标签为裸文本；/admin → 点「演示数据重置」：弹窗完全在屏幕外，用户以为没反应",
+      "suggestion": "在 main.css 补全局定义（一处修复全站所有弹窗）：.mask{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:center;justify-content:center} .modal{background:#fff;border-radius:12px;max-width:560px;width:calc(100%-48px);max-height:calc(100vh - 120px);overflow-y:auto;padding:18px 20px;box-shadow:0 8px 32px rgba(0,0,0,.18)} .modal-h{font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}。同时建议给 .modal 内长列表（考试明细）加独立滚动区"
+    },
+    {
+      "id": "UX-2",
+      "severity": "critical",
+      "title": "考试 CSV 导出在浏览器中 100% 失效：location.href 跳 Bearer 鉴权接口，导航无法携带 token → 401，整个应用被替换成一页裸 JSON",
+      "where": "frontend/src/views/admin/AdminExams.vue:37-39（exportCsv 用 location.href）+ frontend/src/api.js:111（adminExamsCsv 返回裸 URL）+ backend/app/manage.py:196-222（/exams/export 需 require_teacher）",
+      "evidence": "实测点击「⬇ 导出 CSV」后 location.href=http://127.0.0.1:8010/api/admin/exams/export，页面渲染 {\"detail\":\"未登录\"}（截图 ux-exams-export-401.png：全屏只剩这一行 JSON，SPA 已丢失，需手动刷新回来）；带 Bearer 头的 API 对照请求返回 200 + 正确 CSV（表头「学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态」+ Content-Disposition attachment）",
+      "repro": "/admin/exams → 点「⬇ 导出 CSV」→ 无下载，整页变成 {\"detail\":\"未登录\"}",
+      "suggestion": "前端改为 fetch+header 下载：const r=await fetch(url,{headers:{authorization:'Bearer '+token}});const blob=await r.blob();a.href=URL.createObjectURL(blob);a.download='exams.csv';a.click()。同时修复顺带问题：导出完全忽略当前「已交卷/进行中/全部」状态筛选（前端 exportCsv 只传 student_id，后端 /exams/export 也不接受 status 参数）——给导出加 status 参数并随筛选器传递，保证导出与列表所见一致"
+    },
+    {
+      "id": "UX-3",
+      "severity": "major",
+      "title": "开关组件渲染成零尺寸：.switch 是 inline <span> 且未设 display，width/height 被浏览器忽略 → 40×22 轨道完全不可见，只剩一个 18px 白点悬浮，启用/停用状态难以辨认，点击目标极小（Playwright 判定元素 invisible 无法点击）",
+      "where": "frontend/src/styles/main.css:447-450（.switch 缺 display:inline-block）；使用方 AdminContent.vue:85/90/131（置顶/状态/启用）、AdminStudents.vue:80、AdminAccounts.vue:70",
+      "evidence": "实测 getBoundingClientRect：.switch {w:0,h:0,display:inline,position:relative}；其内部 i（knob）{18×18 @ (1184,223)}。截图 ux-content-notice-40char.png / ux-content-switch-broken.png：置顶/状态/启用三列只有若隐若现的小圆点，没有开关轨道；on 态仅是白点右移 18px，状态辨识度极低。Playwright 常规 click 报 'element is not visible' 超时（零尺寸元素），测试只能点 18px 的 knob 圆点",
+      "repro": "任一管理列表页观察「置顶/状态/启用」列：无轨道、无明确开/关视觉；放大看才见一个小圆点",
+      "suggestion": "main.css:447 的 .switch 增加 display:inline-block（一行修复）。顺手把 .switch 的 cursor/hover 加个 :hover{filter:brightness(.95)} 提升可点感知"
+    },
+    {
+      "id": "UX-4",
+      "severity": "major",
+      "title": "公告/轮播开关是 fire-and-forget（无 await 无 catch）：load() 的 GET 先于 PUT 落库返回，把刚点的开关渲染回旧值 → UI 显示「未置顶」而数据库已置顶，且失败时静默吞错",
+      "where": "frontend/src/views/admin/AdminContent.vue:85、90（n.pinned=…; api.noticeUpdate(n.id,n); load()）、131（b.enabled 同模式）",
+      "evidence": "实测：点公告「置顶」knob 后 120ms 与 2500ms 两次读取 UI class 均为 'switch'（off），而 GET /api/admin/announcements 返回该行 pinned=1 → ui_matches_db=false；页面无 toast、无错误提示，开关看起来「没反应」，直到下次任意 reload 才显示为 on。代码上 api.noticeUpdate 与 load() 并发竞争，GET 读到 PUT 提交前的旧值即整体替换列表",
+      "repro": "/admin/content → 点任一公告的置顶/状态开关 → 开关回弹为原状态；用 API 查库发现其实已改成功",
+      "suggestion": "改为串行：async fn(){n.pinned=n.pinned?0:1; try{await api.noticeUpdate(n.id,n)}catch(e){n.pinned=n.pinned?0:1; toast('保存失败：'+e.message)} toast('已保存')}，去掉并发的 load()（或直接刷新单行字段）；API 401 场景 api.js 已有跳转逻辑，失败反馈需保留开关回滚"
+    },
+    {
+      "id": "UX-5",
+      "severity": "major",
+      "title": "轮播「上移/下移」排序功能损坏：moveBanner 第二次 bannerUpdate 传了整个 banner 对象而非 id → 请求 /banners/[object Object] 422 被 .catch(()=>{}) 静默吞掉 → 两张卡只更新了一张的 sort，「上移」后卡片实际下移，且 UI 乐观交换与数据库顺序分叉",
+      "where": "frontend/src/views/admin/AdminContent.vue:60-67（第 66 行 api.bannerUpdate(banners.value[i], …) 应为 banners.value[i].id）",
+      "evidence": "实测：初始 [seed1(sort0), A(sort0), B(sort0), seed2(sort1)…]，B 在列表第 3 位，点 B 的「上移」→ 数据库顺序变为 [seed1(0), A(0), seed2(1), B(1)…]，B 落到第 4 位（比点击前更靠下），A 的 sort 仍是 0（应被写成 2）；而 moveBanner 无 reload，页面 UI 仍显示交换后的 [seed1, B, A, seed2…]，与库中顺序不一致，下次任何 reload 即跳变",
+      "repro": "新建两张轮播卡（默认 sort 都是 0）→ 点第二张的「上移」→ 刷新页面：该卡不在预期位置（实际下移）",
+      "suggestion": "第 66 行改为 api.bannerUpdate(banners.value[i].id, {…banners.value[i], sort:i})；排序值建议用「最大值+1」递增而非下标互换，避免与既有 sort 冲突；两个 PUT 改为 Promise.all 并 await，成功后 toast('顺序已更新')，失败则 reload() 回滚并提示，去掉 .catch(()=>{})"
+    },
+    {
+      "id": "UX-6",
+      "severity": "major",
+      "title": "学生管理页「停用」学生无二次确认（直接锁掉登录），而「启用」反而有 confirm——破坏性方向确认缺失，且与账号管理页行为不一致",
+      "where": "frontend/src/views/admin/AdminStudents.vue:20-24（toggleEnabled 仅 !s.enabled 时 confirm）；对照 AdminAccounts.vue:31（停用有 confirm）",
+      "evidence": "实测：点新建学生的状态开关 → 全程无 dialog（disable_confirm_dialog=null），数据库立即 enabled=0（该学生即刻无法登录）；再次点击启用 → 弹「确认启用 EXPERT-ux-学生甲（S2026004）？」。同一「停用」操作在 /admin/accounts 页则有「停用账号 …？停用后该账号无法登录。」确认",
+      "repro": "/admin/students → 点任一学生状态开关 → 无提示直接停用；对比重复该操作于 /admin/accounts",
+      "suggestion": "AdminStudents.vue toggleEnabled 改为双向确认：if (s.enabled && !confirm('停用 '+s.name+'（'+s.student_no+'）？停用后该学生将无法登录。')) return; if (!s.enabled && !confirm('确认启用 …？')) return"
+    },
+    {
+      "id": "UX-7",
+      "severity": "major",
+      "title": "AI 判卷 tab 首屏无数据且无任何空态说明：卷单下拉从不在挂载时加载（loadAttempts 只绑在「刷新卷单」按钮），教师看到孤零零的「请选择…」+ 灰色按钮，不知道要等学生交卷、也不知道要先点刷新",
+      "where": "frontend/src/views/admin/AdminAi.vue:129-132（loadAttempts 定义）+ 154-156（onMounted 只调 loadModels/loadKb）+ 269-282（grade tab 模板无空态分支）",
+      "evidence": "实测：新会话打开 /admin/ai → 切「AI 判卷」：下拉 options=['请选择…']（未自动加载）；点「刷新卷单」后仍=['请选择…']（基线 0 份已交卷）；页面没有任何「暂无已交卷」类文案（grade_empty_hint_visible=false），截图 ux-ai-grade-empty.png。基线 0 交卷即产品出厂首屏，新教师必然困惑",
+      "repro": "T2026 登录 → /admin/ai → 点「AI 判卷」tab → 下拉为空、按钮置灰、无任何解释文案",
+      "suggestion": "① onMounted 里补 loadAttempts()（或在切到 grade tab 时加载）；② attempts.length===0 时渲染空态：「暂无已交卷 —— 学生在『练习考试』交卷后会出现在这里（最近 50 份）」，与 /admin/trainings 空态（AdminTrainings.vue:100-102）风格对齐"
+    },
+    {
+      "id": "UX-8",
+      "severity": "major",
+      "title": "「演示数据重置」交互顺序错误：doReset 先把弹窗关掉再弹原生 confirm，用户点取消后界面什么都不剩；且弹窗后果说明不完整（未提会清空全部考试记录、会把 T2026 密码也重置）",
+      "where": "frontend/src/views/admin/AdminOverview.vue:29-38（第 30 行 showReset.value=false 在第 31 行 confirm 之前）+ 162-164（弹窗文案）；backend/app/admin.py:47-66（reset_demo 实际范围）",
+      "evidence": "代码级确认（为避免触发真实重置未点击「确认重置」）：showReset=false 是 doReset 第一条语句，原生 confirm 弹出时自定义弹窗已卸载——若用户取消，既无弹窗也无任何反馈，用户不知道操作状态。文案称「教师账号与题库、管理数据不受影响」，但 admin.py:52-54 会重置 T2026 密码为 123456，admin.py:63-64 会 DELETE 全部 exams/exam_items（不止演示学生）",
+      "repro": "/admin → 点「演示数据重置」→ 点「确认重置」→ 弹窗先消失、随后系统 confirm 弹出 → 点「取消」→ 页面回到总览，无任何提示",
+      "suggestion": "把 showReset.value=false 移到 confirm 通过之后（或去掉原生 confirm，仅保留弹窗并加输入 RESET 的二次确认，危险操作更稳）；弹窗文案补全真实后果：「将清空 3 个演示学生全部学习痕迹与所有考试记录，并把 S2026001-3 与 T2026 的密码重置为 123456」"
+    },
+    {
+      "id": "UX-9",
+      "severity": "minor",
+      "title": "管理页 toast 无样式：.toast 只定义在 Home.vue 的 scoped 样式里，AdminContent 的「公告已保存/已删除」渲染成页面底部一行裸文本（无悬浮、无底色）",
+      "where": "frontend/src/views/admin/AdminContent.vue:21、191（使用 .toast）；frontend/src/views/Home.vue:332-356（.toast 在 scoped 块内，不跨组件生效）；main.css 无 .toast",
+      "evidence": "实测计算样式：.toast {position:static, background:transparent, color:rgb(31,36,48)}，渲染在 y≈886px 页面流内；截图 ux-content-notice-40char.png 底部可见灰字「公告已保存」，2.2s 后消失",
+      "repro": "/admin/content → 保存/删除任一公告 → 页面最底部出现一行无样式文字而非悬浮提示",
+      "suggestion": "main.css 增加全局 .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:fadeIn .2s}，供全站复用（配合 UX-12 统一反馈）"
+    },
+    {
+      "id": "UX-10",
+      "severity": "minor",
+      "title": "新建轮播卡默认 sort=0 与现有最小排序冲突：新卡不是追加到末尾，而是插到列表第 2 位（顶部），与用户「新增=加在最后」的预期相反",
+      "where": "frontend/src/views/admin/AdminContent.vue:12（EMPTY_B.sort=0）；backend/app/manage.py:41（ORDER BY sort, id）",
+      "evidence": "实测：种子 sort 为 0-3；新建卡（默认 sort 0）保存后列表顺序 [seed1(0), 新卡(0), seed2(1), seed3(2), seed4(3)]，新卡 position=2（banner_order_after_create_A 报告）",
+      "repro": "/admin/content → 「＋ 新增轮播卡」→ 不填排序直接保存 → 新卡出现在第一张种子卡之后而非末尾",
+      "suggestion": "打开弹窗时把 sort 默认值设为当前 max(sort)+1（load 后计算），或在后端 POST /banners 未显式传 sort 时自动追加到末尾"
+    },
+    {
+      "id": "UX-11",
+      "severity": "minor",
+      "title": "状态开关快速连点行为不可预测：两次点击间 load() 的旧数据重渲染使第二次 PUT 基于旧值，结果「点了两次=没变」却把学生停用了",
+      "where": "frontend/src/views/admin/AdminContent.vue:90（同 UX-4 竞态的连点变体）",
+      "evidence": "实测：状态开关初始 on（enabled=1）→ 80ms 间隔连点两次 → 数据库最终 enabled=0、UI off：第一次点击触发的 load() GET 在两次点击之间返回旧值(enabled=1)并重渲染行对象，第二次点击的 handler 基于新行对象再算 enabled?0:1 → 又发出 enabled=0 的 PUT",
+      "repro": "/admin/content → 快速双击任一公告的状态开关 → 刷新：该行是停用状态（与「双击=恢复原状」的直觉相反）",
+      "suggestion": "与 UX-4 一并修复：请求进行中给开关加 disabled/半透明态并忽略后续点击（saving 标记），await 完成后再允许操作"
+    },
+    {
+      "id": "UX-12",
+      "severity": "minor",
+      "title": "成功反馈三套并存且不统一：content 页用 toast、students/accounts/AI 用阻塞式 alert()（创建学生/账号、重置密码、KB 写入、AI 入库）、trainings 完全无反馈（静默 reload）",
+      "where": "AdminStudents.vue:39、AdminAccounts.vue:26、AdminAi.vue:84、117（alert）；AdminTrainings.vue:28-35（save 后无 toast）；AdminContent.vue:30、53（toast）",
+      "evidence": "实测 dialogs 捕获：「已创建学生 S2026004（密码 123456）」「已创建 教师账号 T2026002」「EXPERT-ux-学生甲 密码已重置为 123456」均为原生 alert（阻塞工作流、打断批量操作）；新建培训后 toast_after_training_create=null（仅列表多出卡片，无明确反馈）",
+      "repro": "分别执行：学生页新建学生 / 培训页新建培训 / 内容页新建公告 → 对比三种反馈形态",
+      "suggestion": "统一为全局 toast（UX-9 的样式）+ 非阻塞；alert 仅保留给表单校验；敏感信息（密码）toast 中只提示「已重置为 123456」而不回显账号全名"
+    },
+    {
+      "id": "UX-13",
+      "severity": "minor",
+      "title": "多处加载/操作无 try-catch：失败时用户零反馈；/admin/stats 请求失败会永久停在「加载中…」（data 恒为 null，无错误卡、无重试）",
+      "where": "AdminStats.vue:13-16（load 无 catch，模板 v-else 只显示「加载中…」）；AdminContent.vue:33-36、56-59（delNotice/delBanner 无 catch）；AdminTrainings.vue:38-48（enrollAll/setDone/remove 无 catch）；AdminAi.vue:129-132（loadAttempts 无 catch）",
+      "evidence": "代码审读确认：上述 await 均无 try/catch，reject 为 unhandled promise rejection（仅控制台报错，界面无任何提示）。/admin/overview 已有正确范式（err 卡片，AdminOverview.vue:52）但 stats/trainings/exams 未对齐（未在生产环境断网复现，避免影响共享服务，标注：代码级证据）",
+      "repro": "（代码级）/admin/stats 后端不可用时：页面停留在「加载中…」，无错误、无重试按钮",
+      "suggestion": "所有 load/操作包 try/catch + toast(e.message)；stats/trainings/exams 页仿照 AdminOverview.vue:16-19 加 err 状态与「重试」按钮"
+    },
+    {
+      "id": "UX-14",
+      "severity": "minor",
+      "title": "知识库新增文档无重复路径保护：对已存在路径写入会静默覆盖原文件（open 'w' 无存在性检查、前端仅校验非空、无覆盖确认）",
+      "where": "backend/app/aiops.py:190-199（kb_write 直接 open(p,'w')）；frontend/src/views/admin/AdminAi.vue:77-86（saveKbNew 仅 !f.path.trim()||!f.content.trim() 校验，且默认预填路径易误填成已有文档）",
+      "evidence": "代码级确认（为避免污染 26 篇种子 KB 文档未实际覆盖）：_kb_abs 只防目录穿越与扩展名，不查存在性；覆盖后原内容无备份无提示。delete 侧有 confirm 而 write 覆盖侧没有，风险不对称",
+      "repro": "/admin/ai → 知识库 → 「＋ 新增文档」→ 路径填已有文档如「04-证/模拟真题（跌倒专项）.md」→ 写入 → 原文档被替换，无任何警告（未实际执行，防污染）",
+      "suggestion": "kb_write 检测 os.path.exists(p) 时返回 409 {'detail':'文件已存在，确认覆盖请重试并勾选覆盖'}；前端 saveKbNew 在提交前用 /ai/kb 列表查重，命中则 confirm('将覆盖现有文档 '+path+'，是否继续？')；或写入前自动 .bak"
+    },
+    {
+      "id": "UX-15",
+      "severity": "minor",
+      "title": "教师在管理后台没有「回学生端」入口：back-student 按钮只在非管理页渲染；管理页点 logo 也是去 /admin（教师分支），教师想切回学生端只能手输 URL 或刷新学生端页面",
+      "where": "frontend/src/App.vue:71（logo @click → isTeacher ? '/admin' : '/'）+ App.vue:82（back-student v-if=\"!isAdmin && isTeacher\"）",
+      "evidence": "实测：教师学生端存在「回学生端」链接且可用（ux_1 报告）；但 /admin/* 页面顶部无该按钮（v-if 排除管理页），在 /admin 点 logo → 仍停留 /admin（after logo click on /admin: http://127.0.0.1:8010/admin）",
+      "repro": "T2026 登录（落点 /admin）→ 想在管理页切回学生端查看学生界面 → 找不到任何入口",
+      "suggestion": "把 back-student 的 v-if 改为 isTeacher（管理页也显示，to=\"/\"），或在 admin-side 底部加「回学生端」项；同时把 logo 点击的教师分支改为 '/'"
+    },
+    {
+      "id": "UX-16",
+      "severity": "minor",
+      "title": "轮播卡表格无空态：若教师删除全部轮播卡，表格空白无提示（对照：公告表有「暂无预告」空态行）",
+      "where": "frontend/src/views/admin/AdminContent.vue:110-141（banner tbody 无 v-if 空态行；对照 :99 公告表有空态）",
+      "evidence": "代码审读：banners 列表为空时 thead 下无任何行，也无操作引导；学生端首页轮播将消失但管理端无提示。（未实际删除种子卡复现——防污染红线）",
+      "repro": "（代码级）删光 4 张种子卡后刷新 /admin/content：轮播表为空白表格",
+      "suggestion": "补 <tr v-if=\"!banners.length\"><td colspan=\"6\" style=\"…\">暂无轮播卡 —— 学生端首页将不显示轮播，点右上角「＋ 新增轮播卡」添加</td></tr>"
+    },
+    {
+      "id": "UX-17",
+      "severity": "minor",
+      "title": "考试页空态过于简略：基线即 0 交卷（出厂首屏），空态只有「暂无记录」四个字，无原因说明与行动指引",
+      "where": "frontend/src/views/admin/AdminExams.vue:80",
+      "evidence": "实测空态文本='暂无记录'（截图 ux-exams-empty.png）；无「学生交卷后在此查看」类解释，也没有指向练习考试模块的引导",
+      "repro": "当前基线直接打开 /admin/exams 即可见",
+      "suggestion": "改为「暂无考试记录 —— 学生在『练习考试』完成日常练习/模拟考并交卷后，记录会出现在这里，支持按状态/学生筛选与 CSV 导出」"
+    },
+    {
+      "id": "UX-18",
+      "severity": "minor",
+      "title": "「演示数据重置」是全库级破坏操作却用低调深灰按钮放在页头（非危险红），视觉上与「刷新」同组，危险等级未被样式传达",
+      "where": "frontend/src/views/admin/AdminOverview.vue:46-49（btn sm dark，与 ghost 刷新按钮并排）",
+      "evidence": "实测按钮样式 {background:rgb(55,65,81), class:'btn sm dark'}（ux-overview-reset-report.json）；截图 ux-overview-reset-modal.png 页头右侧可见；虽有弹窗+confirm 双门（但受 UX-8 顺序 bug 削弱），按钮本身无任何危险视觉信号，误触成本被低估",
+      "repro": "/admin 页头右侧观察：深灰小按钮与刷新并排，不像危险操作",
+      "suggestion": "改为 danger 描边样式（color:#dc2626;border:1px solid #fecaca;background:#fff）或移入「危险操作」次级菜单；与 UX-8 的输入确认一起做"
+    },
+    {
+      "id": "UX-19",
+      "severity": "minor",
+      "title": "所有弹窗 ✕/取消 直接丢弃已填内容，无「有未保存修改」提示（长表单如培训/预告误点即丢）",
+      "where": "frontend/src/views/admin/AdminContent.vue:145-161、164-189；AdminStudents.vue:90-101；AdminAccounts.vue:80-100；AdminTrainings.vue:105-131（均为 @click.self / @click 直接置 null，无 dirty 判断）",
+      "evidence": "代码审读：关闭路径均为 modal.value=null 无条件执行；培训新建表单含 6 字段+学生勾选，误点 ✕ 全部丢失。（mask 点击关闭当前因 UX-1 无法触发，但 ✕ 与「取消」按钮路径同样无保护）",
+      "repro": "打开「新建培训」填写名称/勾选学生 → 点右上角 ✕ → 直接关闭，已填内容丢失",
+      "suggestion": "关闭前判断表单是否 dirty（任一字段非默认），dirty 时 confirm('有未保存的修改，确定关闭？')；或把 ✕ 行为与「取消」统一并保留草稿到组件 ref"
+    }
+  ],
+  "passing_checks": [
+    "教师登录落点正确 → /admin；学生登录 → /（Login.vue:31 实测）",
+    "侧栏 active 态正确：/admin 与 /admin/content 均只有当前页高亮（router 平级路由，无父级误高亮）",
+    "学生端「回学生端」按钮存在且可用（to=/）；用户头像点击可进管理后台",
+    "删除类操作 confirm 文案清楚：账号删除「…及其全部学习数据？此操作不可恢复！」、培训删除「…及其报名记录？」、KB 删除含后果说明",
+    "自保护生效：T2026 行显示「我」红标、删除按钮隐藏、点自己开关弹「不能停用自己的账号」且数据库 enabled 保持 1（前后端双重拦截）",
+    "40 字长标题实测无布局破坏：标题单元格 459px 无溢出（scrollW==clientW）、页面无横向滚动（overflow 0）；摘要列 ellipsis 正常；34 字轮播副标题正常换行（rowH 75px）；KB 长路径正常换行不溢出（w=965）。学生答案长文本未复现（基线 0 交卷，无明细可测）",
+    "AI 模型目录 1-3s 内加载出 6 个模型卡片；AI 判卷同步错误路径返回 404「考试记录不存在」（未触发真实生成）",
+    "排行榜三 tab 切换正常；「刷新」按钮 loading 文案切换存在（本地响应过快未捕获中间态）"
+  ]
+}

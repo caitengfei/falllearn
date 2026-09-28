@@ -1,0 +1,262 @@
+[
+  {
+    "name": "公告创建",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 4}"
+  },
+  {
+    "name": "公告列表含新建项",
+    "ok": true,
+    "detail": "items=[4, 3, 2, 1]"
+  },
+  {
+    "name": "公告置顶后排最前",
+    "ok": true,
+    "detail": "st=200 top_id=4"
+  },
+  {
+    "name": "停用公告不出现在公开接口",
+    "ok": true,
+    "detail": "pub_ids=[]"
+  },
+  {
+    "name": "启用公告出现在公开接口",
+    "ok": true,
+    "detail": "pub_ids=[4]"
+  },
+  {
+    "name": "公告删除(管理+公开均消失)",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "end_date=昨天: 公开不出现/管理可见",
+    "ok": true,
+    "detail": "pub=[] adm=[4, 3, 2, 1]"
+  },
+  {
+    "name": "轮播图上传(600x340 png)",
+    "ok": true,
+    "detail": "200 {'ok': True, 'url': '/uploads/banner-1790569994-6b5b9a.png'}"
+  },
+  {
+    "name": "上传文件可回读(200, image/png)",
+    "ok": true,
+    "detail": "200 image/png len=1364"
+  },
+  {
+    "name": "轮播卡创建",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 5}"
+  },
+  {
+    "name": "启用轮播出现在公开接口",
+    "ok": true,
+    "detail": "pub_ids=[1, 2, 3, 4, 5]"
+  },
+  {
+    "name": "停用轮播不在公开接口",
+    "ok": true,
+    "detail": "pub_ids=[1, 2, 3, 4]"
+  },
+  {
+    "name": "轮播上移(与前一卡交换顺序)",
+    "ok": true,
+    "detail": "order=[1, 2, 3, 5, 4]"
+  },
+  {
+    "name": "轮播下移(恢复原顺序)",
+    "ok": true,
+    "detail": "order=[1, 2, 3, 4, 5]"
+  },
+  {
+    "name": "轮播卡删除(管理+公开均消失)",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "培训创建(含 2 初始报名)",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 3}"
+  },
+  {
+    "name": "培训报名数=2 且学生名单正确",
+    "ok": true,
+    "detail": "enrolled=2 students=['S2026002', 'S2026003']"
+  },
+  {
+    "name": "同学生重复报名不 500/不重复计数",
+    "ok": true,
+    "detail": "200 {'ok': True} enrolled=2"
+  },
+  {
+    "name": "标记完成后 rate=done/enrolled=50.0",
+    "ok": true,
+    "detail": "done=1 rate=50.0"
+  },
+  {
+    "name": "enroll 非法 status → 4xx 中文",
+    "ok": true,
+    "detail": "400 status 仅支持 enrolled/done"
+  },
+  {
+    "name": "set_status 非法 status → 4xx 中文",
+    "ok": true,
+    "detail": "400 status 仅支持 enrolled/done"
+  },
+  {
+    "name": "不存在培训 enroll → 404 中文",
+    "ok": true,
+    "detail": "404 培训不存在"
+  },
+  {
+    "name": "set_status 不存在学生 → 静默 200(记录实际行为)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True}"
+  },
+  {
+    "name": "stats/trainings 与列表一致(enrolled/done/rate)",
+    "ok": true,
+    "detail": "stats={'id': 3, 'title': 'EXPERT-qa-培训全循环', 'batch': 'QA批次', 'start_date': '2026-10-01', 'end_date': '2026-10-08', 'teacher_id': 4, 'capacity': 5, 'note': 'QA', 'created_at': 1790569995, 'teacher_name': '陈老师', 'enrolled': 2, 'done': 1, 'rate': 50.0}"
+  },
+  {
+    "name": "教师带训计数 = 基线培训数+1(本培训)",
+    "ok": true,
+    "detail": "teacher={'id': 4, 'name': '陈老师', 'trainings': 3, 'students': 3} baseline=2"
+  },
+  {
+    "name": "培训删除(列表+统计均消失)",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "学生创建(自动学号)",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 5, 'student_no': 'S2026004'}"
+  },
+  {
+    "name": "重复姓名允许且学号递增",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 6, 'student_no': 'S2026005'}"
+  },
+  {
+    "name": "显式学号与现有重复 → 400 中文",
+    "ok": true,
+    "detail": "400 学号已存在"
+  },
+  {
+    "name": "学生重置密码 200",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "学生停用 200",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "停用账号无法登录(预期 4xx)",
+    "ok": false,
+    "detail": "实际 200 {'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Iiwic25vIjoiUzIwMjYwMDUiLCJyb2xlIjoic3R1ZGVudCIsImV4cCI6MTc5"
+  },
+  {
+    "name": "停用账号调受保护接口 → 403 中文",
+    "ok": true,
+    "detail": "403 账号已停用，请联系管理员"
+  },
+  {
+    "name": "重新启用后可登录",
+    "ok": true,
+    "detail": "200 {'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Iiwic25vIjoiUzIwMjYw"
+  },
+  {
+    "name": "新建学生账号(自动学号)",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 7, 'student_no': 'S2026006'}"
+  },
+  {
+    "name": "新建教师账号(自动工号)",
+    "ok": true,
+    "detail": "200 {'ok': True, 'id': 8, 'student_no': 'T2026002'} (auto=T2026002)"
+  },
+  {
+    "name": "非法角色 → 400 中文",
+    "ok": true,
+    "detail": "400 角色仅支持 student/teacher"
+  },
+  {
+    "name": "自停用 T2026 → 400 中文",
+    "ok": true,
+    "detail": "400 不能停用自己的账号"
+  },
+  {
+    "name": "自删除 T2026 → 400 中文",
+    "ok": true,
+    "detail": "400 不能删除自己的账号"
+  },
+  {
+    "name": "更新不存在账号 → 404 中文",
+    "ok": true,
+    "detail": "404 账号不存在"
+  },
+  {
+    "name": "删除不存在账号 → 404 中文",
+    "ok": true,
+    "detail": "404 账号不存在"
+  },
+  {
+    "name": "删除学生账号后两表均消失",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "删除教师账号后消失",
+    "ok": true,
+    "detail": "200 {'ok': True}"
+  },
+  {
+    "name": "学生开卷(mock, 10 题)",
+    "ok": true,
+    "detail": "200 items=10"
+  },
+  {
+    "name": "学生交卷(全部选 A)",
+    "ok": true,
+    "detail": "200 score=30"
+  },
+  {
+    "name": "管理端考试列表含该卷",
+    "ok": true,
+    "detail": "200 n=1"
+  },
+  {
+    "name": "API 学生筛选命中(该生 1 条)",
+    "ok": true,
+    "detail": "200 n=1"
+  },
+  {
+    "name": "API 学生筛选排除(张小明 0 条)",
+    "ok": true,
+    "detail": "200 n=0"
+  },
+  {
+    "name": "逐题明细 10 题(含题干/标准答案)",
+    "ok": true,
+    "detail": "200 n=10"
+  },
+  {
+    "name": "CSV 导出(含该生行)",
+    "ok": true,
+    "detail": "200 ct=text/csv; charset=utf-8 head='\\ufeff学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态\\r\\nS2026004,EXPERT-qa-重名生A,理论模拟考·跌倒风险与急救,mock,2026-09-28 12:33,2026-09-28 12:33,30,done\\r\\n'"
+  },
+  {
+    "name": "学生表学时 == stats/overview 学时",
+    "ok": true,
+    "detail": "students.hours=0 overview.hours={'student_no': 'S2026004', 'name': 'EXPERT-qa-重名生A', 'hours': 0}"
+  },
+  {
+    "name": "学生表 mastery 含本次练习簇(色块数据源)",
+    "ok": true,
+    "detail": "mastery={'env': 0.0, 'five': 21.0, 'fracture': 0.0, 'morse': 21.0, 'record': 14.7}"
+  }
+]

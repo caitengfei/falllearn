@@ -1,0 +1,149 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api, auth, clusterName, clusterColor } from '../api'
+
+const route = useRoute()
+const router = useRouter()
+const menu = ref(route.query.menu === 'mock' ? 'mock' : 'daily')
+const pill = ref('all')
+const tasks = ref([])
+const loading = ref(null)
+const summary = ref({ practice_count: 0, last_score: null, wrong_active: 0 })
+
+const menuItems = [
+  { id: 'daily', label: '日常练习', ic: '✏' },
+  { id: 'mock', label: '12 分钟模拟考', ic: '⏱' },
+  { id: 'teacher', label: '教师布置', ic: '📋', off: true },
+  { id: 'retrain', label: '错题重答', ic: '📕' }
+]
+
+function buildTasks() {
+  const s = summary.value
+  return [
+    {
+      id: 'daily-1', menu: 'daily', title: '今日练习 · 按薄弱点组卷（10 题）',
+      tag: ['针对性·薄弱簇优先', '难度自适应', '不限时'], color: '#e4393c', ic: '✏',
+      status: 'ongoing', badge: s.practice_count ? '已完成 ' + s.practice_count + ' 组' : '未开始', canStart: true
+    },
+    {
+      id: 'mock-1', menu: 'mock', title: '12 分钟理论模拟考 · 跌倒风险与急救',
+      tag: ['限时 12 分钟', '10 题 100 分', '对标竞赛题型'], color: '#f5a623', ic: '⏱',
+      status: 'todo', badge: '未参加', canStart: true, isMock: true
+    }
+  ]
+}
+
+const visible = computed(() => {
+  let ts = tasks.value.filter((t) => t.menu === menu.value)
+  if (menu.value === 'retrain') {
+    ts = [
+      {
+        id: 'retrain-1', title: '错题重答 · 待复习错题',
+        tag: [`待复习 ${summary.value.wrong_active} 题`, '间隔复习 次日→第3天'], color: '#ef4444', ic: '📕',
+        status: summary.value.wrong_active ? 'ongoing' : 'done',
+        badge: summary.value.wrong_active ? '有错题待复习' : '全部复习完', canGoWrong: true
+      }
+    ]
+  }
+  if (pill.value === 'todo') ts = ts.filter((t) => t.status === 'todo')
+  if (pill.value === 'ongoing') ts = ts.filter((t) => t.status === 'ongoing')
+  if (pill.value === 'done') ts = ts.filter((t) => t.status === 'done')
+  return ts
+})
+
+async function load() {
+  tasks.value = buildTasks()
+  try {
+    const [s] = await Promise.all([api.quizSummary()])
+    summary.value = s
+    tasks.value = buildTasks()
+  } catch {}
+}
+onMounted(load)
+
+async function start(t) {
+  if (t.canGoWrong) {
+    router.push('/wrong')
+    return
+  }
+  loading.value = t.id
+  try {
+    const r = await api.quizStart(t.isMock ? 'mock' : 'daily')
+    sessionStorage.setItem('exam_items', JSON.stringify(r.items))
+    sessionStorage.setItem('exam_kind', r.kind || 'daily')
+    sessionStorage.setItem('exam_time_limit', String(r.time_limit || 0))
+    router.push('/exam/' + r.attempt_id)
+  } catch (e) {
+    alert('开卷失败：' + e.message)
+  } finally {
+    loading.value = null
+  }
+}
+</script>
+
+<template>
+  <div class="page">
+    <div class="practice-grid">
+      <!-- 左竖排菜单 -->
+      <div class="card" style="padding: 10px">
+        <div
+          v-for="m in menuItems" :key="m.id"
+          class="menu-item" :class="{ on: menu === m.id, off: m.off }"
+          @click="!m.off && (menu = m.id)"
+        >
+          <span>{{ m.ic }}</span> {{ m.label }}
+          <span v-if="m.off" class="off-tag">即将上线</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="pills">
+          <span class="pill" :class="{ on: pill === 'all' }" @click="pill = 'all'">全部</span>
+          <span class="pill" :class="{ on: pill === 'todo' }" @click="pill = 'todo'">未开始</span>
+          <span class="pill" :class="{ on: pill === 'ongoing' }" @click="pill = 'ongoing'">进行中</span>
+          <span class="pill" :class="{ on: pill === 'done' }" @click="pill = 'done'">已完成</span>
+        </div>
+
+        <div v-for="t in visible" :key="t.id" class="card" style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px">
+          <div class="rthumb" :style="{ background: t.color, width: '110px', height: '74px', fontSize: '26px', position: 'relative' }">
+            {{ t.ic }}
+            <span v-if="t.badge" class="badge-corner" :class="{ gold: t.status === 'todo' && t.badge === '未参加', green: t.status === 'done' }">{{ t.badge }}</span>
+          </div>
+          <div style="flex: 1; min-width: 0">
+            <div class="rtitle" style="font-size: 15px">{{ t.title }}</div>
+            <div style="margin-top: 7px">
+              <span v-for="g in t.tag" :key="g" class="tag" :class="{ red: g.includes('针对性') || g.includes('限时'), gold: g.includes('对标') }">{{ g }}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono">
+              上次得分：{{ summary.last_score ?? '—' }} · 已完成 {{ summary.practice_count }} 组
+            </div>
+          </div>
+          <button v-if="t.canStart" class="btn sm" :disabled="loading === t.id" @click="start(t)">
+            {{ loading === t.id ? '开卷中…' : '开始' }}
+          </button>
+          <button v-else-if="t.canGoWrong" class="btn sm" @click="start(t)">去复习</button>
+        </div>
+        <div v-if="!visible.length" class="card empty">该分类下暂无任务</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.practice-grid { display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 640px) {
+  .practice-grid { grid-template-columns: 1fr; }
+  .menu-item { width: fit-content; }
+}
+.menu-item {
+  padding: 10px 14px; border-radius: 8px; font-size: 13.5px; color: var(--text-2);
+  cursor: pointer; display: flex; gap: 8px; align-items: center; margin-bottom: 4px;
+}
+.menu-item:hover { background: var(--bg); }
+.menu-item.on { background: var(--primary-light); color: var(--primary); font-weight: 600; box-shadow: inset 3px 0 0 var(--primary); }
+.menu-item.off { opacity: .55; cursor: not-allowed; }
+.off-tag { margin-left: auto; font-size: 10px; background: var(--bg); color: var(--text-3); border-radius: 6px; padding: 1px 6px; }
+.rthumb { border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.badge-corner { position: absolute; top: 0; left: 0; background: #f5a623; color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 0 0 7px 0; }
+</style>

@@ -1,0 +1,128 @@
+{
+  "tag": "perf",
+  "date": "2026-09-28 12:24:59",
+  "note": "串行 3 次均值；ai_models 若首跑慢=进程内 10min 缓存冷（含 DSH session.models RPC），后续命中缓存",
+  "login_ms": 7.6,
+  "endpoints": [
+    {
+      "tag": "admin.stats_overview",
+      "path": "/api/admin/stats/overview",
+      "runs_ms": [
+        12.4,
+        11.3,
+        10.4
+      ],
+      "mean_ms": 11.4,
+      "min_ms": 10.4,
+      "max_ms": 12.4,
+      "status": 200,
+      "body_bytes": 1739,
+      "first_body_head": "{\"cards\":{\"students\":3,\"questions\":1358,\"asks\":1,\"practices\":0,\"hours\":0,\"avg_mastery\":49.3},\"active\":{\"today\":0,\"week\":1},\"trend\":[{\"date\":\"2026-09-22\",\"points\":0,\"asks\":0},{\"date\":\"2026-09-23\",\"points\":0,\"asks\":0},{\"date\":\"2026-09-24\",\"points\":0,\"asks\":0},{\"date\":\"2026-09-25\",\"points\":128,\"asks\":0"
+    },
+    {
+      "tag": "admin.students",
+      "path": "/api/admin/students",
+      "runs_ms": [
+        8.9,
+        7.8,
+        9.0
+      ],
+      "mean_ms": 8.6,
+      "min_ms": 7.8,
+      "max_ms": 9.0,
+      "status": 200,
+      "body_bytes": 797,
+      "first_body_head": "{\"items\":[{\"id\":1,\"student_no\":\"S2026001\",\"name\":\"张小明\",\"role\":\"student\",\"enabled\":1,\"created_at\":1790551292,\"points\":128,\"avg_mastery\":49.3,\"mastery\":{\"cpr\":29.0,\"env\":71.0,\"five\":41.0,\"fracture\":38.0,\"morse\":62.0,\"record\":55.0},\"practice_count\":0,\"ai_ask\":1,\"wrong_active\":3,\"badge_count\":0,\"enroll_"
+    },
+    {
+      "tag": "admin.exams",
+      "path": "/api/admin/exams",
+      "runs_ms": [
+        7.3,
+        8.4,
+        7.4
+      ],
+      "mean_ms": 7.7,
+      "min_ms": 7.3,
+      "max_ms": 8.4,
+      "status": 200,
+      "body_bytes": 12,
+      "first_body_head": "{\"items\":[]}"
+    },
+    {
+      "tag": "admin.banners",
+      "path": "/api/admin/banners",
+      "runs_ms": [
+        8.3,
+        7.1,
+        7.5
+      ],
+      "mean_ms": 7.6,
+      "min_ms": 7.1,
+      "max_ms": 8.3,
+      "status": 200,
+      "body_bytes": 958,
+      "first_body_head": "{\"items\":[{\"id\":1,\"title\":\"老年人跌倒 · 预防与应急处置\",\"tag\":\"世赛 × 省赛 GZ063 双对标\",\"sub\":\"岗课赛证融通 · 把技能学成肌肉记忆\",\"image\":\"\",\"link\":\"/\",\"sort\":0,\"enabled\":1,\"created_at\":1790566773},{\"id\":2,\"title\":\"12 分钟理论模拟考\",\"tag\":\"限时 12 分钟 · 10 题 100 分\",\"sub\":\"对标竞赛情景模块 · 倒计时自动交卷\",\"image\":\"\",\"link\":\"/practice?menu=mock\",\"sort\":1,"
+    },
+    {
+      "tag": "admin.trainings",
+      "path": "/api/admin/trainings",
+      "runs_ms": [
+        7.9,
+        7.5,
+        6.6
+      ],
+      "mean_ms": 7.3,
+      "min_ms": 6.6,
+      "max_ms": 7.9,
+      "status": 200,
+      "body_bytes": 579,
+      "first_body_head": "{\"items\":[{\"id\":2,\"title\":\"跌倒应急演练班·第 1 期\",\"batch\":\"2026 秋\",\"start_date\":\"2026-10-08\",\"end_date\":\"2026-10-30\",\"teacher_id\":4,\"capacity\":30,\"note\":\"含 12 分钟模拟考考核\",\"created_at\":1790566960,\"teacher_name\":\"陈老师\",\"enrolled\":0,\"done\":0,\"rate\":0,\"students\":[]},{\"id\":1,\"title\":\"跌倒应急演练班·第 1 期\",\"batch\":\"2026 秋\","
+    },
+    {
+      "tag": "admin.ai_kb",
+      "path": "/api/admin/ai/kb",
+      "runs_ms": [
+        25.8,
+        24.2,
+        26.1
+      ],
+      "mean_ms": 25.4,
+      "min_ms": 24.2,
+      "max_ms": 26.1,
+      "status": 200,
+      "body_bytes": 11670,
+      "first_body_head": "{\"items\":[{\"path\":\"01-岗/临床标准处置流程.md\",\"size\":9682,\"mtime\":1790523898,\"head\":\"# 临床标准处置流程——老年人跌倒后的现场处置（五步法）  来源：Morse 基金会官网《Using the Morse Fall Scale®》\\\"If a Fall Occurs\\\" 节（官方原文，https://www.janicemmorse.com/_files/ugd/d6109b_799465ad09374d\"},{\"path\":\"01-岗/养老护理员国家职业技能标准-风险应对.md\",\"size\":8833,\"mtime\":17"
+    },
+    {
+      "tag": "admin.ai_models",
+      "path": "/api/admin/ai/models",
+      "runs_ms": [
+        7.4,
+        8.3,
+        7.3
+      ],
+      "mean_ms": 7.7,
+      "min_ms": 7.3,
+      "max_ms": 8.3,
+      "status": 200,
+      "body_bytes": 862,
+      "first_body_head": "{\"items\":[{\"id\":\"deepseek-official\",\"name\":\"DeepSeek\",\"models\":[{\"id\":\"deepseek-v4-flash\",\"name\":\"DeepSeek-V4-Flash\",\"reasoning\":{\"efforts\":[{\"id\":\"off\",\"name\":\"Off\"},{\"id\":\"low\",\"name\":\"Low\"},{\"id\":\"high\",\"name\":\"High\"},{\"id\":\"max\",\"name\":\"Max\"}],\"defaultEffort\":\"high\"}},{\"id\":\"deepseek-v4-pro\",\"na"
+    },
+    {
+      "tag": "content.banners",
+      "path": "/api/content/banners",
+      "runs_ms": [
+        5.6,
+        5.6,
+        5.3
+      ],
+      "mean_ms": 5.5,
+      "min_ms": 5.3,
+      "max_ms": 5.6,
+      "status": 200,
+      "body_bytes": 814,
+      "first_body_head": "{\"items\":[{\"id\":1,\"title\":\"老年人跌倒 · 预防与应急处置\",\"tag\":\"世赛 × 省赛 GZ063 双对标\",\"sub\":\"岗课赛证融通 · 把技能学成肌肉记忆\",\"image\":\"\",\"link\":\"/\",\"sort\":0},{\"id\":2,\"title\":\"12 分钟理论模拟考\",\"tag\":\"限时 12 分钟 · 10 题 100 分\",\"sub\":\"对标竞赛情景模块 · 倒计时自动交卷\",\"image\":\"\",\"link\":\"/practice?menu=mock\",\"sort\":1},{\"id\":3,\"title\":\"比赛资料 · 官方规程与评分标准\","
+    }
+  ]
+}

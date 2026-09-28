@@ -1,0 +1,101 @@
+[
+  {
+    "id": "VIS-1",
+    "severity": "major",
+    "title": "管理端全部弹窗缺失 .mask/.modal 样式，表单直接内联渲染在页面流里（无遮罩/无卡片/不居中）",
+    "where": "frontend/src/styles/main.css（全文件无 .mask/.modal 定义）；使用处 AdminStudents.vue:90-101、AdminAccounts.vue:80-100、AdminTrainings.vue:105-131、AdminContent.vue:145-189、AdminExams.vue:86-112、AdminOverview.vue:159-170",
+    "evidence": "实测（vis-students-modal-1440.png / vis-content-modal-1440.png + vis-metrics.json 1440/students-modal）：.mask computed position=static、display=block、background=rgba(0,0,0,0)、z-index=auto；.modal background=transparent、border-radius=0px、box-shadow=none、modalCentered=false；maskRect=[244,309,1180,245] 即整宽内联块。dist 构建产物核查：frontend/dist/assets/*.css 中 7 个 CSS 文件均无 .mask/.modal 规则。截图显示点「＋ 新增学生」后表单（标题/输入框/创建按钮）直接出现在学生表下方，无遮罩、无白底卡片、无边框，表格仍可交互，表单与页面内容无法区分。",
+    "repro": "T2026 登录 → /admin/students 点「＋ 新增学生」（或 /admin/content 点任一「编辑」、/admin/exams 有记录后点「逐题明细」）→ 弹窗以内联块形式出现在表格下方，无遮罩层、不居中、无背景。",
+    "suggestion": "在 main.css 管理后台段补充全局样式：.mask{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto} 与 .modal{background:#fff;border-radius:12px;box-shadow:var(--shadow-2);padding:20px 22px;width:100%;max-width:520px}（逐题明细已有内联 max-width:760px 不受影响）。修复后 @click.self 点外关闭才能生效。"
+  },
+  {
+    "id": "VIS-2",
+    "severity": "major",
+    "title": ".switch 为行内 <span>，width/height 不生效（0×0），绿/灰两态轨道完全不渲染，开/关视觉上无法区分",
+    "where": "frontend/src/styles/main.css:447-450（.switch 未设 display）；使用处 AdminContent.vue:85/90/131、AdminStudents.vue:80、AdminAccounts.vue:70",
+    "evidence": "实测（vis-probe.json）：所有 .switch 元素 getBoundingClientRect() = 0×0（1440 与 390 均复现），computed background 正确（on=rgb(34,197,94) 绿 / off=rgb(209,213,219) 灰）但绘制在零面积盒上，背景不可见；3× 放大截图 vis-switch-on-1440.png 与 vis-switch-off-1440.png 中 on/off 均只剩一个白底圆钮+淡阴影，无任何轨道颜色，两态几乎一模一样。全页截图（vis-students-1440.png 状态列、vis-content-1440.png 启用列）中开关呈「白底小白点」状。",
+    "repro": "1440 视口 /admin/students 或 /admin/content → 状态/启用列只见白点；点开关切换后轨道颜色无变化，仅白点左右位移约 18px。",
+    "suggestion": "main.css:447 的 .switch 增加 display:inline-block（或 inline-flex）。一行修复即可恢复 40×22 绿/灰轨道与两态可读性。"
+  },
+  {
+    "id": "VIS-3",
+    "severity": "major",
+    "title": "390px 移动端 8 页中 4 页发生页面级横向溢出（students 763px/content 474px/stats 466px/exams 424px），.atable 无 overflow-x 容器",
+    "where": "frontend/src/styles/main.css:383（.admin-wrap{align-items:flex-start}）+ main.css:467-474（≤860px flex-direction:column）+ main.css:401-406（.atable）与 :89-92（.card 无 overflow 裁剪）",
+    "evidence": "实测（vis-probe.json）：390×844 视口下 390/students docW=763（table 735）、390/content docW=474（table 446）、390/stats docW=466（table 438）、390/exams docW=424（table 396），而 .admin-wrap 本身保持 390 —— 列方向下 align-items:flex-start 使 .admin-main 交叉轴 auto 宽被表格 min-content 撑开（main=474/763/466/424），整页（含深色侧栏块）横向滚动。截图文件 vis-content-390.png 实际像素宽即 474。其余 4 页（overview/accounts/trainings/ai）390 下无溢出。",
+    "repro": "390×844 视口打开 /admin/students → 页面出现横向滚动条，表格/侧栏被拉到 763px 宽；/admin/content、/admin/stats、/admin/exams 同样溢出。",
+    "suggestion": "① ≤860px 媒体查询内将 .admin-wrap 改为 align-items:stretch（或给 .admin-main 设 width:100%），让主区固定视口宽；② 为 .atable 增加横向滚动容器（.card 内包 .tscroll{overflow-x:auto} 或 .card{overflow-x:auto}），让宽表内部滚动而非撑破整页；③ 顺带 .pill 加 white-space:nowrap，避免 390 下 AI 页 tab 文字在 pill 内折两行（vis-ai-390.png 可见「AI 出/题」）。"
+  },
+  {
+    "id": "VIS-4",
+    "severity": "major",
+    "title": ".mgrid.c4 类未定义，统计页 4 张汇总卡退化为整宽纵向堆叠（hero 红卡成满宽红条）",
+    "where": "frontend/src/views/admin/AdminStats.vue:37（class=\"mgrid c4\"）；frontend/src/styles/main.css:414-417（只定义了 .mgrid.c6/.c3/.c2）",
+    "evidence": "实测（vis-metrics.json 1440/stats）：computed grid-template-columns=\"1180px\"（单列）；截图 vis-stats-1440.png：培训期数/累计报名人次/累计完成人次/总体完成率 4 张 mcard 全宽纵向堆叠，红色 hero 卡占满整行 1180px，与 overview 页 6 卡横排的指标区风格明显不一致。",
+    "repro": "/admin/stats 任意视口 → 顶部 4 张指标卡纵向堆叠而非 4 列。",
+    "suggestion": "main.css:417 附近补 .mgrid.c4{grid-template-columns:repeat(4,1fr)}，并按现有断点回退（≤1100px 两列、≤640px 单列，参照 .mgrid.c6 的媒体查询写法）。"
+  },
+  {
+    "id": "VIS-5",
+    "severity": "minor",
+    "title": "侧栏 logo-mark 未继承红色圆角徽标样式（选择器 .logo .logo-mark 不覆盖侧栏），只剩白色裸字「跌」，与顶栏不一致",
+    "where": "frontend/src/styles/main.css:48（.logo .logo-mark 限定父级 .logo）；frontend/src/App.vue:101（.side-head > .logo-mark）",
+    "evidence": "实测（vis-metrics.json logoMarks）：顶栏 logo-mark 30×30、linear-gradient(135deg,#e4393c,#f07167)、radius 8px；侧栏 logo-mark 26×26、backgroundImage=none、radius=0px（.side-head 只覆盖了宽高/字号，背景/圆角/白字全靠 .logo .logo-mark）。截图 vis-overview-1440.png 左上：顶栏是红色圆角方块「跌」徽标，侧栏「管理后台」前只有白色裸字。",
+    "repro": "对比任意管理页顶栏 logo 与侧栏头部 logo。",
+    "suggestion": "main.css:48 选择器由 .logo .logo-mark 改为 .logo-mark（徽标本身样式自洽），或在管理后台段为 .side-head .logo-mark 补 background/border-radius/color 规则。"
+  },
+  {
+    "id": "VIS-6",
+    "severity": "minor",
+    "title": "AI 模型卡 flex 布局孤项撑满整行：1440 下 6 个模型排 5+1，末张卡横向拉伸到 1180px",
+    "where": "frontend/src/styles/main.css:453-456（.model-pick .mp{flex:1;min-width:200px}）；frontend/src/views/admin/AdminAi.vue:167-172",
+    "evidence": "截图 vis-ai-1440.png：第一行 5 张等宽卡，第二行 sensenova-6.7-flash-lite 单张卡占满整行 1180px，视觉失衡（1024 下 3×2 整齐，见 vis-ai-1024.png，问题仅在列数不整除时出现）。",
+    "repro": "/admin/ai 模型 tab，目录返回 6 个模型（当前 DSH 目录即如此）→ 末张卡拉伸满宽。",
+    "suggestion": "容器改 grid：.model-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}（去掉 .mp 的 flex:1）；或保持 flex 但给末行孤项 .mp:last-child{flex-grow:0}。"
+  },
+  {
+    "id": "VIS-7",
+    "severity": "minor",
+    "title": "侧栏「模型·知识库·出题·判卷」标签过长，激活红底 pill 内折行生硬（1440 折成「…判/卷」，1024 折两行）",
+    "where": "frontend/src/App.vue:49（sideNav 标签文本）；frontend/src/styles/main.css:391-397（.admin-side a 无 min-height/行高约束）",
+    "evidence": "截图 vis-ai-1440.png：激活项 pill 内文字折两行（第二行只剩「卷」）；vis-ai-1024.png：176px 侧栏下同项折两行。其余侧栏项均单行，仅此项 pill 高度翻倍。",
+    "repro": "打开任意管理页查看侧栏「AI 管理」组。",
+    "suggestion": "把标签缩短为「AI 管理」（与分组名呼应），或给 .admin-side a 设 min-height 并保持单行 + 溢出省略；推荐直接改文案。"
+  },
+  {
+    "id": "VIS-8",
+    "severity": "minor",
+    "title": "总览页空态样式不一致：排行榜/班级弱项空行未居中、无内边距（左对齐且带行下划线），与其他页「暂无记录」居中样式不统一",
+    "where": "frontend/src/views/admin/AdminOverview.vue:110（排行榜空行）、:133（班级弱项空行）；对照 AdminExams.vue:80 与 AdminContent.vue:99（text-align:center + padding 22-24px）",
+    "evidence": "截图 vis-overview-1440.png：班级弱项卡片内「暂无作答数据」左对齐、行尾带表格下划线；同平台 exams 页「暂无记录」、content 页「暂无预告」均居中 + 留白。main.css:336 已定义 .empty{text-align:center;...} 但此处未复用。",
+    "repro": "无作答记录时（当前基线即满足）打开 /admin → 班级弱项卡片空态左对齐。",
+    "suggestion": "两处空 <tr> 加 colspan 并 style=\"text-align:center;color:var(--text-3);padding:24px\"，或改渲染 <div class=\"empty\">。"
+  },
+  {
+    "id": "VIS-9",
+    "severity": "minor",
+    "title": "轮播表预览文字用 title.slice(0,8) 硬截断且无省略号（「老年人跌倒 ·」「比赛资料 · 官」）",
+    "where": "frontend/src/views/admin/AdminContent.vue:118",
+    "evidence": "截图 vis-content-1440.png 预览列：4 张红底文字卡分别显示「老年人跌倒 ·」「12 分钟理论模拟」「比赛资料 · 官」「错题本 · 次日」，均在词中硬切、无 …。",
+    "repro": "/admin/content 主界面图片轮播表预览列。",
+    "suggestion": "改为 b.title.length>8 ? b.title.slice(0,8)+'…' : b.title，或预览块加 CSS overflow:hidden;text-overflow:ellipsis 由样式截断。"
+  },
+  {
+    "id": "VIS-10",
+    "severity": "minor",
+    "title": "AI 模型选择：平台未配置模型时「当前」标识整体缺失（教师无从得知当前生效模型），且目录存在同名卡 deepseek-v4-flash×2、freehub 卡 providerName 显示为原始目录 ID",
+    "where": "frontend/src/views/admin/AdminAi.vue:161（v-if=\"modelCurrent\" 才显示「当前」tag）、:169（「使用中」mtag）、:170（providerName 原样展示）；backend/app/aiops.py:115-131（current 取 settings.ai_model，未配置为 None；响应含 current_session 字段但前端未用）",
+    "evidence": "截图 vis-ai-1440.png：卡片标题行无绿色「当前：…」tag，6 张卡均无「使用中」角标（基线 settings 无 ai_model）；同页出现两张同名「deepseek-v4-flash」卡（DeepSeek / freehub-… 两组），3 张 freehub 卡副标题均为原始 ID「freehub-deepseek-v4-flash-glm5-2-3」，不可读。",
+    "repro": "settings.ai_model 未设置时打开 /admin/ai 模型 tab → 无任何当前模型指示；目录含 6 模型时可见同名卡。",
+    "suggestion": "current 为 null 时回退展示响应中 current_session（任务会话当前模型）并标注「当前（默认）」；同名模型卡标题拼上 provider 简称（如 deepseek-v4-flash·DeepSeek），freehub 类 providerName 用可读映射或隐藏原始 ID。"
+  },
+  {
+    "id": "VIS-11",
+    "severity": "minor",
+    "title": "管理端 .toast 类未定义，保存成功提示将以无定位/无背景的普通文本落在页面底部（未复现，代码审读降级）",
+    "where": "frontend/src/views/admin/AdminContent.vue:191（<div class=\"toast\">）；frontend/src/styles/main.css 无 .toast（唯一定义在 Home.vue:332-356 的 <style scoped> 内，作用域仅限 Home 组件）",
+    "evidence": "代码审读 + 构建产物核查：dist/assets 中仅 Home-D_Dm6fYN.css 含 .toast（带 scoped data-v 选择器），index-DHUuYyN6.css 等全局 CSS 无 .toast，AdminContent 的 .toast 节点不会命中任何规则。运行时表现未复现（出现 toast 需真实保存操作，本次只读测试不造数据）。",
+    "repro": "（未复现）/admin/content 新建任一预告/轮播卡并保存 → toast 预期以页尾普通文本闪现。",
+    "suggestion": "main.css 补全局 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2430;color:#fff;padding:8px 18px;border-radius:8px;z-index:200;font-size:13px}，并移除 Home.vue 内的重复 scoped 定义或保留复用。"
+  }
+]

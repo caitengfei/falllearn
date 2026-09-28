@@ -1,0 +1,1887 @@
+{
+ "1440/overview": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 1072,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 584,
+    "cw": 584,
+    "broken": false
+   },
+   {
+    "sw": 584,
+    "cw": 584,
+    "broken": false
+   },
+   {
+    "sw": 584,
+    "cw": 584,
+    "broken": false
+   },
+   {
+    "sw": 584,
+    "cw": 584,
+    "broken": false
+   },
+   {
+    "sw": 584,
+    "cw": 584,
+    "broken": false
+   },
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [
+   "186.656px 186.672px 186.672px 186.656px 186.672px 186.672px",
+   "584px 584px",
+   "584px 584px"
+  ],
+  "chart": {
+   "n": 7,
+   "chartH": 150,
+   "items": [
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-22"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-23"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-24"
+    },
+    {
+     "h": 95.6,
+     "cv": "128",
+     "cl": "09-25"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-26"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-27"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-28"
+    }
+   ]
+  },
+  "clusterBars": [
+   {
+    "label": "Morse评估",
+    "w": "62%",
+    "bg": "rgb(59, 130, 246)",
+    "bv": "62%"
+   },
+   {
+    "label": "环境防控",
+    "w": "71%",
+    "bg": "rgb(34, 197, 94)",
+    "bv": "71%"
+   },
+   {
+    "label": "五步处置",
+    "w": "41%",
+    "bg": "rgb(228, 57, 60)",
+    "bv": "41%"
+   },
+   {
+    "label": "骨折识别",
+    "w": "38%",
+    "bg": "rgb(245, 166, 35)",
+    "bv": "38%"
+   },
+   {
+    "label": "记录上报",
+    "w": "55%",
+    "bg": "rgb(139, 92, 246)",
+    "bv": "55%"
+   },
+   {
+    "label": "CPR启动",
+    "w": "29%",
+    "bg": "rgb(14, 165, 233)",
+    "bv": "29%"
+   }
+  ],
+  "qtypeBars": [
+   {
+    "label": "判断",
+    "w": "61.791%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "414 题"
+   },
+   {
+    "label": "单选",
+    "w": "100%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "670 题"
+   },
+   {
+    "label": "多选",
+    "w": "40.8955%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "274 题"
+   }
+  ],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": "24px",
+   "mk": "12px",
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [
+   {
+    "theadCols": 3,
+    "rows": 3,
+    "tw": 544,
+    "containerW": 584,
+    "twBroken": false
+   },
+   {
+    "theadCols": 0,
+    "rows": 1,
+    "tw": 544,
+    "containerW": 584,
+    "twBroken": false
+   },
+   {
+    "theadCols": 4,
+    "rows": 3,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-overview-1440.png",
+  "url": "http://127.0.0.1:8010/admin"
+ },
+ "1440/content": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   },
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 4,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": null
+  },
+  "tables": [
+   {
+    "theadCols": 6,
+    "rows": 1,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   },
+   {
+    "theadCols": 6,
+    "rows": 4,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-content-1440.png",
+  "url": "http://127.0.0.1:8010/admin/content"
+ },
+ "1440/exams": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": null,
+   "pill": "13px"
+  },
+  "tables": [
+   {
+    "theadCols": 9,
+    "rows": 1,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-exams-1440.png",
+  "url": "http://127.0.0.1:8010/admin/exams"
+ },
+ "1440/students": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 3,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [
+   {
+    "title": "Morse评估 62%",
+    "bg": "rgb(59, 130, 246)"
+   },
+   {
+    "title": "环境防控 71%",
+    "bg": "rgb(34, 197, 94)"
+   },
+   {
+    "title": "五步处置 41%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "骨折识别 38%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "记录上报 55%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "CPR启动 29%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "Morse评估 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "环境防控 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "五步处置 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "骨折识别 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "记录上报 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "CPR启动 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "Morse评估 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "环境防控 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "五步处置 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "骨折识别 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "记录上报 0%",
+    "bg": "rgb(229, 231, 235)"
+   },
+   {
+    "title": "CPR启动 0%",
+    "bg": "rgb(229, 231, 235)"
+   }
+  ],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": null,
+   "pill": null
+  },
+  "tables": [
+   {
+    "theadCols": 13,
+    "rows": 3,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-students-1440.png",
+  "url": "http://127.0.0.1:8010/admin/students"
+ },
+ "1440/accounts": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 4,
+   "off": 0
+  },
+  "tags": [
+   {
+    "text": "我",
+    "cls": "red",
+    "bg": "rgb(253, 236, 236)",
+    "fg": "rgb(228, 57, 60)"
+   },
+   {
+    "text": "教师",
+    "cls": "gold",
+    "bg": "rgb(254, 244, 226)",
+    "fg": "rgb(180, 83, 9)"
+   },
+   {
+    "text": "学生",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   },
+   {
+    "text": "学生",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   },
+   {
+    "text": "学生",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   }
+  ],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": null,
+   "pill": null
+  },
+  "tables": [
+   {
+    "theadCols": 6,
+    "rows": 4,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-accounts-1440.png",
+  "url": "http://127.0.0.1:8010/admin/accounts"
+ },
+ "1440/trainings": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   },
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [
+   {
+    "text": "2026 秋",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   },
+   {
+    "text": "2026 秋",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   }
+  ],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": null,
+   "pill": null
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-trainings-1440.png",
+  "url": "http://127.0.0.1:8010/admin/trainings"
+ },
+ "1440/stats": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 572,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [
+   "1180px"
+  ],
+  "chart": null,
+  "clusterBars": [
+   {
+    "label": "(inline)",
+    "w": "0%",
+    "bg": "rgb(245, 166, 35)",
+    "bv": "0%"
+   },
+   {
+    "label": "(inline)",
+    "w": "0%",
+    "bg": "rgb(245, 166, 35)",
+    "bv": "0%"
+   }
+  ],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [
+   {
+    "text": "2026 秋",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   },
+   {
+    "text": "2026 秋",
+    "cls": "blue",
+    "bg": "rgb(232, 241, 254)",
+    "fg": "rgb(29, 78, 216)"
+   }
+  ],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": "24px",
+   "mk": "12px",
+   "cardTitle": null,
+   "pill": "13px"
+  },
+  "tables": [
+   {
+    "theadCols": 7,
+    "rows": 2,
+    "tw": 1140,
+    "containerW": 1180,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-stats-1440.png",
+  "url": "http://127.0.0.1:8010/admin/stats"
+ },
+ "1440/ai": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-1440.png",
+  "url": "http://127.0.0.1:8010/admin/ai"
+ },
+ "1440/ai-kb": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 2109,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-kb-1440.png"
+ },
+ "1440/ai-gen": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [
+   "372px 372px 372px"
+  ],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-gen-1440.png"
+ },
+ "1440/ai-grade": {
+  "inner": [
+   1440,
+   900
+  ],
+  "docScrollW": 1440,
+  "docScrollH": 900,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 1180,
+    "cw": 1180,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 210,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [
+   "564px 564px"
+  ],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-grade-1440.png"
+ },
+ "1440/students-modal": {
+  "mask": true,
+  "maskPos": "static",
+  "maskDisplay": "block",
+  "maskBg": "rgba(0, 0, 0, 0)",
+  "maskZ": "auto",
+  "maskRect": [
+   244,
+   309,
+   1180,
+   245
+  ],
+  "modalBg": "rgba(0, 0, 0, 0)",
+  "modalRadius": "0px",
+  "modalShadow": "none",
+  "modalRect": [
+   244,
+   309,
+   1180,
+   245
+  ],
+  "modalCentered": false,
+  "inner": [
+   1440,
+   900
+  ]
+ },
+ "1440/content-modal": "rgba(0, 0, 0, 0)",
+ "1024/overview": {
+  "inner": [
+   1024,
+   768
+  ],
+  "docScrollW": 1024,
+  "docScrollH": 1195,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 409,
+    "cw": 409,
+    "broken": false
+   },
+   {
+    "sw": 409,
+    "cw": 409,
+    "broken": false
+   },
+   {
+    "sw": 409,
+    "cw": 409,
+    "broken": false
+   },
+   {
+    "sw": 409,
+    "cw": 409,
+    "broken": false
+   },
+   {
+    "sw": 409,
+    "cw": 409,
+    "broken": false
+   },
+   {
+    "sw": 830,
+    "cw": 830,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 176,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [
+   "268.656px 268.672px 268.656px",
+   "409px 409px",
+   "409px 409px"
+  ],
+  "chart": {
+   "n": 7,
+   "chartH": 150,
+   "items": [
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-22"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-23"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-24"
+    },
+    {
+     "h": 95.6,
+     "cv": "128",
+     "cl": "09-25"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-26"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-27"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-28"
+    }
+   ]
+  },
+  "clusterBars": [
+   {
+    "label": "Morse评估",
+    "w": "62%",
+    "bg": "rgb(59, 130, 246)",
+    "bv": "62%"
+   },
+   {
+    "label": "环境防控",
+    "w": "71%",
+    "bg": "rgb(34, 197, 94)",
+    "bv": "71%"
+   },
+   {
+    "label": "五步处置",
+    "w": "41%",
+    "bg": "rgb(228, 57, 60)",
+    "bv": "41%"
+   },
+   {
+    "label": "骨折识别",
+    "w": "38%",
+    "bg": "rgb(245, 166, 35)",
+    "bv": "38%"
+   },
+   {
+    "label": "记录上报",
+    "w": "55%",
+    "bg": "rgb(139, 92, 246)",
+    "bv": "55%"
+   },
+   {
+    "label": "CPR启动",
+    "w": "29%",
+    "bg": "rgb(14, 165, 233)",
+    "bv": "29%"
+   }
+  ],
+  "qtypeBars": [
+   {
+    "label": "判断",
+    "w": "61.791%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "414 题"
+   },
+   {
+    "label": "单选",
+    "w": "100%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "670 题"
+   },
+   {
+    "label": "多选",
+    "w": "40.8955%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "274 题"
+   }
+  ],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": "24px",
+   "mk": "12px",
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [
+   {
+    "theadCols": 3,
+    "rows": 3,
+    "tw": 369,
+    "containerW": 409,
+    "twBroken": false
+   },
+   {
+    "theadCols": 0,
+    "rows": 1,
+    "tw": 369,
+    "containerW": 409,
+    "twBroken": false
+   },
+   {
+    "theadCols": 4,
+    "rows": 3,
+    "tw": 790,
+    "containerW": 830,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-overview-1024.png",
+  "url": "http://127.0.0.1:8010/admin"
+ },
+ "1024/content": {
+  "inner": [
+   1024,
+   768
+  ],
+  "docScrollW": 1024,
+  "docScrollH": 797,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 830,
+    "cw": 830,
+    "broken": false
+   },
+   {
+    "sw": 830,
+    "cw": 830,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 176,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 4,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": null
+  },
+  "tables": [
+   {
+    "theadCols": 6,
+    "rows": 1,
+    "tw": 790,
+    "containerW": 830,
+    "twBroken": false
+   },
+   {
+    "theadCols": 6,
+    "rows": 4,
+    "tw": 790,
+    "containerW": 830,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-content-1024.png",
+  "url": "http://127.0.0.1:8010/admin/content"
+ },
+ "1024/ai": {
+  "inner": [
+   1024,
+   768
+  ],
+  "docScrollW": 1024,
+  "docScrollH": 768,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 830,
+    "cw": 830,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 176,
+   "h": 592,
+   "display": "block",
+   "dir": "row",
+   "wrap": "nowrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "sticky",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 56
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-1024.png",
+  "url": "http://127.0.0.1:8010/admin/ai"
+ },
+ "390/overview": {
+  "inner": [
+   390,
+   844
+  ],
+  "docScrollW": 390,
+  "docScrollH": 2666,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   },
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   },
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   },
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   },
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   },
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 390,
+   "h": 460,
+   "display": "flex",
+   "dir": "row",
+   "wrap": "wrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "static",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 52
+  },
+  "mgrids": [
+   "390px",
+   "390px",
+   "390px"
+  ],
+  "chart": {
+   "n": 7,
+   "chartH": 150,
+   "items": [
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-22"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-23"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-24"
+    },
+    {
+     "h": 95.6,
+     "cv": "128",
+     "cl": "09-25"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-26"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-27"
+    },
+    {
+     "h": 3,
+     "cv": "0",
+     "cl": "09-28"
+    }
+   ]
+  },
+  "clusterBars": [
+   {
+    "label": "Morse评估",
+    "w": "62%",
+    "bg": "rgb(59, 130, 246)",
+    "bv": "62%"
+   },
+   {
+    "label": "环境防控",
+    "w": "71%",
+    "bg": "rgb(34, 197, 94)",
+    "bv": "71%"
+   },
+   {
+    "label": "五步处置",
+    "w": "41%",
+    "bg": "rgb(228, 57, 60)",
+    "bv": "41%"
+   },
+   {
+    "label": "骨折识别",
+    "w": "38%",
+    "bg": "rgb(245, 166, 35)",
+    "bv": "38%"
+   },
+   {
+    "label": "记录上报",
+    "w": "55%",
+    "bg": "rgb(139, 92, 246)",
+    "bv": "55%"
+   },
+   {
+    "label": "CPR启动",
+    "w": "29%",
+    "bg": "rgb(14, 165, 233)",
+    "bv": "29%"
+   }
+  ],
+  "qtypeBars": [
+   {
+    "label": "判断",
+    "w": "61.791%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "414 题"
+   },
+   {
+    "label": "单选",
+    "w": "100%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "670 题"
+   },
+   {
+    "label": "多选",
+    "w": "40.8955%",
+    "bg": "rgb(100, 116, 139)",
+    "bv": "274 题"
+   }
+  ],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": "24px",
+   "mk": "12px",
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [
+   {
+    "theadCols": 3,
+    "rows": 3,
+    "tw": 362,
+    "containerW": 390,
+    "twBroken": false
+   },
+   {
+    "theadCols": 0,
+    "rows": 1,
+    "tw": 362,
+    "containerW": 390,
+    "twBroken": false
+   },
+   {
+    "theadCols": 4,
+    "rows": 3,
+    "tw": 362,
+    "containerW": 390,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-overview-390.png",
+  "url": "http://127.0.0.1:8010/admin"
+ },
+ "390/content": {
+  "inner": [
+   390,
+   844
+  ],
+  "docScrollW": 474,
+  "docScrollH": 1804,
+  "pageOverflow": true,
+  "cards": [
+   {
+    "sw": 474,
+    "cw": 474,
+    "broken": false
+   },
+   {
+    "sw": 474,
+    "cw": 474,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 390,
+   "h": 460,
+   "display": "flex",
+   "dir": "row",
+   "wrap": "wrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "static",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 52
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 4,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": "13px",
+   "atableTh": "12px",
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": null
+  },
+  "tables": [
+   {
+    "theadCols": 6,
+    "rows": 1,
+    "tw": 446,
+    "containerW": 474,
+    "twBroken": false
+   },
+   {
+    "theadCols": 6,
+    "rows": 4,
+    "tw": 446,
+    "containerW": 474,
+    "twBroken": false
+   }
+  ],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-content-390.png",
+  "url": "http://127.0.0.1:8010/admin/content"
+ },
+ "390/ai": {
+  "inner": [
+   390,
+   844
+  ],
+  "docScrollW": 390,
+  "docScrollH": 1381,
+  "pageOverflow": false,
+  "cards": [
+   {
+    "sw": 390,
+    "cw": 390,
+    "broken": false
+   }
+  ],
+  "adminSide": {
+   "w": 390,
+   "h": 460,
+   "display": "flex",
+   "dir": "row",
+   "wrap": "wrap",
+   "bg": "rgb(20, 26, 38)",
+   "pos": "static",
+   "radius": "14px"
+  },
+  "topbar": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 52
+  },
+  "mgrids": [],
+  "chart": null,
+  "clusterBars": [],
+  "qtypeBars": [],
+  "switches": {
+   "on": 0,
+   "off": 0
+  },
+  "tags": [],
+  "clusterBlocks": [],
+  "logoMarks": [
+   {
+    "w": 30,
+    "h": 30,
+    "fs": "16px",
+    "grad": "linear-gradient(135deg, rgb(228, 57, 60), rgb(240, 113, 103))",
+    "radius": "8px"
+   },
+   {
+    "w": 26,
+    "h": 26,
+    "fs": "14px",
+    "grad": "none",
+    "radius": "0px"
+   }
+  ],
+  "fonts": {
+   "body": "14px",
+   "atable": null,
+   "atableTh": null,
+   "mv": null,
+   "mk": null,
+   "cardTitle": "15px",
+   "pill": "13px"
+  },
+  "tables": [],
+  "bodyBg": "rgb(245, 246, 248)",
+  "screenshot": "vis-ai-390.png",
+  "url": "http://127.0.0.1:8010/admin/ai"
+ }
+}

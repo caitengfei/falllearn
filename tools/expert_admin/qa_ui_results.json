@@ -1,0 +1,107 @@
+[
+  {
+    "name": "UI-登录",
+    "ok": true,
+    "detail": "登录后 location=http://127.0.0.1:8010/admin (教师默认进 /admin)"
+  },
+  {
+    "name": "UI-总览",
+    "ok": true,
+    "detail": "指标卡数量=6（预期 6）"
+  },
+  {
+    "name": "UI-总览",
+    "ok": true,
+    "detail": "7 日趋势条形数=7"
+  },
+  {
+    "name": "UI-总览",
+    "ok": true,
+    "detail": "学时统计表行数=5（含 E2E 学生）"
+  },
+  {
+    "name": "UI-总览",
+    "ok": true,
+    "detail": "演示数据重置按钮存在=1（不点击）"
+  },
+  {
+    "name": "UI-内容",
+    "ok": true,
+    "detail": "轮播行数=4（4 张种子卡，未动）"
+  },
+  {
+    "name": "UI-内容",
+    "ok": false,
+    "detail": "预告空态提示=0（基线 0 公告）"
+  },
+  {
+    "name": "UI-考试",
+    "ok": true,
+    "detail": "已交卷行数=1（E2E 1 份）"
+  },
+  {
+    "name": "UI-考试",
+    "ok": false,
+    "detail": "得分 30 颜色=rgb(31, 36, 48)（score<60 预期红色 var(--primary)=#e4393c）"
+  },
+  {
+    "name": "UI-考试",
+    "ok": true,
+    "detail": "明细弹窗题目数=10（预期 10）"
+  },
+  {
+    "name": "UI-考试",
+    "ok": false,
+    "detail": "选学生筛选=张小明后列表行数=1（预期 0；实际未过滤说明 student_id 未随请求发送）"
+  },
+  {
+    "name": "UI-考试",
+    "ok": true,
+    "detail": "筛选请求不含 student_id 参数（bug 实锤）: ['http://127.0.0.1:8010/api/admin/exams?status=done']"
+  },
+  {
+    "name": "UI-AI",
+    "ok": true,
+    "detail": "判卷下拉初始选项数=1（仅占位项=未自动加载已交卷，需手动点刷新）"
+  },
+  {
+    "name": "UI-AI",
+    "ok": true,
+    "detail": "刷新后选项数=2（占位+E2E 1 份）"
+  },
+  {
+    "name": "UI-AI",
+    "ok": true,
+    "detail": "模型卡片数=6 错误卡=0"
+  },
+  {
+    "name": "UI-学生",
+    "ok": true,
+    "detail": "学生行数=5（3 种子+2 EXPERT），S2026004 存在=1"
+  },
+  {
+    "name": "UI-学生",
+    "ok": true,
+    "detail": "六簇色块带 title 提示（Morse 块）=1"
+  },
+  {
+    "name": "UI-培训",
+    "ok": true,
+    "detail": "培训卡统计(报名3/完成1/33.3%): OK"
+  },
+  {
+    "name": "UI-统计",
+    "ok": true,
+    "detail": "tab 数=3，培训情况行数=3"
+  },
+  {
+    "name": "UI-统计",
+    "ok": true,
+    "detail": "教师带训行 tds=['陈老师 教师', '3', '5', '培训在「培训管理」创建时自动归属当前登录教师']（培训期数应=3：2 基线+1 EXPERT）"
+  },
+  {
+    "name": "UI-账号",
+    "ok": true,
+    "detail": "账号行数=6（4 种子+2 EXPERT），T2026 有「我」标记=1"
+  }
+]

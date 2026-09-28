@@ -1,0 +1,22 @@
+{
+  "students_to_delete": [
+    5,
+    6
+  ],
+  "trainings_to_delete": [
+    3
+  ],
+  "announcements_to_delete": [
+    4
+  ],
+  "banners_to_delete": [],
+  "uploads_to_delete": [
+    "/uploads/banner-1790569994-6b5b9a.png"
+  ],
+  "e2e_student": {
+    "student_no": "S2026004",
+    "id": 5,
+    "attempt_id": 1,
+    "score": 30
+  }
+}

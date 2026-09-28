@@ -1,0 +1,43 @@
+{
+ "dialogs": [],
+ "create_student_api": [
+  200,
+  {
+   "ok": true,
+   "id": 5,
+   "student_no": "S2026004"
+  }
+ ],
+ "training_create_dialogs": null,
+ "toast_after_training_create": null,
+ "training_created": {
+  "found": true,
+  "enrolled": 1,
+  "done": 0,
+  "rate": 0.0
+ },
+ "after_mark_done": {
+  "done": 1,
+  "rate": 100.0,
+  "chip_class": "rgb(232, 249, 239)"
+ },
+ "toggle_back_dialogs": null,
+ "after_toggle_back": {
+  "done": 0,
+  "rate": 0.0
+ },
+ "seed_training_enroll_hint": "2026-10-08 ~ 2026-10-30 · 容量 30 人 · 负责：陈老师 含 12 分钟模拟考考核",
+ "delete_training_dialog": [
+  "删除培训「EXPERT-ux-演练班」及其报名记录？"
+ ],
+ "training_after_delete": [],
+ "stats_totals": [
+  "培训期数2累计开设",
+  "累计报名人次0含重复报名",
+  "累计完成人次0教师标记完成",
+  "总体完成率0%完成 / 报名"
+ ],
+ "dialogs_all": [
+  "删除培训「EXPERT-ux-演练班」及其报名记录？"
+ ]
+}

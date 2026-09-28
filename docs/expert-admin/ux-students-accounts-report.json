@@ -1,0 +1,55 @@
+{
+ "dialogs": [],
+ "dialog_student_created": "已创建学生 S2026004（密码 123456）",
+ "student_created": {
+  "found": true,
+  "sno": "S2026004"
+ },
+ "student_switch_box": {
+  "w": 0,
+  "h": 0,
+  "display": "inline"
+ },
+ "disable_confirm_dialog": null,
+ "student_after_disable": {
+  "ui_class": "switch",
+  "db_enabled": 0
+ },
+ "enable_confirm_dialog": [
+  "确认启用 EXPERT-ux-学生甲（S2026004）？"
+ ],
+ "student_after_enable": {
+  "ui_class": "switch on",
+  "db_enabled": 1
+ },
+ "resetpwd_dialogs": [
+  "把 EXPERT-ux-学生甲 的密码重置为 123456？",
+  "EXPERT-ux-学生甲 密码已重置为 123456"
+ ],
+ "dialog_teacher_created": "已创建 教师账号 T2026002",
+ "teacher_created": {
+  "found": true,
+  "sno": "T2026002",
+  "role": "teacher"
+ },
+ "self_disable_dialog": null,
+ "self_switch_ui": {
+  "found": false
+ },
+ "self_delete_button_visible": null,
+ "delete_account_dialog": [
+  "物理删除账号 T2026002（EXPERT-ux-教师乙）及其全部学习数据？此操作不可恢复！"
+ ],
+ "teacher_after_delete": [],
+ "delete_student_dialog": "物理删除账号 S2026004（EXPERT-ux-学生甲）及其全部学习数据？此操作不可恢复！",
+ "student_after_delete": [],
+ "dialogs_all": [
+  "已创建学生 S2026004（密码 123456）",
+  "确认启用 EXPERT-ux-学生甲（S2026004）？",
+  "把 EXPERT-ux-学生甲 的密码重置为 123456？",
+  "EXPERT-ux-学生甲 密码已重置为 123456",
+  "已创建 教师账号 T2026002",
+  "物理删除账号 T2026002（EXPERT-ux-教师乙）及其全部学习数据？此操作不可恢复！",
+  "物理删除账号 S2026004（EXPERT-ux-学生甲）及其全部学习数据？此操作不可恢复！"
+ ]
+}

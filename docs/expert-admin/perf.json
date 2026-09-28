@@ -1,0 +1,125 @@
+{
+  "tag": "perf",
+  "role": "性能专家（性能与扩展性：API 计时 + N+1 审读 + SQLite 索引 + 前端超时链/渲染）",
+  "date": "2026-09-28",
+  "environment": "127.0.0.1:8010（FastAPI+SQLite 托管 Vue3 dist），演示规模实测 3 学生/1358 题，30 学生规模用 DB 副本合成 27 人模拟（perf_sim.db，绝不碰线上库）",
+  "evidence_files": {
+    "scripts": [
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_api_timing.py",
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_admin_firstview.py",
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_scale_sim.py",
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_trainings_sim.py",
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_plan_before.py",
+      "E:\\lilei\\platform\\tools\\expert_admin\\perf_verify_clean.py"
+    ],
+    "data": [
+      "E:\\lilei\\platform\\docs\\expert-admin\\perf_api_timing.json",
+      "E:\\lilei\\platform\\docs\\expert-admin\\perf_admin_firstview.json",
+      "E:\\lilei\\platform\\docs\\expert-admin\\perf_scale_sim.json",
+      "E:\\lilei\\platform\\docs\\expert-admin\\perf_admin_firstview.png"
+    ]
+  },
+  "measured_baseline": {
+    "api_3students_ms_mean3": {
+      "stats_overview": 11.4, "students": 8.6, "exams": 7.7, "banners": 7.6,
+      "trainings": 7.3, "ai_kb": 25.4, "ai_models(warm)": 7.7, "content_banners": 5.5, "login(bcrypt)": 7.6
+    },
+    "admin_firstview_ms": { "firstCard_mean": 246, "firstCard_runs": [188, 265, 285], "DCL": [72, 74, 95], "load": [125, 128, 150], "js_first_visit_bytes": 117659, "js_files": 2 },
+    "admin_chunks_kb": { "index": 106.4, "AdminAi": 13.2, "AdminContent": 10.5, "AdminOverview": 8.0, "AdminTrainings": 6.9, "AdminStats": 5.3, "AdminExams": 5.3, "AdminAccounts": 4.5, "AdminStudents": 4.2 },
+    "scale_sim_30students": {
+      "students_list": { "current_queries": 241, "current_ms": 15.8, "fixed_queries": 8, "fixed_ms": 1.3 },
+      "stats_overview": { "current_queries": 159, "current_ms": 16.0, "fixed_queries": 16, "fixed_ms": 4.1 },
+      "stats_trainings": { "current_queries": 131, "current_ms": 9.0 },
+      "trainings_list": { "current_queries": 9, "current_ms": 0.7 },
+      "exams_list": { "current_queries": 1, "current_ms": 0.4 },
+      "overview_with_proposed_indexes_ms": 13.1
+    }
+  },
+  "top3_optimizations_by_benefit_cost": [
+    "1) stats/overview + students 的 N+1 改 GROUP BY/JOIN：300 查询→24 查询，30 学生 16ms→1.3/4.1ms（12×/4×），300 学生规模避免 100ms+ 端点；成本≈50 行 SQL（perf_scale_sim.py 内 fixed 版为可直接套用的参考实现）",
+    "2) db.py _migrate 补 7 个热列索引（points_log.created_at / chat_logs.created_at / attempts.status / mastery.cluster_id / answers(question_id) / training_enrolls.student_id / checkins.date）：成本极小（7 条 IF NOT EXISTS），消除全部 7 类全表扫描，stats/overview 实测 −18%，收益随数据量增长",
+    "3) AI 端点超时链硬限 + ai_grades UNIQUE(attempt_id) 幂等 + models stale-while-revalidate：消除「前端超时→后端僵尸轮询→重试重复判卷」与模型时间浪费；成本小（循环加 deadline + 一个表约束 + 缓存策略）"
+  ],
+  "findings": [
+    {
+      "id": "PERF-1",
+      "severity": "major",
+      "title": "/api/admin/students N+1：每学生 8 条子查询，30 学生=241 查询（实测），O(8N) 增长",
+      "where": "/admin/students · backend/app/manage.py:254-267 (_student_stats) / 270-277 (students_list)",
+      "evidence": "perf_scale_sim.json：30 学生规模（27 合成+3 真实）students_list 触发 241 条 SQL、best 15.79ms；重写为 8 条 GROUP BY 聚合后 8 查询/1.27ms（12× 提速，参考实现 students_list_fixed）。8 条子查询=每学生 mastery/points_cache/attempts/chat_logs/wrong_records/user_badges/training_enrolls/study_events 各 1 条。线上 3 学生规模实测 8.6ms（perf_api_timing.json），演示规模无感，但 300 学生≈2401 查询（Python 侧调度主导，预计 100ms+）。",
+      "repro": "教师登录 → GET /api/admin/students；查询计数用 perf_scale_sim.py（sqlite3 trace 回调复现 _student_stats 序列）。",
+      "suggestion": "manage.py 重写 students_list：按表做 7-8 条 GROUP BY 聚合（SELECT student_id, COUNT(*) ... GROUP BY student_id / SUM(minutes)），Python 端按 student_id 合并进用户 dict；mastery 六簇一次 fetchall 后 Python 分组。零 schema 变更。"
+    },
+    {
+      "id": "PERF-2",
+      "severity": "major",
+      "title": "/api/admin/stats/overview N+1：159 查询@30学生（rank 3榜×N + 7日趋势 14 条 + 六簇 6 条 + 弱项 6 次 JOIN + 学时 N 条），/stats/trainings 同模式 131 查询",
+      "where": "/admin 数据总览 · backend/app/manage.py:526-627（rank 573-588 / trend 549-558 / clusters 560-565 / weak 590-599 / hours 601-605）；/admin/stats · manage.py:630-657（每学生 4 条 639-649）+ 425-434 (_training_row)",
+      "evidence": "perf_scale_sim.json：stats_overview_current 159 查询/15.98ms → 固定 16 查询版 4.11ms（4×）；perf_trainings_sim.py：stats_trainings 131 查询/9.0ms（每学生 4 条：enrolls 聚合/hours/practice/ai_ask + 每教师 2 条）。rank() 还额外 3 次重扫 users（每榜 1 次）。查询数 O(4N+39)：300 学生≈1500+ 查询/请求。",
+      "repro": "GET /api/admin/stats/overview 与 /api/admin/stats/trainings；perf_scale_sim.py stats_overview_current 复现全序列并计数。",
+      "suggestion": "rank(field) 每榜改 1 条：LEFT JOIN points_cache / SELECT u.id, COALESCE(AVG(m.level),0) ... GROUP BY u.id ORDER BY DESC LIMIT 10 / LEFT JOIN study_events SUM 同型；7 日趋势改 2 条 GROUP BY date(created_at,'unixepoch')（points_log+chat_logs 各 1）；六簇 1 条 GROUP BY cluster_id；班级弱项 1 条 GROUP BY q.cluster_id；active_days 的 today/week 合并为 1 条（4 路 UNION 一次算出两个窗口）；stats/trainings 的每学生 4 条改 GROUP BY student_id 聚合 + LEFT JOIN study_events/attempts/chat_logs。"
+    },
+    {
+      "id": "PERF-3",
+      "severity": "major",
+      "title": "SQLite 缺 7 个热列索引：7 日趋势/活跃/弱项/按生聚合全部全表扫描（EXPLAIN QUERY PLAN 实测确认）",
+      "where": "backend/app/db.py:146-156（_migrate 现有 8 索引清单，缺以下 7 列）",
+      "evidence": "perf_plan_before.py（现有索引下 EXPLAIN）：points_log_7d_trend=SCAN points_log；chat_logs_7d_asks=SCAN chat_logs；attempts_status_done=SCAN attempts；mastery_by_cluster=SCAN mastery；weak_join_cluster=SCAN a | SEARCH q（answers 全扫×6/overview）；checkins_by_date=SCAN checkins（PK 首列是 student_id，date 范围用不上）；enrolls_by_student=SCAN training_enrolls（autoindex 为 UNIQUE(training_id,student_id)，student_id 非前导列）。补 7 索引后全部变 index SEARCH（perf_scale_sim.json query_plans_after_indexes），stats/overview@30 学生 15.98→13.1ms（−18%）；answers 1090→10 万行时 weak-join 6× 全扫是主要放大器。",
+      "repro": "python E:\\lilei\\platform\\tools\\expert_admin\\perf_plan_before.py（只读 EXPLAIN，不写线上库）。",
+      "suggestion": "db.py _migrate() 索引元组追加：idx_pointslog_created ON points_log(created_at)；idx_chat_created ON chat_logs(created_at)；idx_attempts_status ON attempts(status)；idx_mastery_cluster ON mastery(cluster_id)；idx_answers_question ON answers(question_id)；idx_enrolls_student ON training_enrolls(student_id)；idx_checkins_date ON checkins(date)。"
+    },
+    {
+      "id": "PERF-4",
+      "severity": "major",
+      "title": "AI 端点超时链不自洽：前端 330s < 后端 300s 软限+单 RPC 60s 最坏≈366s；前端 abort 后后端继续轮询并最终写库，ai_grades 无 UNIQUE(attempt_id) → 超时重试产生重复判卷行",
+      "where": "/admin/ai 出题·判卷 · frontend/src/api.js:27(30s默认)/140,143(330s)；backend/app/aiops.py:87-111(_run_task 软循环 95 行)/246,339(timeout=300)/359-365(ai_grades 插入)；backend/app/dsh_client.py:22(timeout=60/RPC)；backend/app/db.py:108-111(ai_grades 表无 attempt_id 唯一约束)",
+      "evidence": "代码审读算术：_run_task 仅在循环顶部检查 time.time()-t0<300（aiops.py:95），随后 sleep 6s + 1 次 get_history（httpx timeout=60，dsh_client.py:22）→ 单次挂起 RPC 可让总时长超 300s 至多约 66s（≈366s）> 前端 330s；前端 AbortController 只取消浏览器侧 fetch（api.js:28-47），FastAPI 端点无 disconnect 检测，会继续轮询到完成；ai_grade 在 _run_task 返回后才 INSERT ai_grades（359-365），表无 UNIQUE(attempt_id)（db.py:108）→ 用户见「请求超时」后重试将落 2 条判卷记录（ai/grades 列表双行）。测试期 DSH 全程健康（未实际触发超时，未复现；结论为代码常量审读）。",
+      "repro": "需 DSH RPC 挂起 >60s 才触发（未复现）；可静态核对 aiops.py:95 循环条件、dsh_client.py:22、db.py:108-111。",
+      "suggestion": "① _run_task 改硬 deadline：每次 RPC 前计算 remaining=timeout-(now-t0)，get_history 传 min(60, max(1,remaining))，remaining<=0 立即退出（把 300s 变成硬上限，保证 <330s 前端线）；② ai_grades 加 UNIQUE(attempt_id)（db.py _migrate 迁移）且 ai_grade 改为 upsert/先查已存在直接返回既有记录，保证重试幂等；③ 前端 aiGrade 提交后按钮置「判卷中」并传 attempt_id 去重。"
+    },
+    {
+      "id": "PERF-5",
+      "severity": "minor",
+      "title": "/api/admin/ai/models 10min 进程内缓存生效（warm 7.7ms）但冷路径无兜底：最坏 4×60s≈240s > 前端 90s 超时，进程重启后目录丢失",
+      "where": "/admin/ai 模型 tab · backend/app/aiops.py:25(_model_cache 模块级)/115-131(models_list)；frontend/src/api.js:134(timeout:90000)",
+      "evidence": "实测 3 次 7.4/8.3/7.3ms 全部缓存命中（perf_api_timing.json）。冷路径代码审读：_task_session = get_history(≤60s) + 可选 create_session(≤60s) + select_model(≤60s)，再加 session.models(≤60s) → 最坏 ≈240s > 前端 90s：后端在算目录时前端已 abort（用户见超时），第二次打开才能命中缓存；_model_cache 是模块变量，uvicorn 重启后首个请求必走冷路径。",
+      "repro": "后端重启后首次 GET /api/admin/ai/models（本次未执行，避免中断并行测试会话的 DSH 共享状态）。",
+      "suggestion": "stale-while-revalidate：把最近一次成功目录持久化到 settings 表（如 ai_model_catalog），冷/慢时先返回旧目录（带 cached_at 标记）并后台刷新；或最低成本：前端 aiModels 超时提到 300s 且 tab 内显示「目录加载中」。"
+    },
+    {
+      "id": "PERF-6",
+      "severity": "minor",
+      "title": "Home.vue loadContent() 未 await：首帧渲染硬编码默认 4 张轮播卡，接口返回后替换为 DB 内容（文案与种子不同 → 每次首访文字闪换）",
+      "where": "学生端首页 · frontend/src/views/Home.vue:27-32(硬编码默认 slides)/35-49(loadContent)/101(load 内调用未 await)",
+      "evidence": "代码审读：slides.value 初始为 4 张硬编码卡（注释「轮播/公告独立加载，不阻塞主体」）；loadContent 内部 await Promise.all(/api/content/banners + /announcements) 后整体替换 slides.value（服务端 /api/content/banners 实测 5.5ms，浏览器端到端约 50-300ms）→ 首帧先出硬编码文案。默认卡 2 文案（tag「限时 12 分钟 · 100 分」/sub「按竞赛口径组卷 · 倒计时交卷 · 逐题解析入错题本」）与 DB 种子（「限时 12 分钟 · 10 题 100 分」/「对标竞赛情景模块 · 倒计时自动交卷」，db.py:191-196）不一致 → 每次首访可见一次文字跳变；教师改过轮播后，首帧短暂暴露过期硬编码文案。非白屏（默认卡即时渲染），判打磨项。",
+      "repro": "学生账号开 /，观察 banner 区域首帧→约 0.1-0.3s 后文字变化；对照 Home.vue:27-32 与 db.py:191-196 文案。",
+      "suggestion": "banner 区 v-if=\"contentLoaded\"（loadContent 完成后置 true）或首帧渲染骨架占位；保留现有 catch 的「接口不可用回退默认 4 卡」路径即可，无需两份长期文案。"
+    },
+    {
+      "id": "PERF-7",
+      "severity": "minor",
+      "title": "App.vue refreshDue() 无页面守卫：/admin/* 页面仍发起 /api/wrong?status=active（铃铛仅学生端显示，结果无人消费）",
+      "where": "App 壳 · frontend/src/App.vue:13-19(refreshDue)/21-22(watch+onMounted 无条件调用)/83(铃铛 v-if=\"!isAdmin\")；附：backend/app/auth.py:56-62 current_user 每请求新开 SQLite 连接未 close（靠 GC，A 期遗留 fact#144-④）",
+      "evidence": "perf_admin_firstview.json：/admin 三次冷访 resource timing 均含 wrong?status=active（9/10/11ms）；admin 页 dueCount 无 UI 消费者。teacher 账号该查询恒返回空列表。",
+      "repro": "教师登录开 /admin，DevTools Network 可见 /api/wrong?status=active。",
+      "suggestion": "refreshDue() 首行加 if (route.path.startsWith('/admin')) return（并 watch route 变化时跳过）；auth.current_user 的 d 用 try/finally close() 或模块级短连接池。"
+    },
+    {
+      "id": "PERF-8",
+      "severity": "minor",
+      "title": "静态资源未压缩下发：/admin 首访 115KB JS（index 106.4KB 共享块）原样传输，无 gzip/brotli（弱网 30 学生场景传输耗时 ×2-3）",
+      "where": "全站 · backend/app/main.py:19-20（仅 CORSMiddleware，无 GZipMiddleware）；dist/assets/index-B45fcLXZ.js=106.4KB",
+      "evidence": "响应头实测：/assets/AdminOverview-*.js CE=(空)、CL=8151 与磁盘大小一致（未压缩）；/admin 首访 jsTransferBytes=117659B（perf_admin_firstview.json）。首屏本身健康：first-card 188/265/285ms（均值 246ms）、DCL 72-95ms；8 个 admin 页 chunk 4.2-13.2KB 且 router.js:15-22 路由级懒加载——无问题；成本集中在 106KB 未压缩共享块（含 vue/router/api.js）。",
+      "repro": "curl -H \"Accept-Encoding: gzip\" -sI http://127.0.0.1:8010/assets/index-B45fcLXZ.js | findstr Content-Encoding（无该头）。",
+      "suggestion": "main.py 加 GZipMiddleware（minimum_size=1024）：JS 传输约 −60~70%（106KB→~30KB 级）；可选 Vary: Accept-Encoding。本机演示无感，校园 Wi-Fi/公网演示收益明显。"
+    }
+  ],
+  "not_issues": [
+    "/admin 首屏渲染健康（246ms 均值到首个指标卡，8 admin chunk 懒加载 4-13KB）",
+    "exams_list 已是单条 JOIN（1 查询/0.4ms@30 学生）；trainings_list 9 查询/0.7ms 无 N+1 放大",
+    "dsh_client 各 RPC 均有 60s httpx 超时（非「无超时」），风险在聚合时长而非单调用挂死",
+    "/assets/* 已带 max-age=31536000,immutable 长缓存 + index.html no-cache（A 期修复保持有效）"
+  ],
+  "cleaned": true,
+  "cleanup_note": "全程只读+计时：仅 GET 请求与对线上库的只读 EXPLAIN/VACUUM INTO 快照（未向线上库写任何行）；未创建任何平台数据（0 公告/0 轮播/0 培训/0 学生/0 KB 文件，EXPERT-perf 痕迹核验=0）。30 学生规模数据只存在于工具目录副本 tools/expert_admin/perf_sim.db（合成学生 S2026101-127，线上库 synthetic_leak=0 已核验）。未调用 reset-demo / AI 真实出题 / AI 真实判卷。线上库现有多出的 2 学生/5 公告/2 培训/1 交卷均为并行专家 EXPERT-qa / EXPERT-ux 前缀数据（perf_who_created.py 核验），非本专家创建、未触碰。"
+}

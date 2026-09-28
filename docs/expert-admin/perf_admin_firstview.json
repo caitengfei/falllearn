@@ -1,0 +1,117 @@
+{
+  "tag": "perf",
+  "date": "2026-09-28 12:27:19",
+  "url": "http://127.0.0.1:8010/admin",
+  "viewport": "1440x900",
+  "channel": "msedge(headless)",
+  "note": "firstCardMs=导航起点→首个指标卡(.mcard)出现（10ms 轮询）；3 次独立 context（无 HTTP 缓存共享）",
+  "mean_firstCard_ms": 246,
+  "mean_DCL_ms": 80.3,
+  "mean_load_ms": 134.3,
+  "mean_ttfb_ms": 11.3,
+  "mean_js_bytes": 117659,
+  "runs": [
+    {
+      "run": 1,
+      "wall_after_dcl_ms": 311,
+      "nav": {
+        "redirect": 0,
+        "dns": 10,
+        "connect": 10,
+        "ttfb": 17,
+        "respEnd": 19,
+        "domInteractive": 42,
+        "domContentLoaded": 95,
+        "load": 150
+      },
+      "firstCardMs": 285,
+      "firstCardFound": true,
+      "apiCalls": [
+        {
+          "name": "wrong?status=active",
+          "url": "http://127.0.0.1:8010/api/wrong?status=active",
+          "size": 326,
+          "start": 93,
+          "dur": 9
+        },
+        {
+          "name": "overview",
+          "url": "http://127.0.0.1:8010/api/admin/stats/overview",
+          "size": 2039,
+          "start": 167,
+          "dur": 14
+        }
+      ],
+      "jsTransferBytes": 117659,
+      "jsCount": 2
+    },
+    {
+      "run": 2,
+      "wall_after_dcl_ms": 342,
+      "nav": {
+        "redirect": 0,
+        "dns": 4,
+        "connect": 4,
+        "ttfb": 10,
+        "respEnd": 12,
+        "domInteractive": 25,
+        "domContentLoaded": 74,
+        "load": 128
+      },
+      "firstCardMs": 265,
+      "firstCardFound": true,
+      "apiCalls": [
+        {
+          "name": "wrong?status=active",
+          "url": "http://127.0.0.1:8010/api/wrong?status=active",
+          "size": 326,
+          "start": 72,
+          "dur": 10
+        },
+        {
+          "name": "overview",
+          "url": "http://127.0.0.1:8010/api/admin/stats/overview",
+          "size": 2039,
+          "start": 146,
+          "dur": 12
+        }
+      ],
+      "jsTransferBytes": 117659,
+      "jsCount": 2
+    },
+    {
+      "run": 3,
+      "wall_after_dcl_ms": 202,
+      "nav": {
+        "redirect": 0,
+        "dns": 2,
+        "connect": 2,
+        "ttfb": 7,
+        "respEnd": 9,
+        "domInteractive": 23,
+        "domContentLoaded": 72,
+        "load": 125
+      },
+      "firstCardMs": 188,
+      "firstCardFound": true,
+      "apiCalls": [
+        {
+          "name": "wrong?status=active",
+          "url": "http://127.0.0.1:8010/api/wrong?status=active",
+          "size": 326,
+          "start": 70,
+          "dur": 11
+        },
+        {
+          "name": "overview",
+          "url": "http://127.0.0.1:8010/api/admin/stats/overview",
+          "size": 2039,
+          "start": 140,
+          "dur": 12
+        }
+      ],
+      "jsTransferBytes": 117659,
+      "jsCount": 2
+    }
+  ]
+}

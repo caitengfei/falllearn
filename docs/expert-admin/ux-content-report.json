@@ -1,0 +1,224 @@
+{
+ "dialogs": [],
+ "mask_style": {
+  "position": "static",
+  "background": "rgba(0, 0, 0, 0)",
+  "inset": "auto,auto,auto,auto",
+  "zIndex": "auto"
+ },
+ "modal_style": {
+  "width": 1180,
+  "maxWidth": "none",
+  "background": "rgba(0, 0, 0, 0)",
+  "borderRadius": "0px",
+  "position": "static",
+  "marginTop": "0px"
+ },
+ "modal_header_style": {
+  "fontSize": "14px",
+  "fontWeight": "400",
+  "borderBottom": "0px"
+ },
+ "dialog_empty_title": "请填写标题",
+ "modal_still_open": true,
+ "title_input_value": "EXPERT-ux-课程预告超长标题测试这是一条非常非常长的标题啊",
+ "mask_modal_geom": [
+  {
+   "cls": "mask",
+   "x": 244,
+   "y": 386.953125,
+   "w": 1180,
+   "h": 465
+  },
+  {
+   "cls": "modal",
+   "x": 244,
+   "y": 386.953125,
+   "w": 1180,
+   "h": 465
+  }
+ ],
+ "maskclick_note": "mask rect not larger than modal (unstyled); skipping click",
+ "after_maskclick_modal_open": true,
+ "toast_text": "公告已保存",
+ "toast_style": {
+  "position": "static",
+  "background": "rgba(0, 0, 0, 0)",
+  "color": "rgb(31, 36, 48)",
+  "top": 886,
+  "bottom": 908
+ },
+ "long_title_cell": {
+  "titleCellW": 459,
+  "scrollW": 459,
+  "clientW": 459,
+  "rowH": 43
+ },
+ "table_layout": {
+  "scrollWidth": 1140,
+  "clientWidth": 1140,
+  "pageOverflow": 0
+ },
+ "switch_box": {
+  "w": 0,
+  "h": 0,
+  "display": "inline",
+  "position": "relative"
+ },
+ "switch_knob_box": {
+  "w": 18,
+  "h": 18,
+  "x": 1184,
+  "y": 223
+ },
+ "switch_pin": {
+  "ui_before": "switch",
+  "ui_120ms": "switch",
+  "ui_2500ms": "switch",
+  "db": 1,
+  "ui_matches_db": false
+ },
+ "switch_doubleclick": {
+  "ui_before": "switch on",
+  "ui_final": "switch",
+  "db": 0,
+  "ui_matches_db": true
+ },
+ "edit_prefill": true,
+ "toast_after_edit": "公告已保存",
+ "dialog_delete_notice": "删除公告「EXPERT-ux-课程预告超长标题测试这是一条非常非常长的标题啊-改」？",
+ "toast_after_delete": "已删除",
+ "notices_after_delete": [
+  "EXPERT-qa-过期公告",
+  "EXPERT-qa-过期公告",
+  "EXPERT-qa-过期公告",
+  "EXPERT-qa-过期公告"
+ ],
+ "notice_empty_state": "EXPERT-qa-过期公告s不限 ~ 2026-09-27编辑删除",
+ "banner_order_before": [
+  [
+   "老年人跌倒 · 预防与应急处置",
+   0
+  ],
+  [
+   "12 分钟理论模拟考",
+   1
+  ],
+  [
+   "比赛资料 · 官方规程与评分标准",
+   2
+  ],
+  [
+   "错题本 · 次日到期 → 第 3",
+   3
+  ]
+ ],
+ "banner_order_after_create_A": [
+  [
+   "老年人跌倒 · 预防与应急处置",
+   0
+  ],
+  [
+   "EXPERT-ux-轮播A",
+   0
+  ],
+  [
+   "12 分钟理论模拟考",
+   1
+  ],
+  [
+   "比赛资料 · 官方规程与评分标准",
+   2
+  ],
+  [
+   "错题本 · 次日到期 → 第 3",
+   3
+  ]
+ ],
+ "my_banner_A_position": 2,
+ "banner_longsub_cell": {
+  "whiteSpace": "normal",
+  "overflow": "visible",
+  "text": " · EXPERT-ux-副标题副标题副标题副标题副标题副标题副标题副标题",
+  "rowH": 75
+ },
+ "banner_order_after_create_B": [
+  [
+   "老年人跌倒 · 预防与应急处置",
+   0
+  ],
+  [
+   "EXPERT-ux-轮播A",
+   0
+  ],
+  [
+   "EXPERT-ux-轮播B",
+   0
+  ],
+  [
+   "12 分钟理论模拟考",
+   1
+  ],
+  [
+   "比赛资料 · 官方规程与评分标准",
+   2
+  ],
+  [
+   "错题本 · 次日到期 → 第 3",
+   3
+  ]
+ ],
+ "banner_order_after_B_moveup": [
+  [
+   "老年人跌倒 · 预防与应急处置",
+   0
+  ],
+  [
+   "EXPERT-ux-轮播A",
+   0
+  ],
+  [
+   "12 分钟理论模拟考",
+   1
+  ],
+  [
+   "EXPERT-ux-轮播B",
+   1
+  ],
+  [
+   "比赛资料 · 官方规程与评分标准",
+   2
+  ],
+  [
+   "错题本 · 次日到期 → 第 3",
+   3
+  ]
+ ],
+ "banner_B_enabled_after_toggle": 0,
+ "dialog_delete_banner": "删除轮播卡「EXPERT-ux-轮播B」？",
+ "banner_order_after_delete": [
+  [
+   "老年人跌倒 · 预防与应急处置",
+   0
+  ],
+  [
+   "12 分钟理论模拟考",
+   1
+  ],
+  [
+   "比赛资料 · 官方规程与评分标准",
+   2
+  ],
+  [
+   "错题本 · 次日到期 → 第 3",
+   3
+  ]
+ ],
+ "seeds_untouched": true,
+ "dialogs_all": [
+  "请填写标题",
+  "删除公告「EXPERT-ux-课程预告超长标题测试这是一条非常非常长的标题啊-改」？",
+  "删除轮播卡「EXPERT-ux-轮播B」？",
+  "删除轮播卡「EXPERT-ux-轮播A」？"
+ ]
+}

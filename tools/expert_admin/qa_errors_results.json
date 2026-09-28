@@ -1,0 +1,172 @@
+[
+  {
+    "name": "公告空标题 → 4xx 中文(实际记录)",
+    "ok": false,
+    "detail": "实际 200 {\"ok\": true, \"id\": 7}"
+  },
+  {
+    "name": "更新不存在公告 → 静默 200(记录实际行为)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True}"
+  },
+  {
+    "name": "删除不存在公告 → 静默 200(记录实际行为)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True}"
+  },
+  {
+    "name": "更新不存在轮播 → 静默 200(记录实际行为)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True}"
+  },
+  {
+    "name": "删除不存在轮播 → 静默 200(记录实际行为)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True}"
+  },
+  {
+    "name": "更新不存在学生 → 404 中文",
+    "ok": true,
+    "detail": "404 学生不存在"
+  },
+  {
+    "name": "exams?status=badvalue → 干净 4xx(实际记录)",
+    "ok": true,
+    "detail": "实际 200 items=[]"
+  },
+  {
+    "name": "exams?student_id=abc(非数字) → 4xx",
+    "ok": true,
+    "detail": "实际 422 [{'type': 'int_parsing', 'loc': ['query', 'student_id'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'abc'}]"
+  },
+  {
+    "name": "export?student_id=999999 → 干净 4xx 或空表 CSV(实际记录)",
+    "ok": true,
+    "detail": "实际 200 ct=text/csv; charset=utf-8 body='\\ufeff学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态\\r\\n'"
+  },
+  {
+    "name": "考试明细 attempt_id=999999 → 404 中文",
+    "ok": true,
+    "detail": "404 考试记录不存在"
+  },
+  {
+    "name": "培训 capacity=0 → 4xx 或允许(实际记录)",
+    "ok": true,
+    "detail": "实际 200 {'ok': True, 'id': 4}"
+  },
+  {
+    "name": "上传 >4MB 图片 → 400 中文",
+    "ok": true,
+    "detail": "实际 400 图片超过 4MB 上限"
+  },
+  {
+    "name": "上传非图片 .txt → 400 拒绝(实际记录)",
+    "ok": false,
+    "detail": "实际 200 {\"ok\": true, \"url\": \"/uploads/banner-1790570133-50e7db.png\"}"
+  },
+  {
+    "name": "KB 三级路径 → 400 中文",
+    "ok": true,
+    "detail": "400 路径最多两级（目录/文件.md）"
+  },
+  {
+    "name": "KB 非 .md 扩展名 → 400 中文",
+    "ok": true,
+    "detail": "400 仅允许操作知识库目录内的 .md 文件"
+  },
+  {
+    "name": "KB 路径穿越 ../../ → 400 中文",
+    "ok": true,
+    "detail": "400 仅允许操作知识库目录内的 .md 文件"
+  },
+  {
+    "name": "KB Windows 绝对路径 → 400 中文",
+    "ok": true,
+    "detail": "400 仅允许操作知识库目录内的 .md 文件"
+  },
+  {
+    "name": "KB 绝对路径被限制在 KB 内(不逃逸)",
+    "ok": true,
+    "detail": "abs_in_kb=True"
+  },
+  {
+    "name": "KB 二级路径写入 200",
+    "ok": true,
+    "detail": "200 {'ok': True, 'path': '05-元数据\\\\EXPERT-qa-边界测试.md'}"
+  },
+  {
+    "name": "KB 列表 +1",
+    "ok": true,
+    "detail": "count=27 base=26"
+  },
+  {
+    "name": "KB 删除后恢复基线数",
+    "ok": true,
+    "detail": "del=200 count=26"
+  },
+  {
+    "name": "KB 删除不存在路径 → 404 中文",
+    "ok": true,
+    "detail": "404 文件不存在"
+  },
+  {
+    "name": "generate-questions cluster_id=nonexistent → 400 中文(同步)",
+    "ok": true,
+    "detail": "400 cluster_id 非法"
+  },
+  {
+    "name": "grade attempt_id=999999 → 404 中文(同步)",
+    "ok": true,
+    "detail": "404 考试记录不存在"
+  },
+  {
+    "name": "grades 列表(空) 200",
+    "ok": true,
+    "detail": "200 {'items': []}"
+  },
+  {
+    "name": "GET ai/models 目录 200(1-3s 量级)",
+    "ok": true,
+    "detail": "200 groups=3 elapsed=0.0s current={'provider': 'EXPERT-qa-bogus', 'model': 'no-such-model'}"
+  },
+  {
+    "name": "model POST 不存在 provider → 干净 502/4xx 中文(实际记录)",
+    "ok": true,
+    "detail": "实际 502 模型切换失败（设置已保存，新会话将使用）：session.selectModel error: {\"code\": \"model-unavailable\", \"message\": \"no adapter registered for provider \\\"EXPERT-qa-bogus\\\"\", \"details\": {\"provider\": \"EXPERT-qa-bogus\", \"model\": \"no-such-model\"}}"
+  },
+  {
+    "name": "model POST 失败后 settings.ai_model 未被污染(实际记录)",
+    "ok": true,
+    "detail": "base='{\"provider\": \"EXPERT-qa-bogus\", \"model\": \"no-such-model\"}' after='{\"provider\": \"EXPERT-qa-bogus\", \"model\": \"no-such-model\"}'"
+  },
+  {
+    "name": "无 token 访问管理接口 → 401",
+    "ok": true,
+    "detail": "401 未登录"
+  },
+  {
+    "name": "学生 token 访问管理接口 → 403 中文",
+    "ok": true,
+    "detail": "403 需要教师角色"
+  },
+  {
+    "name": "学生 token 访问 stats → 403",
+    "ok": true,
+    "detail": "403 需要教师角色"
+  },
+  {
+    "name": "错误密码登录 → 401 中文",
+    "ok": true,
+    "detail": "401 密码错误"
+  },
+  {
+    "name": "不存在学号登录 → 401 中文",
+    "ok": true,
+    "detail": "401 学号不存在"
+  },
+  {
+    "name": "仅传 password 的账号更新不静默重置 enabled(实际记录)",
+    "ok": false,
+    "detail": "停用后 PUT {password} → enabled 实际=1 (更新响应 200 {'ok': True})"
+  }
+]

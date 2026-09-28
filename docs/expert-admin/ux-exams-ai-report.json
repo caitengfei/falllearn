@@ -1,0 +1,75 @@
+{
+ "dialogs": [],
+ "exams_empty_state": "暂无记录",
+ "exams_count_label": "0 条记录 ",
+ "csv_export_browser": {
+  "url_after_click": "http://127.0.0.1:8010/api/admin/exams/export",
+  "rendered_body": "{\"detail\":\"未登录\"}",
+  "navigated_to_api": true
+ },
+ "csv_export_api": {
+  "status": 200,
+  "content_disp": "attachment; filename=exams.csv",
+  "content": "学号,姓名,试卷,类型,开始时间,交卷时间,得分,状态\r\n",
+  "rows": 0
+ },
+ "status_pills": [
+  "已交卷",
+  "进行中",
+  "全部"
+ ],
+ "ai_model_loading_text_visible": false,
+ "ai_model_cards": [
+  "deepseek-v4-flash",
+  "deepseek-v4-pro",
+  "qwen3.6-27b",
+  "glm-5.2",
+  "deepseek-v4-flash",
+  "sensenova-6.7-flash-lite"
+ ],
+ "ai_model_current_tag": null,
+ "kb_count_label": "知识库文档（26） ＋ 新增文档",
+ "kb_items": 26,
+ "kb_create_long": [
+  200,
+  {
+   "ok": true,
+   "path": "05-元数据\\EXPERT-ux-这是一个非常非常长的知识库文.md"
+  }
+ ],
+ "kb_long_path_cell": {
+  "w": 965,
+  "scrollW": 965,
+  "clientW": 965,
+  "whiteSpace": "normal",
+  "overflow": "visible"
+ },
+ "kb_delete_dialog": [
+  "删除知识库文件\n05-元数据/EXPERT-ux-这是一个非常非常长的知识库文.md？（AI 后续将无法检索该文档）"
+ ],
+ "kb_still_there": [],
+ "kb_count_after": 26,
+ "gen_form_defaults": [
+  "five",
+  "10",
+  "单选,判断"
+ ],
+ "gen_button_text": "✍️ 生成题目",
+ "grade_select_options_before_refresh": [
+  "请选择…"
+ ],
+ "grade_empty_hint_visible": false,
+ "grade_select_options_after_refresh": [
+  "请选择…"
+ ],
+ "grade_btn_disabled": true,
+ "grade_err_path": [
+  404,
+  {
+   "detail": "考试记录不存在"
+  }
+ ],
+ "dialogs_all": [
+  "删除知识库文件\n05-元数据/EXPERT-ux-这是一个非常非常长的知识库文.md？（AI 后续将无法检索该文档）"
+ ]
+}
