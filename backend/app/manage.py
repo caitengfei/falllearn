@@ -154,6 +154,7 @@ def notices_update(nid: int, n: NoticeIn, u: dict = Depends(require_teacher)):
 def notices_delete(nid: int, u: dict = Depends(require_teacher)):
     d = db.get_db()
     cur = d.execute("DELETE FROM announcements WHERE id=?", (nid,))
+    d.commit()
     d.close()
     if cur.rowcount == 0:
         raise HTTPException(404, "公告不存在（可能已被删除）")
