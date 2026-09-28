@@ -74,7 +74,7 @@ FastAPI + SQLite（backend/app，单端口 8010 同时服务 API 与静态页，
         │
 DSH 智能体服务（可选，端口 3080）← knowledge/ 26 份岗课赛证文档（工作区）
         │
-题库种子 backend/seed/questions_seed.json（1350+ 题，6 知识簇，含 5 道 AI 生成题）
+题库种子 backend/seed/questions_seed.json（1353 题，6 知识簇；AI 生成的题可在管理后台持续入库扩充）
 ```
 
 - **一致性设计**：知识簇 id/名称/颜色/题量前后端共享（`/api/meta/clusters` 实时下发，前端静态回退）；六簇 = Morse评估 / 环境防控 / 五步处置 / 骨折识别 / 记录上报 / CPR启动。

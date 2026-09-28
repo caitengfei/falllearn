@@ -198,6 +198,11 @@ def init_db(seed=True):
         _seed_bank(db)
         _seed_users(db)
     _seed_banners(db)
+    # 兜底：老库/任何来源的 banner 死链接（'' 或 '/'）→ /learn（CT-3）
+    try:
+        db.execute("UPDATE banners SET link='/learn' WHERE link IN ('', '/')")
+    except sqlite3.Error:
+        pass
     db.commit()
     db.close()
 
@@ -208,7 +213,7 @@ def _seed_banners(db):
         return
     now = int(time.time())
     rows = [
-        ("老年人跌倒 · 预防与应急处置", "世赛 × 省赛 GZ063 双对标", "岗课赛证融通 · 把技能学成肌肉记忆", "/", "", 0),
+        ("老年人跌倒 · 预防与应急处置", "世赛 × 省赛 GZ063 双对标", "岗课赛证融通 · 把技能学成肌肉记忆", "/learn", "", 0),
         ("12 分钟理论模拟考", "限时 12 分钟 · 10 题 100 分", "对标竞赛情景模块 · 倒计时自动交卷", "/practice?menu=mock", "", 1),
         ("比赛资料 · 官方规程与评分标准", "26 份真实文档", "世赛/省赛规程 · M8 六项评分 · 常见扣分点 · 三证考核标准", "/competition", "", 2),
         ("错题本 · 次日到期 → 第 3 天", "间隔复习 · 连对 2 次掌握", "每道错题自动入本 · 重答 / 讲解双模式", "/wrong", "", 3),
