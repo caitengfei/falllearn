@@ -1,10 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../../api'
 
+const route = useRoute()
 const data = ref(null)
 const err = ref('')
-const tab = ref('trainings')
+// 支持深链：/admin/stats?tab=students（数据总览「AI 问答」卡下钻入口）
+const tab = ref(route.query.tab === 'students' || route.query.tab === 'teachers' ? route.query.tab : 'trainings')
 const tabs = [
   { id: 'trainings', label: '培训情况' },
   { id: 'students', label: '学生培训画像' },

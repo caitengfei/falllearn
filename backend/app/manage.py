@@ -634,15 +634,27 @@ def stats_overview(u: dict = Depends(require_teacher)):
     total_hours = d.execute("SELECT COALESCE(SUM(minutes),0) m FROM study_events").fetchone()["m"]
     avg_mastery = d.execute("SELECT COALESCE(AVG(level),0) m FROM mastery").fetchone()["m"]
 
+    _ACTIVE_SRC = ("SELECT student_id FROM checkins WHERE date>=? "
+                   "UNION SELECT student_id FROM chat_logs WHERE created_at>=? "
+                   "UNION SELECT student_id FROM attempts WHERE started_at>=? "
+                   "UNION SELECT student_id FROM study_events WHERE created_at>=?")
+
+    def _active_params(days):
+        return (today if days == 1 else _day(days - 1),
+                now - days * 86400, now - days * 86400, now - days * 86400)
+
     def active_days(days):
-        r = d.execute(
-            "SELECT COUNT(DISTINCT student_id) c FROM ("
-            "SELECT student_id FROM checkins WHERE date>=? "
-            "UNION SELECT student_id FROM chat_logs WHERE created_at>=? "
-            "UNION SELECT student_id FROM attempts WHERE started_at>=? "
-            "UNION SELECT student_id FROM study_events WHERE created_at>=?)",
-            (today if days == 1 else _day(days - 1), now - days * 86400, now - days * 86400, now - days * 86400)).fetchone()
+        r = d.execute(f"SELECT COUNT(DISTINCT student_id) c FROM ({_ACTIVE_SRC})",
+                      _active_params(days)).fetchone()
         return r["c"]
+
+    def active_list(days):
+        """活跃学生明细（启用学生，供指标卡下钻展示）。"""
+        rows = d.execute(
+            f"SELECT u.student_no, u.name FROM users u WHERE u.role='student' AND u.enabled=1 "
+            f"AND u.id IN ({_ACTIVE_SRC}) ORDER BY u.student_no",
+            _active_params(days)).fetchall()
+        return [{"name": r["name"], "student_no": r["student_no"]} for r in rows]
 
     # 7 日趋势：points_log / chat_logs 各扫一次（原 14 次）
     t0 = now - 7 * 86400
@@ -705,7 +717,8 @@ def stats_overview(u: dict = Depends(require_teacher)):
     hours_rows = [{"student_no": s["student_no"], "name": s["name"], "hours": hrs.get(s["id"], 0)} for s in students]
     hours_rows.sort(key=lambda x: -x["hours"])
 
-    active = {"today": active_days(1), "week": active_days(7)}
+    active = {"today": active_days(1), "week": active_days(7),
+              "today_list": active_list(1), "week_list": active_list(7)}
     rank_points = rank("points")
     rank_mastery = rank("mastery")
     rank_hours = rank("hours")

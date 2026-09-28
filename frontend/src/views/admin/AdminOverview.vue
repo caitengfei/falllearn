@@ -1,12 +1,50 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { api, clusterColor } from '../../api'
 
+const router = useRouter()
 const data = ref(null)
 const err = ref('')
 const loading = ref(false)
 const lbTab = ref('points')
 const showReset = ref(false)
+
+// —— 指标卡下钻 ——
+const expanded = ref('') // 'active' | 'questions' | ''
+const clusterQs = ref(null)
+const hoursRef = ref(null)
+let flashTimer = null
+
+async function ensureClusterQs() {
+  if (!clusterQs.value) {
+    try {
+      const r = await api.metaClusters()
+      clusterQs.value = Array.isArray(r) ? r : (r.items || [])
+    } catch (e) { clusterQs.value = [] }
+  }
+}
+async function onCardClick(kind) {
+  if (kind === 'active' || kind === 'questions') {
+    if (expanded.value === kind) { expanded.value = ''; return }
+    if (kind === 'questions') await ensureClusterQs()
+    expanded.value = kind
+  } else if (kind === 'students') {
+    router.push('/admin/students')
+  } else if (kind === 'asks') {
+    router.push('/admin/stats?tab=students')
+  } else if (kind === 'practices') {
+    router.push('/admin/exams')
+  } else if (kind === 'hours') {
+    expanded.value = ''
+    if (hoursRef.value) {
+      hoursRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      hoursRef.value.classList.add('flash')
+      clearTimeout(flashTimer)
+      flashTimer = setTimeout(() => hoursRef.value && hoursRef.value.classList.remove('flash'), 1600)
+    }
+  }
+}
 
 async function load() {
   loading.value = true
@@ -58,18 +96,74 @@ async function doReset() {
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
     <template v-if="data">
-      <!-- 核心指标 -->
+      <!-- 核心指标（全部可下钻） -->
       <div class="mgrid c6" style="margin-bottom: 14px">
-        <div class="mcard hero">
+        <div class="mcard hero clickable" :class="{ on: expanded === 'active' }" @click="onCardClick('active')">
+          <span class="hint">{{ expanded === 'active' ? '收起 ▴' : '明细 ▾' }}</span>
           <div class="mk">活跃人数（今日 / 7 日）</div>
           <div class="mv">{{ data.active.today }} <span style="font-size: 15px; opacity: .8">/ {{ data.active.week }}</span></div>
           <div class="ms">去重学生 · 签到/问答/练习</div>
         </div>
-        <div class="mcard"><div class="mk">在读学生</div><div class="mv">{{ data.cards.students }}</div><div class="ms">启用账号</div></div>
-        <div class="mcard"><div class="mk">题库规模</div><div class="mv">{{ data.cards.questions }}</div><div class="ms">含 AI 生成</div></div>
-        <div class="mcard"><div class="mk">AI 问答总量</div><div class="mv">{{ data.cards.asks }}</div><div class="ms">四栏格式问答</div></div>
-        <div class="mcard"><div class="mk">累计练习</div><div class="mv">{{ data.cards.practices }}</div><div class="ms">已交卷</div></div>
-        <div class="mcard"><div class="mk">累计学时</div><div class="mv">{{ data.cards.hours }}<span style="font-size: 13px"> h</span></div><div class="ms">平均掌握 {{ data.cards.avg_mastery }}%</div></div>
+        <div class="mcard clickable" @click="onCardClick('students')">
+          <span class="hint">管理 ↗</span>
+          <div class="mk">在读学生</div><div class="mv">{{ data.cards.students }}</div><div class="ms">启用账号</div>
+        </div>
+        <div class="mcard clickable" :class="{ on: expanded === 'questions' }" @click="onCardClick('questions')">
+          <span class="hint">{{ expanded === 'questions' ? '收起 ▴' : '分簇 ▾' }}</span>
+          <div class="mk">题库规模</div><div class="mv">{{ data.cards.questions }}</div><div class="ms">含 AI 生成</div>
+        </div>
+        <div class="mcard clickable" @click="onCardClick('asks')">
+          <span class="hint">画像 ↗</span>
+          <div class="mk">AI 问答总量</div><div class="mv">{{ data.cards.asks }}</div><div class="ms">四栏格式问答</div>
+        </div>
+        <div class="mcard clickable" @click="onCardClick('practices')">
+          <span class="hint">记录 ↗</span>
+          <div class="mk">累计练习</div><div class="mv">{{ data.cards.practices }}</div><div class="ms">已交卷</div>
+        </div>
+        <div class="mcard clickable" @click="onCardClick('hours')">
+          <span class="hint">表格 ▾</span>
+          <div class="mk">累计学时</div><div class="mv">{{ data.cards.hours }}<span style="font-size: 13px"> h</span></div><div class="ms">平均掌握 {{ data.cards.avg_mastery }}%</div>
+        </div>
+      </div>
+
+      <!-- 下钻面板：活跃明细 -->
+      <div v-if="expanded === 'active'" class="card drill">
+        <div class="card-title">活跃学生明细<span class="more" style="cursor: pointer" @click="expanded = ''">收起 ✕</span></div>
+        <div class="mgrid c2">
+          <div>
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">今日活跃（{{ data.active.today_list.length }} 人）</div>
+            <div v-if="!data.active.today_list.length" style="color: var(--text-3); font-size: 13px; padding: 6px 0">今日暂无学生活跃</div>
+            <div v-for="s in data.active.today_list" :key="'t' + s.student_no" class="drill-item">
+              <span class="di-name">{{ s.name }}</span><span class="di-no">{{ s.student_no }}</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">近 7 日活跃（{{ data.active.week_list.length }} 人）</div>
+            <div v-if="!data.active.week_list.length" style="color: var(--text-3); font-size: 13px; padding: 6px 0">近 7 日暂无学生活跃</div>
+            <div v-for="s in data.active.week_list" :key="'w' + s.student_no" class="drill-item">
+              <span class="di-name">{{ s.name }}</span><span class="di-no">{{ s.student_no }}</span>
+            </div>
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--text-3); margin-top: 10px">活跃 = 签到 / AI 问答 / 练习交卷 / 学习行为，任一发生即计入</div>
+      </div>
+
+      <!-- 下钻面板：题库分簇 -->
+      <div v-if="expanded === 'questions'" class="card drill">
+        <div class="card-title">题库规模 · 六簇分布<span class="more" style="cursor: pointer" @click="expanded = ''">收起 ✕</span></div>
+        <div class="mgrid c2" v-if="clusterQs">
+          <div class="bar-row" v-for="c in clusterQs" :key="c.id">
+            <div class="bl">{{ c.name }}</div>
+            <div class="bt"><i :style="{ width: (c.qcount / Math.max(...clusterQs.map((x) => x.qcount), 1)) * 100 + '%', background: clusterColor(c.id) }"></i></div>
+            <div class="bv">{{ c.qcount }} 题</div>
+          </div>
+          <div style="font-size: 12.5px; color: var(--text-2); line-height: 2; align-self: center">
+            共 <b style="color: var(--text-1)">{{ data.cards.questions }}</b> 题，题型构成：
+            <span v-for="(c, t) in data.qtypes" :key="t" style="margin-right: 10px">{{ t }} {{ c }}</span>
+            新题可通过「AI 管理 → AI 出题」按知识簇生成入库，也可针对页面下方「班级弱项」定向补充。
+          </div>
+        </div>
+        <div v-else style="color: var(--text-3); font-size: 13px; padding: 10px 0">加载簇分布中…</div>
       </div>
 
       <div class="mgrid c2" style="margin-bottom: 14px">
@@ -144,7 +238,7 @@ async function doReset() {
       </div>
 
       <!-- 学时统计 -->
-      <div class="card">
+      <div class="card" ref="hoursRef">
         <div class="card-title">学时统计（按学生）<span style="font-size: 11px; color: var(--text-3); font-weight: 400; margin-left: 8px">AI 问答按实际耗时 · 练习按交卷时长 · 复习按次</span></div>
         <table class="atable">
           <thead><tr><th style="width: 50px">#</th><th>学生</th><th>学号</th><th style="width: 110px; text-align: right">学时</th></tr></thead>
@@ -176,3 +270,32 @@ async function doReset() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 指标卡：可下钻 */
+.mcard.clickable { cursor: pointer; position: relative; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.mcard.clickable:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15, 23, 42, .10); border-color: #cbd5e1; }
+.mcard.clickable.on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, .18); }
+.mcard.hero.clickable:hover { box-shadow: 0 8px 20px rgba(228, 57, 60, .35); border-color: transparent; }
+.mcard.hero.clickable.on { box-shadow: 0 0 0 3px rgba(255, 255, 255, .55); }
+.hint { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); opacity: .75; transition: color .15s ease, opacity .15s ease; }
+.mcard.clickable:hover .hint { color: var(--primary); opacity: 1; }
+.mcard.hero.clickable .hint { color: rgba(255, 255, 255, .85); }
+.mcard.hero.clickable:hover .hint { color: #fff; }
+
+/* 下钻面板 */
+.drill { margin-bottom: 14px; animation: drillIn .18s ease; }
+@keyframes drillIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.drill-item { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+.drill-item:last-child { border-bottom: none; }
+.di-name { font-weight: 600; }
+.di-no { color: var(--text-3); font-size: 12px; }
+
+/* 学时表高亮闪烁（点击「累计学时」卡后） */
+.flash { animation: cardFlash 1.6s ease; }
+@keyframes cardFlash {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, .55); border-color: var(--primary); }
+  40% { box-shadow: 0 0 0 6px rgba(59, 130, 246, .28); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+</style>
