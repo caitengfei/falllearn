@@ -10,6 +10,7 @@ __pycache__/
 *.db-shm
 *.db-wal
 backend/uploads/
+jwt_secret          # JWT 签名密钥（自动生成，禁止入库）
 
 # DSH 内部调试残留（与平台无关，禁止入库）
 tools/dsh_probe*

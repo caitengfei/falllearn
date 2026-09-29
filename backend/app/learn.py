@@ -23,6 +23,8 @@ router = APIRouter(prefix="/api/learn", tags=["learn"])
 
 KB = r"E:\lilei\跌倒-岗课赛证知识库"
 PRESET = "gksc-student"
+# 每学生每日 AI 提问上限（含澄清应答轮次外的新提问）；防演示账号被公网陌生人刷
+AI_DAILY_CAP = 30
 client = dsh_client.make_client()
 
 # 已应答问题的会话（sid -> 时间戳），防 status 重复报告 question；10 分钟未活跃自动淘汰（防泄漏）
@@ -164,6 +166,13 @@ async def ask(body: AskIn, u: dict = Depends(current_user)):
     if len(q) < 2:
         raise HTTPException(400, "问题太短")
     d = db.get_db()
+    # 每日 AI 提问上限（公网演示保护：防陌生人拿演示账号无限白嫖 AI 资源）
+    ask_today = d.execute(
+        "SELECT COUNT(*) FROM chat_logs WHERE student_id=? AND question<>'' AND created_at > ?",
+        (u["id"], int(time.time()) - 86400)).fetchone()[0]
+    if ask_today >= AI_DAILY_CAP:
+        d.close()
+        raise HTTPException(429, "今日 AI 提问次数已用完，明日再来")
     # 档案注入
     lv = {r["cluster_id"]: r["level"] for r in d.execute(
         "SELECT cluster_id, level FROM mastery WHERE student_id=?", (u["id"],)).fetchall()}
