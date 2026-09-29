@@ -132,7 +132,7 @@ onMounted(load)
 .badge-prog {
   height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; margin-top: 6px;
 }
-.badge-prog i { display: block; height: 100%; background: var(--primary); border-radius: 2px; }
+.badge-prog i { display: block; height: 100%; background: var(--primary-deep); border-radius: 2px; }
 .badge-state { font-size: 11px; margin-top: 5px; color: var(--text-3); }
-.badge-cell.earned .badge-state { color: var(--primary); font-weight: 600; }
+.badge-cell.earned .badge-state { color: var(--primary-text); font-weight: 600; }
 </style>

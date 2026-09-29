@@ -316,7 +316,7 @@ async function doReset() {
   border: none; background: #fff; color: var(--text-2); font-size: 11.5px;
   border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer;
 }
-.gc-close:hover { border-color: var(--primary); color: var(--primary); }
+.gc-close:hover { border-color: var(--primary); color: var(--primary-text); }
 .gc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
 .gc-step {
   display: flex; align-items: center; gap: 8px; background: #fff; min-width: 0;
@@ -324,7 +324,7 @@ async function doReset() {
 }
 .gc-step:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(228,57,60,.08); transform: translateY(-1px); }
 .gc-ic { font-size: 17px; }
-.gc-num { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
+.gc-num { font-size: 11px; font-weight: 700; color: var(--primary-text); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
 .gc-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .gc-step-b b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gc-step-b span { font-size: 11px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -338,7 +338,7 @@ async function doReset() {
 .mcard.hero.clickable:hover { box-shadow: 0 8px 20px rgba(228, 57, 60, .35); border-color: transparent; }
 .mcard.hero.clickable.on { box-shadow: 0 0 0 3px rgba(255, 255, 255, .55); }
 .hint { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); opacity: .75; transition: color .15s ease, opacity .15s ease; }
-.mcard.clickable:hover .hint { color: var(--primary); opacity: 1; }
+.mcard.clickable:hover .hint { color: var(--primary-text); opacity: 1; }
 .mcard.hero.clickable .hint { color: rgba(255, 255, 255, .85); }
 .mcard.hero.clickable:hover .hint { color: #fff; }
 

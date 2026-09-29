@@ -85,7 +85,8 @@ DSH 智能体服务（可选，端口 3080）← knowledge/ 46 份岗课赛证�
 
 - **一致性设计**：知识簇 id/名称/颜色/题量前后端共享（`/api/meta/clusters` 实时下发，前端静态回退）；六簇 = Morse评估 / 环境防控 / 五步处置 / 骨折识别 / 记录上报 / CPR启动。
 - **工程质量**：
-  - `tools/` 内含 8 套自动化验收脚本（学生端全流程 e2e、管理端 e2e、管理 API、AI 链路、修复项逐项验收、**安全加固验收 26 项**、**界面与转义验收**、**远程只读验收**）——`python tools/e2e_platform.py` 一条命令回归全链路（含真实 AI 问答）；
+  - `tools/` 内含 10 套自动化验收脚本（学生端全流程 e2e、管理端 e2e、管理 API、AI 链路、修复项逐项验收、**安全加固验收 26 项**、**界面与转义验收**、**性能与健壮性体检**、**UX/兼容性/无障碍走查**、**远程只读验收**）——`python tools/e2e_platform.py` 一条命令回归全链路（含真实 AI 问答）；
+  - **性能与可用性实测**（见 `docs/audit-round2.md`）：首屏 FCP 220ms / 传输 65KB（gzip 后）、16 并发零错误、静态资源长缓存二次访问仅 7.9KB、6 视口 × 8 页零横向溢出、WCAG AA 对比度达标、移动端触控目标合规；
   - **安全加固（两轮）**：Bandit 0 HIGH/0 MEDIUM、pip-audit(OSV) 依赖漏洞清零、OSV npm 前端依赖清零、CSP 安全头、JWT 密钥外置、登录节流 + AI 限次、越权/防刷分/防注入/SSRF 收敛（详见 `docs/security-report.md`，可用 `tools/security_check.py` 一键复验）；
   - `docs/expert-admin/` 保留 QA/UX/视觉/内容/性能五专家审核报告（72 项 finding 全量修复闭环记录）；
   - 数据库 8 个热列索引、N+1 查询全部批量化、AI 任务 30s 硬超时 + 判卷幂等（`ai_grades.attempt_id` UNIQUE）、交卷幂等闸门与唯一索引防并发重复计分。

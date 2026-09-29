@@ -207,7 +207,7 @@ function weakAgain() {
           </div>
         </div>
         <div v-if="picked" style="font-size: 12px; color: var(--text-3); margin-top: 10px">
-          当前已选：<b class="mono" style="color: var(--primary)">{{ picked }}</b>（点「下一题」确认）
+          当前已选：<b class="mono" style="color: var(--primary-text)">{{ picked }}</b>（点「下一题」确认）
         </div>
         <div style="display: flex; gap: 10px; margin-top: 22px">
           <button class="btn sm ghost" :disabled="cur === 0" @click="prev">上一题</button>
@@ -234,7 +234,7 @@ function weakAgain() {
 }
 .opt:hover { border-color: var(--primary); background: var(--primary-light); }
 .opt.sel { border-color: var(--primary); background: var(--primary-light); font-weight: 600; }
-.opt b { color: var(--primary); min-width: 18px; }
+.opt b { color: var(--primary-text); min-width: 18px; }
 .nbtn {
   width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--line);
   font-size: 12.5px; background: #fff; color: var(--text-2);
@@ -245,7 +245,7 @@ function weakAgain() {
   .exam-head { gap: 8px; }
 }
 .nbtn.done { background: var(--success-light); border-color: var(--success); color: var(--success); font-weight: 700; }
-.nbtn.on { background: var(--primary); border-color: var(--primary); color: #fff; }
-.time-warn { color: var(--primary); animation: blink 1s infinite; }
+.nbtn.on { background: var(--primary-deep); border-color: var(--primary); color: #fff; }
+.time-warn { color: var(--primary-text); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .4; } }
 </style>

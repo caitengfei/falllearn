@@ -99,7 +99,7 @@ async function remove(t) {
             <div style="font-size: 11px; color: var(--text-3)">完成</div>
           </div>
           <div style="text-align: center">
-            <div style="font-size: 20px; font-weight: 800; color: var(--primary)">{{ t.rate }}%</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--primary-text)">{{ t.rate }}%</div>
             <div style="font-size: 11px; color: var(--text-3)">完成率</div>
           </div>
           <button class="btn sm ghost" @click="enrollAll(t)">一键补报</button>

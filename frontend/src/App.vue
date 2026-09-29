@@ -95,7 +95,7 @@ function goGuide(g) {
           <span>防跌学堂</span>
         </div>
         <span class="slogan hide-md" v-if="!isAdmin">老年人跌倒预防与应急处置 · 岗课赛证融通</span>
-        <span class="slogan hide-md" v-else style="color: var(--primary); font-weight: 600">教师管理后台</span>
+        <span class="slogan hide-md" v-else style="color: var(--primary-text); font-weight: 600">教师管理后台</span>
         <div class="searchbox hide-sm" v-if="!isAdmin">
           🔍
           <input v-model="search" placeholder="搜一题 / 一个知识点，回车问 AI 老师" @keyup.enter="doSearch" />
@@ -173,7 +173,7 @@ function goGuide(g) {
 
 <style scoped>
 .back-student {
-  font-size: 12.5px; color: var(--primary); background: var(--primary-light);
+  font-size: 12.5px; color: var(--primary-text); background: var(--primary-light);
   padding: 5px 12px; border-radius: 8px; margin-right: 4px;
 }
 .back-student:hover { background: #fbd9d9; }
@@ -189,7 +189,7 @@ function goGuide(g) {
 .gm-step { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; transition: all .12s; }
 .gm-step:hover { border-color: var(--primary); background: #fff5f5; }
 .gm-ic { font-size: 18px; }
-.gm-num { font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 2px 7px; }
+.gm-num { font-size: 12px; font-weight: 700; color: var(--primary-text); background: var(--primary-light); border-radius: 6px; padding: 2px 7px; }
 .gm-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .gm-step-b b { font-size: 13px; }
 .gm-step-b span { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }

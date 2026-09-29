@@ -273,7 +273,7 @@ onBeforeUnmount(stopSlides)
           <div class="card-title">今日弱项提醒</div>
           <template v-if="weakTip">
             <div style="font-size: 13.5px; line-height: 1.8">
-              你的「<b style="color: var(--primary)">{{ weakTip.name }}</b>」掌握度偏低，建议先复习该簇再做练习。
+              你的「<b style="color: var(--primary-text)">{{ weakTip.name }}</b>」掌握度偏低，建议先复习该簇再做练习。
             </div>
             <button class="btn sm ghost mt16" style="width: 100%" @click="router.push({ path: '/learn', query: { cluster: weakTip.id } })">去学一下</button>
             <button class="btn sm" style="width: 100%; margin-top: 8px" @click="router.push('/practice')">去练习</button>
@@ -307,7 +307,7 @@ onBeforeUnmount(stopSlides)
           </span>
         </div>
         <div style="font-size: 13px; margin-bottom: 10px; color: var(--text-2)">
-          我的排名：<b class="mono" style="font-size: 16px; color: var(--primary)">
+          我的排名：<b class="mono" style="font-size: 16px; color: var(--primary-text)">
             {{ lbTab === 'points' ? (lb.my_rank_points || '-') : (lb.my_rank_mastery || '-') }}
           </b>
         </div>
@@ -338,7 +338,7 @@ onBeforeUnmount(stopSlides)
             <div class="kname">{{ c.name }}</div>
             <div class="kmeta">
               <span class="mono">{{ c.qcount }} 题</span>
-              <span v-if="c.wrong" class="mono" style="color: var(--primary)">错 {{ c.wrong }}</span>
+              <span v-if="c.wrong" class="mono" style="color: var(--primary-text)">错 {{ c.wrong }}</span>
             </div>
             <div class="kbar"><i :style="{ width: c.level + '%', background: c.color }"></i></div>
             <div class="kmeta" style="margin-top: 4px"><span>掌握 {{ c.level }}%</span><span class="kd-more">详解 ›</span></div>
@@ -403,9 +403,9 @@ onBeforeUnmount(stopSlides)
 .gc-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 .gc-close {
   border: none; background: #fff; color: var(--text-2); font-size: 11.5px;
-  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer;
 }
-.gc-close:hover { border-color: var(--primary); color: var(--primary); }
+.gc-close:hover { border-color: var(--primary); color: var(--primary-text); }
 .gc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
 .gc-step {
   display: flex; align-items: center; gap: 8px; background: #fff; min-width: 0;
@@ -413,7 +413,7 @@ onBeforeUnmount(stopSlides)
 }
 .gc-step:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(228,57,60,.08); transform: translateY(-1px); }
 .gc-ic { font-size: 17px; }
-.gc-num { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
+.gc-num { font-size: 11px; font-weight: 700; color: var(--primary-text); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
 .gc-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .gc-step-b b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gc-step-b span { font-size: 11px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -421,7 +421,7 @@ onBeforeUnmount(stopSlides)
 @media (max-width: 1100px) { .gc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .gc-grid { grid-template-columns: minmax(0, 1fr); } }
 .kd-more { margin-left: auto; color: var(--text-3); font-size: 11px; }
-.kcard:hover .kd-more { color: var(--primary); }
+.kcard:hover .kd-more { color: var(--primary-text); }
 .home-kp {
   margin: 8px 0 0 18px; font-size: 13px; color: var(--text-2); line-height: 2;
 }
@@ -435,7 +435,7 @@ onBeforeUnmount(stopSlides)
 }
 .b-cta {
   margin-top: 12px; background: #fff; color: var(--text); border-radius: 8px;
-  font-size: 13px; font-weight: 600; padding: 7px 16px; transition: transform .15s;
+  font-size: 13px; font-weight: 600; padding: 9px 16px; transition: transform .15s;
 }
 .b-cta:hover { transform: translateY(-1px); }
 .kgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """防跌学堂后端入口：FastAPI + SQLite + DSH 转发"""
+import logging
 import os
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -48,6 +50,22 @@ async def body_guard(request: Request, call_next):
         except ValueError:
             return JSONResponse({"detail": "请求体长度不合法"}, status_code=400)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def slow_request_log(request: Request, call_next):
+    """慢请求可观测性：仅记录 /api/* 且耗时 >800ms 的请求（供演示期排查网关/模型波动）。
+
+    注意：只在服务端日志留痕，不改变响应，也不记录请求体/凭据。
+    """
+    t0 = time.perf_counter()
+    resp = await call_next(request)
+    ms = (time.perf_counter() - t0) * 1000
+    if ms > 800 and request.url.path.startswith("/api/"):
+        logging.getLogger("falllearn").warning(
+            "slow_request method=%s path=%s status=%s cost_ms=%.0f",
+            request.method, request.url.path, resp.status_code, ms)
+    return resp
 
 
 @app.middleware("http")
@@ -110,8 +128,9 @@ for r in (auth_router, quiz_router, wrong_router, game_router, learn_router, adm
     app.include_router(r)
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
+    """探活端点（GET/HEAD 均可：curl -I、云监控、负载均衡健康检查常用 HEAD）。"""
     return {"ok": True, "name": "falllearn"}
 
 
@@ -139,9 +158,13 @@ async def upload_file(name: str):
 DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "dist")
 
 
-@app.get("/{full_path:path}", include_in_schema=False)
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
 async def spa(full_path: str):
-    """SPA 静态资源 + 路由回退（必须定义在 API 路由之后）。"""
+    """SPA 静态资源 + 路由回退（必须定义在 API 路由之后）。
+
+    同时接受 HEAD：`curl -I https://.../` 这类探活/预检不要返回 405
+    （Starlette 对 HEAD 会自动丢弃响应体，无需额外处理）。
+    """
     if full_path.startswith("api/"):
         return JSONResponse({"detail": "接口不存在（API 404）"}, status_code=404)
     if not _ENABLE_DOCS and full_path in ("docs", "redoc", "openapi.json"):

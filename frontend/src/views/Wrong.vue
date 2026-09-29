@@ -203,5 +203,5 @@ async function doReview() {
 }
 .opt:hover { border-color: var(--primary); }
 .opt.sel { border-color: var(--primary); background: var(--primary-light); font-weight: 600; }
-.opt b { color: var(--primary); min-width: 18px; }
+.opt b { color: var(--primary-text); min-width: 18px; }
 </style>

@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="防跌学堂 · 岗课赛证融通智能学习平台：老年人跌倒预防与应急处置知识库、AI 问答、错题重训与智能判卷（职业院校智慧教学智能体）" />
+    <meta name="theme-color" content="#e4393c" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>防跌学堂 · 岗课赛证融通智能学习平台</title>
+    <style>
+      /* 首屏占位：Vue 挂载后自动替换，避免白屏；无 JS 时给可读提示 */
+      #app .boot-hint { display: block; padding: 15vh 0; text-align: center; color: #5f6875;
+        font: 14px/1.7 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+      #app .boot-hint b { display: block; font-size: 17px; color: #c62828; margin-bottom: 6px; }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="boot-hint"><b>防跌学堂</b>正在加载…</div>
+      <noscript><div class="boot-hint">本平台需要启用 JavaScript 才能使用，请更换浏览器或开启 JS。</div></noscript>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

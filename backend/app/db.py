@@ -146,6 +146,8 @@ def _migrate(db):
     for idx in (
         "CREATE INDEX IF NOT EXISTS idx_questions_cluster ON questions(cluster_id)",
         "CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id)",
+        # 学习报告「得分趋势」按 student_id+status 过滤并按 submitted_at 排序：复合索引免临时排序
+        "CREATE INDEX IF NOT EXISTS idx_attempts_student_status ON attempts(student_id, status, submitted_at)",
         "CREATE INDEX IF NOT EXISTS idx_answers_attempt ON answers(attempt_id)",
         "CREATE INDEX IF NOT EXISTS idx_wrong_student ON wrong_records(student_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_chat_student ON chat_logs(student_id)",

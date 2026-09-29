@@ -251,7 +251,7 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
                 <span>标准答案：<b style="color: #15803d">{{ q.answer }}</b></span>
                 <span>学生答案：<b :style="{ color: q.correct ? '#15803d' : 'var(--primary)' }">{{ q.student_answer || '（未答）' }}</b></span>
               </div>
-              <div v-if="q.feedback && !q.correct" style="font-size: 12px; color: var(--primary); margin-top: 3px">{{ q.feedback }}</div>
+              <div v-if="q.feedback && !q.correct" style="font-size: 12px; color: var(--primary-text); margin-top: 3px">{{ q.feedback }}</div>
             </div>
           </div>
         </div>

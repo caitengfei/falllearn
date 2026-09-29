@@ -52,16 +52,16 @@ async function doLogin() {
           <span>世赛对标</span><span>省赛 GZ063</span><span>三证贯通</span>
         </div>
       </div>
-      <div class="login-body">
+      <form class="login-body" @submit.prevent="doLogin">
         <div class="field">
-          <label>学号 / 工号</label>
-          <input v-model="sno" placeholder="如 S2026001" @keyup.enter="doLogin" />
+          <label for="sno">学号 / 工号</label>
+          <input id="sno" v-model="sno" name="username" autocomplete="username" placeholder="如 S2026001" />
         </div>
         <div class="field">
-          <label>密码</label>
-          <input v-model="pwd" type="password" placeholder="密码" @keyup.enter="doLogin" />
+          <label for="pwd">密码</label>
+          <input id="pwd" v-model="pwd" type="password" name="password" autocomplete="current-password" placeholder="密码" />
         </div>
-        <button class="btn" style="width: 100%; padding: 11px" :disabled="busy" @click="doLogin">
+        <button type="submit" class="btn" style="width: 100%; padding: 11px" :disabled="busy">
           <span v-if="busy" class="spinner"></span>
           {{ busy ? '登录中…' : '登 录' }}
         </button>
@@ -70,13 +70,13 @@ async function doLogin() {
         <div class="demo-hint">
           <div class="dh-title">一键体验（密码 123456）</div>
           <div class="dh-row">
-            <button v-for="d in demos" :key="d.sno" class="dh-btn" :disabled="busy" @click="fill(d); doLogin()">
+            <button v-for="d in demos" :key="d.sno" type="button" class="dh-btn" :disabled="busy" @click="fill(d); doLogin()">
               <span class="dh-tag" :class="{ t: d.tag === '教师' }">{{ d.tag }}</span>
               {{ d.sno }}<span class="dh-name">{{ d.name }}</span>
             </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </template>
@@ -98,7 +98,7 @@ async function doLogin() {
 }
 .dh-btn:hover { border-color: var(--primary); background: var(--primary-light); }
 .dh-tag {
-  font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--primary-light); color: var(--primary);
+  font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--primary-light); color: var(--primary-text);
 }
 .dh-tag.t { background: var(--gold-light); color: #b45309; }
 .dh-name { color: var(--text-3); font-size: 11.5px; margin-left: auto; white-space: nowrap; }
