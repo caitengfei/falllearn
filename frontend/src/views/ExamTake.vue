@@ -17,7 +17,9 @@ const left = ref(timeLimit.value) // 剩余秒数
 let tick = null
 
 const title = computed(() =>
-  kind.value === 'mock' ? '理论模拟考 · 跌倒风险与急救' : '日常练习 · 按薄弱点组卷')
+  kind.value === 'mock' ? '理论模拟考 · 跌倒风险与急救'
+    : kind.value === 'teacher' ? (sessionStorage.getItem('exam_title') || '教师布置')
+    : '日常练习 · 按薄弱点组卷')
 const curItem = computed(() => items.value[cur.value] || null)
 
 function persist() {
@@ -97,7 +99,18 @@ const mmss = computed(() => {
 })
 
 // 刷新恢复
-onMounted(() => {
+onMounted(async () => {
+  const reviewId = sessionStorage.getItem('exam_review')
+  if (reviewId) {
+    sessionStorage.removeItem('exam_review')
+    try {
+      result.value = await api.quizResult(Number(reviewId))
+      submitted.value = true
+    } catch (e) {
+      alert('加载成绩失败：' + e.message)
+    }
+    return
+  }
   if (!items.value.length) return // 无题：模板显示空态
   picked.value = answers.value[String(curItem.value?.question_id)] || ''
   startTick()
@@ -131,7 +144,7 @@ function weakAgain() {
       <div class="grid-3 mt16">
         <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ result.max }}</div><div class="k">满分</div></div>
         <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ Math.round(result.score) }}%</div><div class="k">正确率</div></div>
-        <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ kind === 'mock' ? '12:00' : '不限时' }}</div><div class="k">限时</div></div>
+        <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ kind === 'mock' ? '12:00' : ((result && result.minutes) ? result.minutes + ' 分钟' : '不限时') }}</div><div class="k">限时</div></div>
       </div>
       <div class="mt16">
         <div class="card-title">各簇得分（10 分/题）</div>

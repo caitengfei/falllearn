@@ -92,31 +92,11 @@ def weak_info(u: dict = Depends(current_user)):
 
 class StartIn(BaseModel):
     kind: str = "daily"  # daily 日常练习 | mock 12 分钟限时理论模拟考
+    exam_id: int = 0  # >0：按教师布置卷开卷（忽略 kind）
 
 
-@router.post("/quiz/start")
-def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
-    """开卷：daily=10 题日常练习；mock=10 题 12 分钟限时理论模拟考（同题库、前端倒计时）。"""
-    kind = body.kind if body.kind in ("daily", "mock") else "daily"
-    d = db.get_db()
-    rows = d.execute("SELECT cluster_id, level FROM mastery WHERE student_id=?", (u["id"],)).fetchall()
-    lv = {r["cluster_id"]: r["level"] for r in rows}
-    weak = [c for c in CLUSTER_CN if lv.get(c, 0) < 60] or list(CLUSTER_CN.keys())
-    qids = _pick_questions(d, u["id"], 10, weak)
-    now = int(time.time())
-    title = "理论模拟考·跌倒风险与急救" if kind == "mock" else f"日常练习·{now % 100000}"
-    exam_id = d.execute(
-        "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
-        (title, kind, json.dumps({"weak": weak}), u["id"], now)).lastrowid
-    for i, qid in enumerate(qids):
-        d.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)",
-                  (exam_id, qid, i + 1, 10))
-    attempt_id = d.execute(
-        "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
-        (u["id"], exam_id, now, "open")).lastrowid
-    db.add_points(d, u["id"], 0, "开卷", f"attempt:{attempt_id}")
-    d.commit()
-    # 组题返回（题目内容随开卷下发）
+def _exam_items_payload(d, exam_id):
+    """组题返回（题目内容随开卷下发）。"""
     items = []
     for row in d.execute(
             "SELECT e.seq, q.id, q.qtype, q.stem, q.options, q.cluster_id, q.difficulty "
@@ -130,8 +110,105 @@ def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
             "stem": row["stem"], "options": opts,
             "cluster": row["cluster_id"],
         })
+    return items
+
+
+@router.post("/quiz/start")
+def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
+    """开卷：daily=10 题日常练习；mock=10 题 12 分钟限时理论模拟考（同题库、前端倒计时）；
+    exam_id>0=教师布置卷（固定题目，截止/已完成校验，可断点续考）。"""
+    d = db.get_db()
+    now = int(time.time())
+    if body.exam_id:
+        ex = d.execute("SELECT * FROM exams WHERE id=? AND kind='teacher'", (body.exam_id,)).fetchone()
+        if not ex:
+            d.close()
+            raise HTTPException(404, "布置不存在或已删除")
+        cfg = json.loads(ex["config"] or "{}")
+        if cfg.get("due_at") and now > cfg["due_at"]:
+            d.close()
+            raise HTTPException(400, "该布置已截止，无法开考")
+        done = d.execute(
+            "SELECT score FROM attempts WHERE student_id=? AND exam_id=? AND status='done' "
+            "ORDER BY id DESC LIMIT 1", (u["id"], ex["id"])).fetchone()
+        if done:
+            d.close()
+            raise HTTPException(400, f"已完成该布置（得分 {done['score']}），可在「教师布置」查看成绩")
+        open_att = d.execute(
+            "SELECT id FROM attempts WHERE student_id=? AND exam_id=? AND status='open'",
+            (u["id"], ex["id"])).fetchone()
+        if open_att:
+            attempt_id = open_att["id"]  # 断点续考：沿用未交卷记录
+        else:
+            attempt_id = d.execute(
+                "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
+                (u["id"], ex["id"], now, "open")).lastrowid
+            db.add_points(d, u["id"], 0, "开卷", f"attempt:{attempt_id}")
+            d.commit()
+        items = _exam_items_payload(d, ex["id"])
+        d.close()
+        return {"attempt_id": attempt_id, "items": items, "count": len(items),
+                "kind": "teacher", "time_limit": cfg.get("minutes", 0) * 60, "title": ex["title"]}
+    kind = body.kind if body.kind in ("daily", "mock") else "daily"
+    rows = d.execute("SELECT cluster_id, level FROM mastery WHERE student_id=?", (u["id"],)).fetchall()
+    lv = {r["cluster_id"]: r["level"] for r in rows}
+    weak = [c for c in CLUSTER_CN if lv.get(c, 0) < 60] or list(CLUSTER_CN.keys())
+    qids = _pick_questions(d, u["id"], 10, weak)
+    title = "理论模拟考·跌倒风险与急救" if kind == "mock" else f"日常练习·{now % 100000}"
+    exam_id = d.execute(
+        "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
+        (title, kind, json.dumps({"weak": weak}), u["id"], now)).lastrowid
+    for i, qid in enumerate(qids):
+        d.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)",
+                  (exam_id, qid, i + 1, 10))
+    attempt_id = d.execute(
+        "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
+        (u["id"], exam_id, now, "open")).lastrowid
+    db.add_points(d, u["id"], 0, "开卷", f"attempt:{attempt_id}")
+    d.commit()
+    items = _exam_items_payload(d, exam_id)
+    d.close()
     return {"attempt_id": attempt_id, "items": items, "count": len(items),
             "kind": kind, "time_limit": 720 if kind == "mock" else 0}
+
+
+@router.get("/quiz/assignments")
+def my_assignments(u: dict = Depends(current_user)):
+    """学生端「教师布置」列表（含本人完成状态：todo/open/done/overdue）。"""
+    d = db.get_db()
+    now = int(time.time())
+    out = []
+    for ex in d.execute("SELECT * FROM exams WHERE kind='teacher' ORDER BY created_at DESC, id DESC"):
+        cfg = json.loads(ex["config"] or "{}")
+        att = d.execute("SELECT id, score, status FROM attempts WHERE student_id=? AND exam_id=? "
+                        "ORDER BY id DESC LIMIT 1", (u["id"], ex["id"])).fetchone()
+        status, score, attempt_id = "todo", None, None
+        if att:
+            if att["status"] == "done":
+                status, score, attempt_id = "done", att["score"], att["id"]
+            elif att["status"] == "open":
+                status, attempt_id = "open", att["id"]
+        if status == "todo" and cfg.get("due_at") and now > cfg["due_at"]:
+            status = "overdue"
+        out.append({"exam_id": ex["id"], "title": ex["title"], "clusters": cfg.get("clusters", []),
+                    "n": cfg.get("n", 0), "minutes": cfg.get("minutes", 0), "due_at": cfg.get("due_at", 0),
+                    "status": status, "score": score, "attempt_id": attempt_id})
+    d.close()
+    return {"items": out}
+
+
+@router.get("/quiz/result/{attempt_id}")
+def my_result(attempt_id: int, u: dict = Depends(current_user)):
+    """本人已交卷结果回顾（「教师布置·查看成绩」复用）。"""
+    d = db.get_db()
+    att = d.execute("SELECT * FROM attempts WHERE id=? AND student_id=? AND status='done'",
+                    (attempt_id, u["id"])).fetchone()
+    if not att:
+        d.close()
+        raise HTTPException(404, "该练习不存在或未交卷")
+    res = _attempt_result_payload(d, att)
+    d.close()
+    return res
 
 
 @router.get("/quiz/summary")
@@ -232,20 +309,37 @@ def submit(body: SubmitIn, u: dict = Depends(current_user)):
     # 簇达标徽章 + 六簇全达标徽章
     db.grant_mastery_badges(d, u["id"])
     d.commit()
-    # 结果详情
+    att = d.execute("SELECT * FROM attempts WHERE id=?", (att["id"],)).fetchone()  # 取更新后的行（score 已落库，勿用开卷时的旧行）
+    return _attempt_result_payload(d, att)
+
+
+def _attempt_result_payload(d, att):
+    """交卷结果 / 历史回顾共用：总分 + 各簇 + 逐题明细。"""
+    total = att["score"]
+    per_cluster = {}
     detail = []
     for r in d.execute(
             "SELECT a.correct, a.feedback, a.student_answer, q.id, q.stem, q.qtype, q.options, q.answer, q.source_doc, q.cluster_id "
             "FROM answers a JOIN questions q ON q.id=a.question_id WHERE a.attempt_id=? ORDER BY q.id",
             (att["id"],)):
+        pc = per_cluster.setdefault(r["cluster_id"], [0, 0])
+        pc[0] += r["correct"]
+        pc[1] += 1
         opts = json.loads(r["options"]) or []
         if r["qtype"] == "判断" or not opts:
             opts = ["对（A）", "错（B）"]
         detail.append(
             {"question_id": r["id"], "stem": r["stem"], "type": r["qtype"],
              "options": opts, "answer": r["answer"],
-         "student_answer": body.answers.get(str(r["id"]), ""),
-         "correct": r["correct"], "feedback": r["feedback"], "source_doc": r["source_doc"],
-         "cluster": r["cluster_id"]})
-    return {"score": total, "max": 100, "detail": detail,
+             "student_answer": r["student_answer"] or "",
+             "correct": r["correct"], "feedback": r["feedback"], "source_doc": r["source_doc"],
+             "cluster": r["cluster_id"]})
+    minutes = 0
+    ex = d.execute("SELECT config FROM exams WHERE id=?", (att["exam_id"],)).fetchone()
+    if ex:
+        try:
+            minutes = int(json.loads(ex["config"] or "{}").get("minutes", 0) or 0)
+        except (ValueError, TypeError):
+            minutes = 0
+    return {"score": total, "max": 100, "detail": detail, "minutes": minutes,
             "per_cluster": {k: {"correct": v[0], "total": v[1]} for k, v in per_cluster.items()}}

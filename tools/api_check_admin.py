@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""管理后台 API 冒烟（教师 T2026）：20 项检查。"""
+"""管理后台 API 冒烟（教师 T2026）：27 项检查。"""
 import sys, time, requests
 sys.stdout.reconfigure(encoding="utf-8")
 BASE = "http://127.0.0.1:8010"
@@ -89,6 +89,26 @@ else:
 # 20 知识库列表
 r = requests.get(BASE + "/api/admin/ai/kb", headers=H, timeout=10).json()
 check("知识库列表 26 文档", r["count"] >= 26, str(r["count"]))
+
+# 21-26 教师布置闭环（教师建卷 → 学生开考/交卷 → 完成统计 → 重复开考拦截 → 删除清场）
+r = requests.post(BASE + "/api/admin/assignments", headers=H, json={"title": "回归测试·五步处置专项", "clusters": ["five"], "n": 5, "minutes": 10, "due_days": 7}, timeout=10).json()
+check("布置创建（教师）", r.get("ok") and r.get("n") == 5, "exam_id=" + str(r.get("exam_id")))
+asg_id = r.get("exam_id")
+st = requests.post(BASE + "/api/auth/login", json={"student_no": "S2026003", "password": "123456"}, timeout=10).json()
+SH = {"authorization": "Bearer " + st["token"]}
+r = requests.post(BASE + "/api/quiz/start", headers=SH, json={"kind": "daily", "exam_id": asg_id}, timeout=10).json()
+check("学生开考布置卷", r.get("count") == 5, "items=" + str(r.get("count")))
+att_id = r.get("attempt_id")
+ans = {str(it["question_id"]): "A" for it in r.get("items", [])}
+r = requests.post(BASE + "/api/quiz/submit", headers=SH, json={"attempt_id": att_id, "answers": ans}, timeout=10).json()
+check("布置卷交卷判分", isinstance(r.get("score"), int) and r["score"] >= 0, "score=" + str(r.get("score")))
+r = requests.get(BASE + "/api/admin/assignments", headers=H, timeout=10).json()
+asg = [x for x in r.get("items", []) if x["exam_id"] == asg_id]
+check("布置完成统计", bool(asg) and asg[0]["done"] >= 1, "done=" + str(asg[0]["done"] if asg else "-"))
+r2 = requests.post(BASE + "/api/quiz/start", headers=SH, json={"kind": "daily", "exam_id": asg_id}, timeout=10)
+check("重复开考拦截", r2.status_code == 400, str(r2.status_code))
+r = requests.delete(BASE + f"/api/admin/assignments/{asg_id}", headers=H, timeout=10).json()
+check("布置删除（清场）", r.get("ok"))
 
 n_fail = sum(1 for _, ok in results if not ok)
 print(f"\n===== 管理后台 API: {len(results) - n_fail}/{len(results)} 通过 =====")

@@ -84,11 +84,13 @@ export const api = {
     request(`/api/learn/status?session_id=${session_id}&log_id=${log_id}`),
   learnHistory: () => request('/api/learn/history'),
 
-  quizStart: (kind = 'daily') => request('/api/quiz/start', { method: 'POST', body: { kind } }),
+  quizStart: (kind = 'daily', exam_id = 0) => request('/api/quiz/start', { method: 'POST', body: { kind, exam_id } }),
 quizWeak: () => request('/api/quiz/weak'),
   quizSubmit: (attempt_id, answers) =>
     request('/api/quiz/submit', { method: 'POST', body: { attempt_id, answers } }),
   quizSummary: () => request('/api/quiz/summary'),
+  quizAssignments: () => request('/api/quiz/assignments'),
+  quizResult: (attempt_id) => request(`/api/quiz/result/${attempt_id}`),
 
   wrongList: (status = 'active') => request(`/api/wrong?status=${status}`),
   wrongReview: (question_id, answer) =>
@@ -134,6 +136,9 @@ quizWeak: () => request('/api/quiz/weak'),
     if (student_id) qs.push(`student_id=${student_id}`)
     return `/api/admin/exams/export${qs.length ? '?' + qs.join('&') : ''}`
   },
+  adminAssignments: () => request('/api/admin/assignments'),
+  adminAssign: (body) => request('/api/admin/assignments', { method: 'POST', body }),
+  adminAssignDelete: (id) => request(`/api/admin/assignments/${id}`, { method: 'DELETE' }),
   metaClusters: () => request('/api/meta/clusters'),
 
   adminStudents: () => request('/api/admin/students'),

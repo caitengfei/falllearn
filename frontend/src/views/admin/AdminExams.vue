@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { api, auth, clusterName } from '../../api'
+import { api, auth, clusterName, CLUSTERS } from '../../api'
 
 const items = ref([])
 const err = ref('')
@@ -10,6 +10,56 @@ const fStatus = ref('done')
 const fStudent = ref(0)
 const detail = ref(null)   // {attempt, items}
 const loading = ref(false)
+
+// ---- 教师布置（闭环：建卷 → 学生端可见 → 完成统计）----
+const asgList = ref([])
+const asgLoading = ref(false)
+const aForm = ref({ title: '', clusters: ['morse', 'env', 'five', 'fracture', 'record', 'cpr'], n: 10, minutes: 10, due_days: 7 })
+
+async function loadAssignments() {
+  asgLoading.value = true
+  try {
+    asgList.value = (await api.adminAssignments()).items || []
+  } catch (e) {
+    err.value = e.message
+  } finally {
+    asgLoading.value = false
+  }
+}
+
+function toggleCluster(id) {
+  const arr = aForm.value.clusters
+  const i = arr.indexOf(id)
+  if (i >= 0) arr.splice(i, 1)
+  else arr.push(id)
+}
+
+async function doAssign() {
+  if (!aForm.value.clusters.length) return toast('请至少勾选一个知识簇')
+  asgLoading.value = true
+  try {
+    const r = await api.adminAssign(aForm.value)
+    toast('已布置：' + r.title + '（' + r.n + ' 题）')
+    aForm.value.title = ''
+    await Promise.all([loadAssignments(), load()])
+  } catch (e) {
+    toast('布置失败：' + e.message)
+  } finally {
+    asgLoading.value = false
+  }
+}
+
+async function delAssign(a) {
+  if (!confirm('删除布置「' + a.title + '」？学生的作答记录会一并删除。')) return
+  try {
+    await api.adminAssignDelete(a.exam_id)
+    toast('已删除')
+    await Promise.all([loadAssignments(), load()])
+  } catch (e) {
+    toast('删除失败：' + e.message)
+  }
+}
+const fmtDue = (t) => t ? new Date(t * 1000).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : '—'
 
 async function load() {
   loading.value = true
@@ -25,7 +75,7 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(() => { load(); loadAssignments() })
 
 function fmt(t) {
   return t ? new Date(t * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
@@ -82,7 +132,70 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
     <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }}</div>
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
+    <!-- 教师布置（闭环） -->
     <div class="card" style="margin-bottom: 16px">
+      <div class="card-title" style="display: flex; align-items: center; gap: 10px">
+        布置练习
+        <span style="font-size: 12px; font-weight: 400; color: var(--text-3)">选知识簇组卷 · 学生在「练习考试 · 教师布置」可见并作答</span>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; align-items: center">
+        <div class="field" style="margin: 0; flex: 1; min-width: 200px">
+          <input v-model="aForm.title" type="text" placeholder="标题（留空自动生成，如：教师布置·五步处置…）" style="width: 100%">
+        </div>
+        <div class="field" style="margin: 0">
+          <select v-model.number="aForm.n">
+            <option :value="5">5 题</option>
+            <option :value="10">10 题</option>
+            <option :value="15">15 题</option>
+            <option :value="20">20 题</option>
+          </select>
+        </div>
+        <div class="field" style="margin: 0">
+          <select v-model.number="aForm.minutes">
+            <option :value="0">不限时</option>
+            <option :value="5">5 分钟</option>
+            <option :value="10">10 分钟</option>
+            <option :value="15">15 分钟</option>
+            <option :value="20">20 分钟</option>
+          </select>
+        </div>
+        <div class="field" style="margin: 0">
+          <select v-model.number="aForm.due_days">
+            <option :value="3">3 天内有效</option>
+            <option :value="7">7 天内有效</option>
+            <option :value="14">14 天内有效</option>
+            <option :value="30">30 天内有效</option>
+          </select>
+        </div>
+        <button class="btn sm" :disabled="asgLoading" @click="doAssign">{{ asgLoading ? '布置中…' : '＋ 布置' }}</button>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px">
+        <span v-for="c in CLUSTERS" :key="c.id" class="pill sm" :class="{ on: aForm.clusters.includes(c.id) }" @click="toggleCluster(c.id)">
+          {{ c.name }}
+        </span>
+      </div>
+
+      <table class="atable" style="margin-top: 14px">
+        <thead><tr><th>布置</th><th>知识簇</th><th>题量</th><th>限时</th><th>截止</th><th>完成情况</th><th style="width: 70px">操作</th></tr></thead>
+        <tbody>
+          <tr v-for="a in asgList" :key="a.exam_id">
+            <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ a.title }}</td>
+            <td style="font-size: 12px; color: var(--text-2)">{{ a.clusters.length ? a.clusters.map(clusterName).join('·') : '综合' }}</td>
+            <td class="num">{{ a.n }}</td>
+            <td class="num">{{ a.minutes ? a.minutes + ' 分钟' : '不限时' }}</td>
+            <td class="num" style="font-size: 12px">{{ fmtDue(a.due_at) }}</td>
+            <td>
+              <span class="tag" :class="a.rate >= 60 ? 'green' : a.rate >= 30 ? 'blue' : 'gray'">{{ a.done }}/{{ a.total_students }} 人 · {{ a.rate }}%</span>
+            </td>
+            <td><button class="btn sm ghost" @click="delAssign(a)">删除</button></td>
+          </tr>
+          <tr v-if="!asgList.length"><td colspan="7" style="color: var(--text-3); text-align: center; padding: 20px">还没有布置过练习 —— 选好知识簇点「＋ 布置」</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px">
+      <div class="card-title">作答记录（学生 × 试卷 × 得分）</div>
       <div class="pills" style="margin-bottom: 10px">
         <span class="pill sm" :class="{ on: fStatus === 'done' }" @click="fStatus = 'done'; load()">已交卷</span>
         <span class="pill sm" :class="{ on: fStatus === 'open' }" @click="fStatus = 'open'; load()">进行中</span>

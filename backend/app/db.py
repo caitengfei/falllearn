@@ -197,6 +197,7 @@ def init_db(seed=True):
     if seed:
         _seed_bank(db)
         _seed_users(db)
+        _seed_assignment(db)
     _seed_banners(db)
     # 兜底：老库/任何来源的 banner 死链接（'' 或 '/'）→ /learn（CT-3）
     try:
@@ -267,6 +268,28 @@ def _seed_users(db):
         )
     seed_demo_data(db)
     print("[seed] 演示账号 S2026001-3 / T2026 密码 123456")
+
+
+def _seed_assignment(db):
+    """种子一条教师布置（幂等）：演示「教师布置 → 学生完成」闭环，评委可直接开考体验。"""
+    if db.execute("SELECT 1 FROM exams WHERE kind='teacher' LIMIT 1").fetchone():
+        return
+    t = db.execute("SELECT id FROM users WHERE student_no='T2026'").fetchone()
+    if not t:
+        return
+    now = int(time.time())
+    qids = [r["id"] for r in db.execute(
+        "SELECT id FROM questions WHERE cluster_id='five' ORDER BY RANDOM() LIMIT 5")]
+    if len(qids) < 5:
+        qids += [r["id"] for r in db.execute(
+            "SELECT id FROM questions ORDER BY RANDOM() LIMIT ?", [5 - len(qids)])]
+    cfg = {"clusters": ["five"], "n": len(qids), "minutes": 10, "due_at": now + 14 * 86400}
+    eid = db.execute(
+        "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
+        ("教师布置·五步处置专项（5 题）", "teacher", json.dumps(cfg, ensure_ascii=False), t["id"], now)).lastrowid
+    for i, qid in enumerate(qids):
+        db.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)", (eid, qid, i + 1, 10))
+    print("[seed] 演示教师布置 1 条（五步处置 5 题 · 10 分钟 · 14 天有效）")
 
 
 def seed_demo_data(db):

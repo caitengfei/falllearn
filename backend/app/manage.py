@@ -231,6 +231,100 @@ _STATUS_CN = {"started": "进行中", "done": "已完成", "aborted": "已放弃
 _KIND_CN = {"daily": "日常练习", "mock": "模拟考", "teacher": "教师布置", "wrong": "错题重答"}
 
 
+# ================= 教师布置（闭环：教师建卷 → 学生开考/交卷 → 教师看完成与得分） =================
+class AssignIn(BaseModel):
+    title: str = ""
+    clusters: list = []
+    n: int = 10
+    minutes: int = 10
+    due_days: int = 7
+
+
+def _pick_for_assignment(d, clusters, n):
+    """布置选题：所选知识簇内随机；不足时从全库兜底补齐。"""
+    cids = [c for c in clusters if c in db.CLUSTER_NAMES] or list(db.CLUSTER_NAMES.keys())
+    ph = ",".join("?" * len(cids))
+    ids = [r[0] for r in d.execute(
+        f"SELECT id FROM questions WHERE cluster_id IN ({ph}) ORDER BY RANDOM() LIMIT ?",  # nosec B608（人工确认：仅 ? 占位符拼接）
+        cids + [n])]
+    if len(ids) < n:
+        if ids:
+            ph2 = ",".join("?" * len(ids))
+            extra = [r[0] for r in d.execute(
+                f"SELECT id FROM questions WHERE id NOT IN ({ph2}) ORDER BY RANDOM() LIMIT ?",  # nosec B608（人工确认：仅 ? 占位符拼接）
+                ids + [n - len(ids)])]
+        else:
+            extra = [r[0] for r in d.execute("SELECT id FROM questions ORDER BY RANDOM() LIMIT ?", [n])]
+        ids += extra
+    return ids[:n]
+
+
+@router.post("/assignments")
+def assignments_create(b: AssignIn, u: dict = Depends(require_teacher)):
+    """教师布置练习：选知识簇 + 题量 + 时限 + 截止时间；全体学生在「练习考试·教师布置」可见。"""
+    n = max(5, min(20, int(b.n or 10)))
+    minutes = max(0, min(120, int(b.minutes or 0)))
+    due_days = max(1, min(90, int(b.due_days or 7)))
+    clusters = [c for c in (b.clusters or []) if c in db.CLUSTER_NAMES]
+    d = db.get_db()
+    qids = _pick_for_assignment(d, clusters, n)
+    if len(qids) < 5:
+        d.close()
+        raise HTTPException(400, "题库不足，无法组卷")
+    now = int(time.time())
+    title = (b.title or "").strip()
+    if not title:
+        name = "·".join(db.CLUSTER_NAMES[c] for c in clusters[:2]) if clusters else "综合练习"
+        title = f"教师布置·{name}（{len(qids)} 题）"
+    cfg = {"clusters": clusters, "n": len(qids), "minutes": minutes, "due_at": now + due_days * 86400}
+    exam_id = d.execute(
+        "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
+        (title, "teacher", json.dumps(cfg, ensure_ascii=False), u["id"], now)).lastrowid
+    for i, qid in enumerate(qids):
+        d.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)",
+                  (exam_id, qid, i + 1, 10))
+    d.commit()
+    d.close()
+    return {"ok": True, "exam_id": exam_id, "title": title, "n": len(qids),
+            "minutes": minutes, "due_at": cfg["due_at"]}
+
+
+@router.get("/assignments")
+def assignments_list(u: dict = Depends(require_teacher)):
+    """布置列表（含完成统计：完成人数 / 在读学生总数 / 完成率）。"""
+    d = db.get_db()
+    total_students = d.execute("SELECT COUNT(*) c FROM users WHERE role='student' AND enabled=1").fetchone()["c"]
+    out = []
+    for ex in d.execute("SELECT * FROM exams WHERE kind='teacher' ORDER BY created_at DESC, id DESC"):
+        cfg = json.loads(ex["config"] or "{}")
+        done = d.execute("SELECT COUNT(*) c FROM attempts WHERE exam_id=? AND status='done'",
+                         (ex["id"],)).fetchone()["c"]
+        out.append({"exam_id": ex["id"], "title": ex["title"], "clusters": cfg.get("clusters", []),
+                    "n": cfg.get("n", 0), "minutes": cfg.get("minutes", 0), "due_at": cfg.get("due_at", 0),
+                    "created_at": ex["created_at"], "done": done, "total_students": total_students,
+                    "rate": round(done * 100 / total_students) if total_students else 0})
+    d.close()
+    return {"items": out}
+
+
+@router.delete("/assignments/{exam_id}")
+def assignments_delete(exam_id: int, u: dict = Depends(require_teacher)):
+    """删除布置（级联删题目、作答记录与 AI 判卷）。"""
+    d = db.get_db()
+    ex = d.execute("SELECT id FROM exams WHERE id=? AND kind='teacher'", (exam_id,)).fetchone()
+    if not ex:
+        d.close()
+        raise HTTPException(404, "布置不存在或不是教师布置类型")
+    d.execute("DELETE FROM answers WHERE attempt_id IN (SELECT id FROM attempts WHERE exam_id=?)", (exam_id,))
+    d.execute("DELETE FROM ai_grades WHERE attempt_id IN (SELECT id FROM attempts WHERE exam_id=?)", (exam_id,))
+    d.execute("DELETE FROM attempts WHERE exam_id=?", (exam_id,))
+    d.execute("DELETE FROM exam_items WHERE exam_id=?", (exam_id,))
+    d.execute("DELETE FROM exams WHERE id=?", (exam_id,))
+    d.commit()
+    d.close()
+    return {"ok": True}
+
+
 @router.get("/exams")
 def exams_list(status: str = "", student_id: int = 0, u: dict = Depends(require_teacher)):
     """考试记录（attempts 视图）：学生 × 试卷 × 得分 × 用时。"""

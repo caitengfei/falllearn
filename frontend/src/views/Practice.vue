@@ -1,20 +1,21 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, auth, clusterName, clusterColor } from '../api'
 
 const route = useRoute()
 const router = useRouter()
-const menu = ref(route.query.menu === 'mock' ? 'mock' : 'daily')
+const menu = ref(['mock', 'teacher', 'retrain'].includes(route.query.menu) ? route.query.menu : 'daily')
 const pill = ref('all')
 const tasks = ref([])
+const assignments = ref([])
 const loading = ref(null)
 const summary = ref({ practice_count: 0, last_score: null, wrong_active: 0 })
 
 const menuItems = [
   { id: 'daily', label: '日常练习', ic: '✏' },
   { id: 'mock', label: '12 分钟模拟考', ic: '⏱' },
-  { id: 'teacher', label: '教师布置', ic: '📋', off: true },
+  { id: 'teacher', label: '教师布置', ic: '📋' },
   { id: 'retrain', label: '错题重答', ic: '📕' }
 ]
 
@@ -35,8 +36,22 @@ function buildTasks() {
 }
 
 const visible = computed(() => {
-  let ts = tasks.value.filter((t) => t.menu === menu.value)
-  if (menu.value === 'retrain') {
+  let ts
+  if (menu.value === 'teacher') {
+    ts = assignments.value.map((a) => {
+      const clusters = (a.clusters && a.clusters.length ? a.clusters.map(clusterName) : ['综合']).join(' · ')
+      const due = a.due_at ? '截止 ' + new Date(a.due_at * 1000).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : '长期有效'
+      const tag = [clusters, a.n + ' 题', a.minutes ? a.minutes + ' 分钟限时' : '不限时', due]
+      const base = {
+        id: 'asg-' + a.exam_id, menu: 'teacher', title: a.title,
+        tag, color: '#2563eb', ic: '📋', exam_id: a.exam_id, attempt_id: a.attempt_id
+      }
+      if (a.status === 'done') return { ...base, status: 'done', badge: '已完成 ' + a.score + ' 分', canReview: true }
+      if (a.status === 'open') return { ...base, status: 'ongoing', badge: '进行中', canStart: true }
+      if (a.status === 'overdue') return { ...base, status: 'done', badge: '已截止', canReview: false }
+      return { ...base, status: 'todo', badge: '待完成', canStart: true }
+    })
+  } else if (menu.value === 'retrain') {
     ts = [
       {
         id: 'retrain-1', title: '错题重答 · 待复习错题',
@@ -45,6 +60,8 @@ const visible = computed(() => {
         badge: summary.value.wrong_active ? '有错题待复习' : '全部复习完', canGoWrong: true
       }
     ]
+  } else {
+    ts = tasks.value.filter((t) => t.menu === menu.value)
   }
   if (pill.value === 'todo') ts = ts.filter((t) => t.status === 'todo')
   if (pill.value === 'ongoing') ts = ts.filter((t) => t.status === 'ongoing')
@@ -59,7 +76,16 @@ async function load() {
     summary.value = s
     tasks.value = buildTasks()
   } catch {}
+  if (menu.value === 'teacher') loadAssignments()
 }
+async function loadAssignments() {
+  try {
+    assignments.value = (await api.quizAssignments()).items || []
+  } catch {
+    assignments.value = []
+  }
+}
+watch(menu, (m) => { if (m === 'teacher') loadAssignments() })
 onMounted(load)
 
 async function start(t) {
@@ -69,9 +95,10 @@ async function start(t) {
   }
   loading.value = t.id
   try {
-    const r = await api.quizStart(t.isMock ? 'mock' : 'daily')
+    const r = await api.quizStart(t.isMock ? 'mock' : 'daily', t.exam_id || 0)
     sessionStorage.setItem('exam_items', JSON.stringify(r.items))
     sessionStorage.setItem('exam_kind', r.kind || 'daily')
+    sessionStorage.setItem('exam_title', r.title || '')
     sessionStorage.setItem('exam_time_limit', String(r.time_limit || 0))
     router.push('/exam/' + r.attempt_id)
   } catch (e) {
@@ -79,6 +106,11 @@ async function start(t) {
   } finally {
     loading.value = null
   }
+}
+
+function viewResult(t) {
+  sessionStorage.setItem('exam_review', String(t.attempt_id))
+  router.push('/exam/' + t.attempt_id)
 }
 </script>
 
@@ -115,16 +147,20 @@ async function start(t) {
             <div style="margin-top: 7px">
               <span v-for="g in t.tag" :key="g" class="tag" :class="{ red: g.includes('针对性') || g.includes('限时'), gold: g.includes('对标') }">{{ g }}</span>
             </div>
-            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono">
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono" v-if="t.menu !== 'teacher'">
               上次得分：{{ summary.last_score ?? '—' }} · 已完成 {{ summary.practice_count }} 组
+            </div>
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono" v-else>
+              教师已布置 · 完成后计入学习记录
             </div>
           </div>
           <button v-if="t.canStart" class="btn sm" :disabled="loading === t.id" @click="start(t)">
-            {{ loading === t.id ? '开卷中…' : '开始' }}
+            {{ loading === t.id ? '开卷中…' : (t.menu === 'teacher' && t.status === 'ongoing' ? '继续作答' : '开始') }}
           </button>
           <button v-else-if="t.canGoWrong" class="btn sm" @click="start(t)">去复习</button>
+          <button v-else-if="t.canReview" class="btn sm ghost" @click="viewResult(t)">查看成绩</button>
         </div>
-        <div v-if="!visible.length" class="card empty">该分类下暂无任务</div>
+        <div v-if="!visible.length" class="card empty">{{ menu === 'teacher' ? '老师还没有布置练习 · 先去「日常练习」练一组吧' : '该分类下暂无任务' }}</div>
       </div>
     </div>
   </div>
