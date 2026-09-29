@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""管理后台 API 冒烟（教师 T2026）：27 项检查。"""
+"""管理后台 API 冒烟（教师 T2026）：27 项检查（含教师布置闭环 6 项、流式端点鉴权）。"""
 import sys, time, requests
 sys.stdout.reconfigure(encoding="utf-8")
 BASE = "http://127.0.0.1:8010"
@@ -109,6 +109,10 @@ r2 = requests.post(BASE + "/api/quiz/start", headers=SH, json={"kind": "daily", 
 check("重复开考拦截", r2.status_code == 400, str(r2.status_code))
 r = requests.delete(BASE + f"/api/admin/assignments/{asg_id}", headers=H, timeout=10).json()
 check("布置删除（清场）", r.get("ok"))
+
+# 27 流式端点鉴权（SSE /api/learn/stream：无 token 401，不触 AI）
+r = requests.get(BASE + "/api/learn/stream?session_id=x&log_id=1", timeout=10)
+check("流式端点鉴权", r.status_code == 401, str(r.status_code))
 
 n_fail = sum(1 for _, ok in results if not ok)
 print(f"\n===== 管理后台 API: {len(results) - n_fail}/{len(results)} 通过 =====")

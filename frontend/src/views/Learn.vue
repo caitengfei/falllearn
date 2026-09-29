@@ -13,6 +13,8 @@ const session = ref(null)
 const logId = ref(null)
 const inputEl = ref(null)
 let pollTimer = null
+let streamCtrl = null
+let bubbleSeq = 0  // 流式气泡唯一 id（filter 后用 bid 定位，避免 raw/proxy 身份比较失效）
 
 function push(m) {
   flow.value.push(m)
@@ -34,11 +36,67 @@ async function send(preFilled) {
     const r = await api.ask(q)
     session.value = r.session_id
     logId.value = r.log_id
-    startPoll()
+    startStream(r.session_id, r.log_id)
   } catch (e) {
     flow.value.pop()
     push({ role: 'ai', text: '出错了：' + e.message })
     busy.value = false
+  }
+}
+
+// —— SSE 流式接收（直连通道）：逐字渲染；失败自动回落轮询 ——
+// 注意：必须通过 flow.value 的 reactive proxy 改 text（直接改 raw 对象不触发响应式，实测整段滞后到末尾才渲染）
+async function startStream(sid, logIdV) {
+  stopPoll()
+  flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
+  const bid = ++bubbleSeq
+  flow.value.push({ role: 'ai', text: '', streaming: true, bid })
+  const live = flow.value[flow.value.length - 1]
+  nextTick(scrollBottom)
+  streamCtrl = new AbortController()
+  try {
+    const res = await fetch(`/api/learn/stream?session_id=${encodeURIComponent(sid)}&log_id=${logIdV}`, {
+      headers: { authorization: `Bearer ${auth.token}` }, signal: streamCtrl.signal
+    })
+    if (!res.ok || !res.body) throw new Error('stream 不可用')
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let bfr = ''
+    while (true) {
+      const rd = await reader.read()
+      if (rd.done) break
+      bfr += dec.decode(rd.value, { stream: true })
+      let i
+      while ((i = bfr.indexOf('\n\n')) >= 0) {
+        const line = bfr.slice(0, i).trim()
+        bfr = bfr.slice(i + 2)
+        if (!line.startsWith('data: ')) continue
+        let msg
+        try { msg = JSON.parse(line.slice(6)) } catch { continue }
+        if (msg.type === 'chunk') {
+          live.text += msg.t
+          nextTick(scrollBottom)
+        } else if (msg.type === 'done') {
+          live.text = msg.answer || live.text
+          live.streaming = false
+          busy.value = false
+        } else if (msg.type === 'question') {
+          flow.value = flow.value.filter((m) => m.bid !== bid)
+          push({ role: 'q', question: msg.question, logId: logIdV })
+          busy.value = false
+        } else if (msg.type === 'failed' || msg.type === 'error') {
+          live.text = '😵 ' + (msg.error || '出错了，请再试一次')
+          live.streaming = false
+          busy.value = false
+        }
+      }
+    }
+    live.streaming = false
+    if (busy.value) startPoll() // 连接中断但状态未到：回落轮询兜底
+  } catch (e) {
+    if (e.name === 'AbortError') return
+    live.streaming = false
+    if (busy.value) startPoll() // 网络异常：回落轮询兜底
   }
 }
 
@@ -57,19 +115,19 @@ async function poll() {
   try {
     const s = await api.status(session.value, logId.value)
     if (s.status === 'question') {
-      flow.value = flow.value.filter((m) => m.role !== 'typing')
+      flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
       push({ role: 'q', question: s.question, logId: logId.value })
       stopPoll()
       return
     }
     if (s.status === 'done') {
-      flow.value = flow.value.filter((m) => m.role !== 'typing')
+      flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
       push({ role: 'ai', text: s.answer })
       busy.value = false
       stopPoll()
     }
     if (s.status === 'failed') {
-      flow.value = flow.value.filter((m) => m.role !== 'typing')
+      flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
       push({ role: 'ai', text: '😵 ' + (s.error || '出错了，请再试一次') })
       busy.value = false
       stopPoll()
@@ -86,7 +144,7 @@ async function pickOption(log_id, idx) {
   try {
     await api.answer(log_id, idx)
     push({ role: 'typing' })
-    startPoll()
+    startStream(session.value, logId.value)
   } catch (e) {
     push({ role: 'ai', text: '应答失败：' + e.message })
     busy.value = false
@@ -194,7 +252,10 @@ function askCluster() {
 }
 
 onMounted(load)
-onBeforeUnmount(stopPoll)
+onBeforeUnmount(() => {
+  stopPoll()
+  if (streamCtrl) streamCtrl.abort()
+})
 </script>
 
 <template>
@@ -238,7 +299,7 @@ onBeforeUnmount(stopPoll)
                   </div>
                 </template>
                 <template v-else-if="m.role === 'ai'">
-                  <div class="plain">{{ m.text }}</div>
+                  <div class="plain">{{ m.text }}<span v-if="m.streaming" class="caret">▍</span></div>
                 </template>
                 <template v-else>{{ m.text }}</template>
                 <div v-if="m.role === 'ai' && sources(m.text).length" class="src">
@@ -339,6 +400,8 @@ onBeforeUnmount(stopPoll)
   white-space: pre-wrap; line-height: 1.75;
 }
 .plain { white-space: pre-wrap; line-height: 1.8; }
+.caret { display: inline-block; margin-left: 1px; color: var(--primary); animation: caretblink 1s steps(1) infinite; }
+@keyframes caretblink { 50% { opacity: 0; } }
 .qtitle { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
 .qdesc { font-size: 13px; color: var(--text-2); }
 .qopt {

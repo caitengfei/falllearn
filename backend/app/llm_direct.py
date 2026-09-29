@@ -192,6 +192,55 @@ async def complete(cfg, messages, max_tokens=2500, temperature=0.3, timeout=120)
     return content
 
 
+async def _iter_stream(resp):
+    """解析 OpenAI 兼容 SSE 流：逐块 yield content delta。"""
+    buf = ""
+    async for raw in resp.aiter_text():
+        buf += raw
+        while "\n" in buf:
+            line, buf = buf.split("\n", 1)
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+            data = line[5:].strip()
+            if data == "[DONE]":
+                return
+            try:
+                j = json.loads(data)
+            except Exception:
+                continue
+            ch = (j.get("choices") or [{}])[0]
+            delta = ((ch.get("delta") or {}).get("content")) or ""
+            if delta:
+                yield delta
+
+
+async def complete_stream(cfg, messages, max_tokens=2500, temperature=0.3, timeout=120):
+    """流式版 complete：逐块 yield 文本 delta（SSE 端点的底层）。"""
+    url = cfg["base_url"].rstrip("/") + "/chat/completions"
+    headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+    payload = {"model": cfg["model"], "messages": messages, "stream": True,
+               "max_tokens": max_tokens, "temperature": temperature}
+    if cfg.get("thinking", "disabled") == "disabled":
+        payload["thinking"] = {"type": "disabled"}
+    async with httpx.AsyncClient(timeout=timeout) as cli:
+        async with cli.stream("POST", url, headers=headers, json=payload) as r:
+            if r.status_code in (400, 404, 422) and "thinking" in payload:
+                body = (await r.aread()).decode(errors="ignore")
+                if "think" in body.lower():
+                    payload.pop("thinking", None)
+                    async with cli.stream("POST", url, headers=headers, json=payload) as r2:
+                        async for delta in _iter_stream(r2):
+                            yield delta
+                    return
+                raise RuntimeError(f"API {r.status_code}：{body[:200]}")
+            if r.status_code != 200:
+                body = (await r.aread()).decode(errors="ignore")
+                raise RuntimeError(f"API {r.status_code}：{body[:200]}")
+            async for delta in _iter_stream(r):
+                yield delta
+
+
 # ================= 学生会话（进程内，TTL 30 分钟） =================
 _sessions = {}
 SESS_TTL = 1800
@@ -213,18 +262,30 @@ async def _direct_finish(s, user_text):
     """单轮直连：拼 system(路由KB)+历史 → complete → 澄清卡检测 → 落库四栏/副作用。"""
     cfg = get_cfg()
     if not cfg:
-        s.update(state="failed", error="直连通道配置已被清除，请再问一次")
+        s.update(state="failed", error="直连通道配置已被清除，请再问一次", t=time.time())
+        if s.get("queue") is not None:
+            s["queue"].put_nowait(None)
         return
     d = db.get_db()
+    queue = s.get("queue")
+
+    def _push(item):
+        if queue is not None:
+            queue.put_nowait(item)
+
     try:
         messages = [{"role": "system", "content": build_system(s["last_q"])}]
         messages += [m for m in s["messages"]][-6:]
         messages.append({"role": "user", "content": user_text})
-        text = await complete(cfg, messages, max_tokens=2500)
+        text = ""
+        async for delta in complete_stream(cfg, messages, max_tokens=2500):
+            text += delta
+            _push(delta)
         if text.lstrip().startswith("[[CLARIFY]]"):
             c = _parse_clarify(text)
             if c:
                 s.update(state="question", clarify=c, t=time.time())
+                _push(None)
                 return
         if "【岗】" in text and "【证】" in text:
             touched = db.clusters_touched(text[:400])
@@ -245,15 +306,18 @@ async def _direct_finish(s, user_text):
         s["messages"] = (s["messages"] + [{"role": "user", "content": user_text},
                                           {"role": "assistant", "content": text}])[-8:]
         s.update(state="done", answer=answer, answer_clusters=touched, t=time.time())
+        _push(None)
     except Exception as e:
         s.update(state="failed", error=str(e)[:300], t=time.time())
+        _push(None)
     finally:
         d.close()
 
 
 async def run_direct_ask(sid, student_id, question, profile, log_id):
     s = {"sid": sid, "student_id": student_id, "log_id": log_id, "messages": [],
-         "state": "running", "clarify": None, "last_q": question, "t": time.time()}
+         "state": "running", "clarify": None, "last_q": question, "t": time.time(),
+         "queue": asyncio.Queue()}  # SSE 流式通道：chunk 文本 / None=终态哨兵
     _sessions[sid] = s
     await _direct_finish(s, f"{profile}\n学生提问：{question}")
 
@@ -268,6 +332,9 @@ def continue_direct(sid, option_index):
         return False, "选项不存在"
     label = opts[option_index]["label"]
     s.update(state="running", clarify=None, t=time.time())
+    if s.get("queue") is not None:
+        while not s["queue"].empty():  # 清掉上一轮残留的哨兵，避免新流误判终态
+            s["queue"].get_nowait()
     asyncio.create_task(_direct_finish(s, f"（学生已选择：{label}。这是澄清应答，请直接按该选择输出完整四栏答案，不要再次澄清或提问。）"))
     return True, label
 

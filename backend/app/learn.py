@@ -14,6 +14,7 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from . import db, dsh_client, llm_direct
@@ -343,6 +344,51 @@ async def status(session_id: str, log_id: int, u: dict = Depends(current_user)):
         return {"status": "failed", "log_id": log_id, "error": "AI 老师这次没有返回内容，请再问一次"}
     d.close()
     return {"status": "running", "log_id": log_id}
+
+
+@router.get("/stream")
+async def stream(session_id: str, log_id: int, u: dict = Depends(current_user)):
+    """SSE 流式输出（直连通道）：chunk 逐字下发，终态事件带完整答案/澄清卡/错误。
+    DSH 中继通道不支持流式（返回 400，前端回落 /status 轮询）。"""
+    d = db.get_db()
+    row = d.execute("SELECT dsh_session_id, dsh_preset FROM student_sessions WHERE student_id=?",
+                    (u["id"],)).fetchone()
+    if not row or row["dsh_session_id"] != session_id:
+        d.close()
+        raise HTTPException(403, "会话不属于你")
+    direct = row["dsh_preset"] == "direct"
+    d.close()
+    if not direct:
+        raise HTTPException(400, "当前通道不支持流式，请用轮询")
+    s = llm_direct._sess_get(session_id)
+    if not s or s.get("queue") is None:
+        raise HTTPException(404, "AI 会话已失效，请再问一次")
+
+    async def gen():
+        q = s["queue"]
+        while True:
+            try:
+                item = await asyncio.wait_for(q.get(), timeout=15)
+            except asyncio.TimeoutError:
+                yield ": ping\n\n"  # 心跳保活（防中间代理掐空闲连接）
+                if s.get("state") in ("done", "question", "failed"):
+                    break
+                continue
+            if item is None:
+                break
+            yield "data: " + json.dumps({"type": "chunk", "t": item}, ensure_ascii=False) + "\n\n"
+        st = s.get("state")
+        if st == "done":
+            ev = {"type": "done", "answer": s.get("answer", ""),
+                  "clusters": s.get("answer_clusters") or []}
+        elif st == "question" and s.get("clarify"):
+            ev = {"type": "question", "question": s["clarify"]}
+        else:
+            ev = {"type": "failed", "error": s.get("error") or "AI 直连调用失败，请再问一次"}
+        yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @router.get("/history")
