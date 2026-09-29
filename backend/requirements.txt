@@ -1,8 +1,8 @@
-fastapi
-uvicorn
-pydantic
-PyJWT
-bcrypt
-httpx
-websockets
-python-multipart
+fastapi==0.124.4
+uvicorn==0.33.0
+pydantic==2.11.10
+PyJWT==2.13.0
+bcrypt==4.0.1
+httpx==0.28.1
+websockets==12.0
+python-multipart==0.0.32

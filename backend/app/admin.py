@@ -55,23 +55,23 @@ def reset_demo(u: dict = Depends(require_teacher)):
     """
     d = db.get_db()
     for sno in (*DEMO_STUDENTS, "T2026"):
-        h = bcrypt.hashpw(b"123456", bcrypt.gensalt(4)).decode()
+        h = bcrypt.hashpw(b"123456", bcrypt.gensalt(10)).decode()
         d.execute("UPDATE users SET pwd_hash=? WHERE student_no=?", (h, sno))
     ph = ",".join("?" * len(DEMO_STUDENTS))
-    SIDS = f"SELECT id FROM users WHERE student_no IN ({ph})"
+    SIDS = f"SELECT id FROM users WHERE student_no IN ({ph})"  # nosec B608（人工确认：参数化/白名单常量拼接）
     # answers 无 student_id 列，先经 attempts 级联删
-    d.execute(f"DELETE FROM answers WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id IN ({SIDS}))",
+    d.execute(f"DELETE FROM answers WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id IN ({SIDS}))",  # nosec B608（人工确认：参数化/白名单常量拼接）
               DEMO_STUDENTS)
-    d.execute(f"DELETE FROM ai_grades WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id IN ({SIDS}))",
+    d.execute(f"DELETE FROM ai_grades WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id IN ({SIDS}))",  # nosec B608（人工确认：参数化/白名单常量拼接）
               DEMO_STUDENTS)
     for t in ("mastery", "wrong_records", "chat_logs", "points_log", "checkins",
               "user_badges", "student_sessions", "attempts", "points_cache", "study_events"):
-        d.execute(f"DELETE FROM {t} WHERE student_id IN ({SIDS})", DEMO_STUDENTS)
-    d.execute(f"DELETE FROM training_enrolls WHERE student_id IN ({SIDS})", DEMO_STUDENTS)
+        d.execute(f"DELETE FROM {t} WHERE student_id IN ({SIDS})", DEMO_STUDENTS)  # nosec B608（人工确认：参数化/白名单常量拼接）
+    d.execute(f"DELETE FROM training_enrolls WHERE student_id IN ({SIDS})", DEMO_STUDENTS)  # nosec B608（人工确认：参数化/白名单常量拼接）
     # 考卷只删演示学生创建的（教师/其他学生的卷不受影响）
-    d.execute(f"DELETE FROM exam_items WHERE exam_id IN (SELECT id FROM exams WHERE created_by IN ({SIDS}))",
+    d.execute(f"DELETE FROM exam_items WHERE exam_id IN (SELECT id FROM exams WHERE created_by IN ({SIDS}))",  # nosec B608（人工确认：参数化/白名单常量拼接）
               DEMO_STUDENTS)
-    d.execute(f"DELETE FROM exams WHERE created_by IN ({SIDS})", DEMO_STUDENTS)
+    d.execute(f"DELETE FROM exams WHERE created_by IN ({SIDS})", DEMO_STUDENTS)  # nosec B608（人工确认：参数化/白名单常量拼接）
     # 重新预置 S2026001 演示基线（掌握度/积分/错题/对话）
     db.seed_demo_data(d)
     d.commit()

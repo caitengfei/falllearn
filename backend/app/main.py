@@ -19,8 +19,23 @@ from .manage import router as manage_router, content_router, meta_router  # noqa
 from .aiops import router as aiops_router
 
 app = FastAPI(title="防跌学堂", version="1.2.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS 收敛：仅允许本平台来源（生产同源为主；5173 为本地 vite 开发）。
+# 不开放 "*"：虽为 token 鉴权（无 cookie 窃取面），收敛后杜绝跨域探测面，审计可解释。
+app.add_middleware(CORSMiddleware,
+                   allow_origins=["http://121.199.161.117:8010", "http://localhost:8010",
+                                  "http://127.0.0.1:8010", "http://localhost:5173", "http://127.0.0.1:5173"],
+                   allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=1024)  # JS/HTML 传输体积 -60%+（校园网/公网演示收益）
+
+
+@app.middleware("http")
+async def security_headers(_: Request, call_next):
+    """基础安全响应头（防 MIME 嗅探 / 点击劫持 / 信息外泄）。"""
+    resp = await call_next(_)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    return resp
 
 
 _MSG_CN = {
@@ -74,10 +89,18 @@ def health():
 UPLOADS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
 
 
+def _within(base: str, candidate: str) -> bool:
+    """路径包含判定（commonpath 严格版，规避 startswith 的前缀兄弟目录误判）。"""
+    try:
+        return os.path.commonpath([base, candidate]) == base
+    except ValueError:
+        return False
+
+
 @app.get("/uploads/{name}", include_in_schema=False)
 async def upload_file(name: str):
     candidate = os.path.normpath(os.path.join(UPLOADS, name))
-    if candidate.startswith(os.path.normpath(UPLOADS)) and os.path.isfile(candidate):
+    if _within(os.path.normpath(UPLOADS), candidate) and os.path.isfile(candidate):
         return FileResponse(candidate)
     return JSONResponse({"detail": "文件不存在"}, status_code=404)
 
@@ -93,7 +116,7 @@ async def spa(full_path: str):
         return JSONResponse({"detail": "接口不存在（API 404）"}, status_code=404)
     if os.path.isdir(DIST):
         candidate = os.path.normpath(os.path.join(DIST, full_path))
-        if full_path and candidate.startswith(DIST) and os.path.isfile(candidate):
+        if full_path and _within(DIST, candidate) and os.path.isfile(candidate):
             # 带 hash 的 /assets/* 长缓存；其余（如 index.html）不缓存，保证发版即生效
             if full_path.startswith("assets/"):
                 return FileResponse(candidate, headers={"Cache-Control": "public, max-age=31536000, immutable"})

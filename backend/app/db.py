@@ -247,7 +247,7 @@ import bcrypt as _bcrypt
 
 
 def _hash(p):
-    return _bcrypt.hashpw(p.encode(), _bcrypt.gensalt(4)).decode()
+    return _bcrypt.hashpw(p.encode(), _bcrypt.gensalt(10)).decode()
 
 
 def _seed_users(db):
@@ -277,7 +277,7 @@ def seed_demo_data(db):
     sid = sid[0]
     now = int(time.time())
     for t in ("mastery", "wrong_records", "chat_logs", "points_log", "checkins", "user_badges"):
-        db.execute(f"DELETE FROM {t} WHERE student_id=?", (sid,))
+        db.execute(f"DELETE FROM {t} WHERE student_id=?", (sid,))  # nosec B608（人工确认：参数化/白名单常量拼接）
     levels = {"morse": 62, "env": 71, "five": 41, "fracture": 38, "record": 55, "cpr": 29}
     for cid, lv in levels.items():
         db.execute(

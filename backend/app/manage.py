@@ -98,6 +98,16 @@ async def upload_image(file: UploadFile = File(...), u: dict = Depends(require_t
     ext = file.filename.rsplit(".", 1)[-1].lower()
     if ext not in ("png", "jpg", "jpeg", "webp", "gif"):
         raise HTTPException(400, f"不支持的文件类型 .{ext}（仅 png/jpg/jpeg/webp/gif）")
+    # 内容魔数校验（防伪装扩展名上传非图片内容）
+    head = data[:12]
+    if ext == "png" and not head.startswith(b"\x89PNG"):
+        raise HTTPException(400, "文件内容与扩展名不符（非有效 PNG）")
+    if ext in ("jpg", "jpeg") and not head.startswith(b"\xff\xd8"):
+        raise HTTPException(400, "文件内容与扩展名不符（非有效 JPEG）")
+    if ext == "webp" and not (head.startswith(b"RIFF") and head[8:12] == b"WEBP"):
+        raise HTTPException(400, "文件内容与扩展名不符（非有效 WebP）")
+    if ext == "gif" and not (head.startswith(b"GIF87a") or head.startswith(b"GIF89a")):
+        raise HTTPException(400, "文件内容与扩展名不符（非有效 GIF）")
     name = f"banner-{int(time.time())}-{uuid.uuid4().hex[:6]}.{ext}"
     with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
         f.write(data)
@@ -318,21 +328,21 @@ def students_list(u: dict = Depends(require_teacher)):
                  "wrong_active": 0, "badge_count": 0, "enroll_count": 0, "hours": 0.0} for i in ids}
     if ids:
         ph = ",".join("?" * len(ids))
-        for m in d.execute(f"SELECT student_id, cluster_id, level FROM mastery WHERE student_id IN ({ph})", ids):
+        for m in d.execute(f"SELECT student_id, cluster_id, level FROM mastery WHERE student_id IN ({ph})", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[m["student_id"]]["mastery"][m["cluster_id"]] = m["level"]
-        for r in d.execute(f"SELECT student_id, points FROM points_cache WHERE student_id IN ({ph})", ids):
+        for r in d.execute(f"SELECT student_id, points FROM points_cache WHERE student_id IN ({ph})", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["points"] = r["points"]
-        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM attempts WHERE student_id IN ({ph}) AND status='done' GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM attempts WHERE student_id IN ({ph}) AND status='done' GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["practice_count"] = r["c"]
-        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM chat_logs WHERE student_id IN ({ph}) AND answer!='' GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM chat_logs WHERE student_id IN ({ph}) AND answer!='' GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["ai_ask"] = r["c"]
-        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM wrong_records WHERE student_id IN ({ph}) AND status='active' GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM wrong_records WHERE student_id IN ({ph}) AND status='active' GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["wrong_active"] = r["c"]
-        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM user_badges WHERE student_id IN ({ph}) GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM user_badges WHERE student_id IN ({ph}) GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["badge_count"] = r["c"]
-        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM training_enrolls WHERE student_id IN ({ph}) GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COUNT(*) c FROM training_enrolls WHERE student_id IN ({ph}) GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["enroll_count"] = r["c"]
-        for r in d.execute(f"SELECT student_id, COALESCE(SUM(minutes),0) m FROM study_events WHERE student_id IN ({ph}) GROUP BY student_id", ids):
+        for r in d.execute(f"SELECT student_id, COALESCE(SUM(minutes),0) m FROM study_events WHERE student_id IN ({ph}) GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["hours"] = round(r["m"] or 0, 1)
     d.close()
     items = []
@@ -364,7 +374,7 @@ def students_create(s: StudentIn, u: dict = Depends(require_teacher)):
             sno = f"S2026{n + 1:03d}"
     elif d.execute("SELECT 1 FROM users WHERE student_no=?", (sno,)).fetchone():
         raise HTTPException(400, "学号已存在")
-    h = bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(4)).decode()
+    h = bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(10)).decode()
     cur = d.execute(
         "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,?,?)",
         (sno, s.name, "student", h, s.enabled, int(time.time())))
@@ -383,10 +393,10 @@ def students_update(uid: int, s: StudentIn, u: dict = Depends(require_teacher)):
     if s.name:
         sets.append("name=?"); args.append(s.name)
     if s.password:
-        sets.append("pwd_hash=?"); args.append(bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(4)).decode())
+        sets.append("pwd_hash=?"); args.append(bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(10)).decode())
     sets.append("enabled=?"); args.append(s.enabled)
     args.append(uid)
-    d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)
+    d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)  # nosec B608（人工确认：参数化/白名单常量拼接）
     d.commit()
     d.close()
     return {"ok": True}
@@ -424,7 +434,7 @@ def accounts_create(a: AccountIn, u: dict = Depends(require_teacher)):
         raise HTTPException(400, "账号已存在")
     if a.role not in ("student", "teacher"):
         raise HTTPException(400, "角色仅支持 student/teacher")
-    h = bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(4)).decode()
+    h = bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(10)).decode()
     cur = d.execute(
         "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,?,?)",
         (sno, a.name, a.role, h, a.enabled, int(time.time())))
@@ -450,7 +460,7 @@ def accounts_delete(uid: int, u: dict = Depends(require_teacher)):
     for t in ("mastery", "wrong_records", "chat_logs", "points_log", "checkins",
               "user_badges", "student_sessions", "attempts", "points_cache",
               "study_events", "training_enrolls"):
-        d.execute(f"DELETE FROM {t} WHERE student_id=?", (uid,))
+        d.execute(f"DELETE FROM {t} WHERE student_id=?", (uid,))  # nosec B608（人工确认：参数化/白名单常量拼接）
     d.execute("DELETE FROM users WHERE id=?", (uid,))
     d.commit()
     d.close()
@@ -480,9 +490,9 @@ def accounts_update(uid: int, a: AccountPatch, u: dict = Depends(require_teacher
         sets.append("enabled=?"); args.append(a.enabled)
     if a.password:
         sets.append("pwd_hash=?")
-        args.append(bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(4)).decode())
+        args.append(bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(10)).decode())
     args.append(uid)
-    d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)
+    d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)  # nosec B608（人工确认：参数化/白名单常量拼接）
     d.commit()
     d.close()
     return {"ok": True}
@@ -575,7 +585,7 @@ def trainings_enroll(tid: int, body: dict, u: dict = Depends(require_teacher)):
     if status == "enrolled" and sids:
         ph = ",".join("?" * len(sids))
         already = {r["student_id"] for r in d.execute(
-            f"SELECT student_id FROM training_enrolls WHERE training_id=? AND student_id IN ({ph})",
+            f"SELECT student_id FROM training_enrolls WHERE training_id=? AND student_id IN ({ph})",  # nosec B608（人工确认：参数化/白名单常量拼接）
             [tid] + sids)}
         n_cur = d.execute("SELECT COUNT(*) c FROM training_enrolls WHERE training_id=?", (tid,)).fetchone()["c"]
         n_new = len([s for s in sids if s not in already])
@@ -645,14 +655,14 @@ def stats_overview(u: dict = Depends(require_teacher)):
                 now - days * 86400, now - days * 86400, now - days * 86400)
 
     def active_days(days):
-        r = d.execute(f"SELECT COUNT(DISTINCT student_id) c FROM ({_ACTIVE_SRC})",
+        r = d.execute(f"SELECT COUNT(DISTINCT student_id) c FROM ({_ACTIVE_SRC})",  # nosec B608（人工确认：参数化/白名单常量拼接）
                       _active_params(days)).fetchone()
         return r["c"]
 
     def active_list(days):
         """活跃学生明细（启用学生，供指标卡下钻展示）。"""
         rows = d.execute(
-            f"SELECT u.student_no, u.name FROM users u WHERE u.role='student' AND u.enabled=1 "
+            f"SELECT u.student_no, u.name FROM users u WHERE u.role='student' AND u.enabled=1 "  # nosec B608（人工确认：参数化/白名单常量拼接）
             f"AND u.id IN ({_ACTIVE_SRC}) ORDER BY u.student_no",
             _active_params(days)).fetchall()
         return [{"name": r["name"], "student_no": r["student_no"]} for r in rows]
