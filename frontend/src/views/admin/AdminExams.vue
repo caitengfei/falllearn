@@ -129,7 +129,7 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
       <button class="btn sm gold" style="margin-left: auto" @click="exportCsv">⬇ 导出 CSV</button>
     </div>
 
-    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }}</div>
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
     <!-- 教师布置（闭环） -->

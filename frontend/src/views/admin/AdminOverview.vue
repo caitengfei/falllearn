@@ -285,7 +285,7 @@ async function doReset() {
         </table>
       </div>
     </template>
-    <div v-else-if="!loading" class="card" style="color: var(--text-3)">加载中…</div>
+    <div v-else-if="!err" class="card" style="color: var(--text-3)">加载中…</div>
 
     <!-- 重置确认 -->
     <div v-if="showReset" class="mask" @click.self="showReset = false">

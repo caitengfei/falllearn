@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, auth, clusterName, clusterColor } from '../api'
 
 const route = useRoute()
@@ -12,6 +12,7 @@ const cur = ref(0)
 const answers = ref(JSON.parse(sessionStorage.getItem('exam_answers') || '{}'))
 const picked = ref('')
 const submitted = ref(false)
+const submitBusy = ref(false)
 const result = ref(null)
 const left = ref(timeLimit.value) // 剩余秒数
 let tick = null
@@ -63,8 +64,10 @@ function prev() {
 }
 
 async function submit(silent = false) {
-  if (submitted.value || !items.value.length) return
+  // submitBusy 防连点：评委现场最怕「点了没反应又点一次」造成的重复提交
+  if (submitted.value || submitBusy.value || !items.value.length) return
   if (!silent && !confirm(`还有 ${items.value.filter((it) => !answers.value[String(it.question_id)]).length} 题未作答，确定交卷？`)) return
+  submitBusy.value = true
   stopTick()
   try {
     const r = await api.quizSubmit(Number(route.params.attemptId), answers.value)
@@ -76,6 +79,9 @@ async function submit(silent = false) {
     sessionStorage.removeItem('exam_answers')
   } catch (e) {
     if (!silent) alert('交卷失败：' + e.message)
+    else startTick() // 自动交卷失败：恢复倒计时（学生可手动再交）
+  } finally {
+    submitBusy.value = false
   }
 }
 
@@ -114,8 +120,21 @@ onMounted(async () => {
   if (!items.value.length) return // 无题：模板显示空态
   picked.value = answers.value[String(curItem.value?.question_id)] || ''
   startTick()
+  window.addEventListener('beforeunload', warnLeave)
 })
-onBeforeUnmount(stopTick)
+function warnLeave(e) {
+  if (submitted.value || !items.value.length) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onBeforeRouteLeave(() => {
+  if (submitted.value || !items.value.length) return true
+  return confirm('答题尚未提交，确定离开吗？（作答已暂存在本标签页，可回来继续）')
+})
+onBeforeUnmount(() => {
+  stopTick()
+  window.removeEventListener('beforeunload', warnLeave)
+})
 
 function weakAgain() {
   const ws = Object.entries(result.value?.per_cluster || {})
@@ -164,12 +183,12 @@ function weakAgain() {
 
     <!-- 答题页 -->
     <template v-else>
-      <div class="card" style="display: flex; align-items: center; gap: 16px; padding: 14px 20px">
-        <div style="font-weight: 700; font-size: 15px">{{ title }}</div>
-        <div v-if="timeLimit" style="margin-left: auto" class="mono" style2="font-size: 18px; font-weight: 700" :class="{ 'time-warn': left <= 120 }">
+      <div class="card exam-head" style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; flex-wrap: wrap">
+        <div class="exam-title" style="font-weight: 700; font-size: 15px">{{ title }}</div>
+        <div v-if="timeLimit" class="mono" style="margin-left: auto; font-size: 18px; font-weight: 700" :class="{ 'time-warn': left <= 120 }">
           ⏱ {{ mmss }}
         </div>
-        <div style="margin-left: auto; font-size: 12.5px; color: var(--text-3); white-space: nowrap" :style="timeLimit ? { marginLeft: '16px' } : {}">
+        <div style="font-size: 12.5px; color: var(--text-3); white-space: nowrap" :style="timeLimit ? { marginLeft: '16px' } : { marginLeft: 'auto' }">
           第 {{ cur + 1 }} / {{ items.length }} 题
         </div>
       </div>
@@ -193,7 +212,7 @@ function weakAgain() {
         <div style="display: flex; gap: 10px; margin-top: 22px">
           <button class="btn sm ghost" :disabled="cur === 0" @click="prev">上一题</button>
           <button class="btn sm" :disabled="!picked" @click="next">下一题（确认）</button>
-          <button class="btn sm ghost" style="margin-left: auto" @click="submit()">交卷</button>
+          <button class="btn sm ghost" style="margin-left: auto" :disabled="submitBusy" @click="submit()">{{ submitBusy ? '交卷中…' : '交卷' }}</button>
         </div>
       </div>
 
@@ -217,8 +236,13 @@ function weakAgain() {
 .opt.sel { border-color: var(--primary); background: var(--primary-light); font-weight: 600; }
 .opt b { color: var(--primary); min-width: 18px; }
 .nbtn {
-  width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--line);
+  width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--line);
   font-size: 12.5px; background: #fff; color: var(--text-2);
+}
+.nbtn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+@media (max-width: 640px) {
+  .exam-title { width: 100%; }
+  .exam-head { gap: 8px; }
 }
 .nbtn.done { background: var(--success-light); border-color: var(--success); color: var(--success); font-weight: 700; }
 .nbtn.on { background: var(--primary); border-color: var(--primary); color: #fff; }

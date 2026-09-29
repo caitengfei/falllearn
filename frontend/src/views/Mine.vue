@@ -32,20 +32,27 @@ function radarPoints() {
 }
 const radar = ref(radarPoints())
 
+const err = ref('')
 async function load() {
+  err.value = ''
   try {
     const [m, p, b] = await Promise.all([api.me(), api.points(), api.badges()])
     me.value = m
     radar.value = radarPoints()
     pointsLog.value = p.log.filter((x) => x.delta !== 0).slice(0, 20)
     badges.value = b
-  } catch {}
+  } catch (e) {
+    err.value = e.message // 原为静默：雷达/勋章/积分全空且无任何提示
+  }
 }
 onMounted(load)
 </script>
 
 <template>
   <div class="page" style="max-width: 1080px">
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 12px">
+      数据加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button>
+    </div>
     <div class="mine-grid">
       <div>
         <div class="card">

@@ -22,6 +22,10 @@ function fill(s) {
 }
 
 async function doLogin() {
+  if (!sno.value.trim() || !pwd.value) {
+    err.value = '请输入学号/工号与密码（或点下方「一键体验」）'
+    return
+  }
   err.value = ''
   busy.value = true
   try {
@@ -66,7 +70,7 @@ async function doLogin() {
         <div class="demo-hint">
           <div class="dh-title">一键体验（密码 123456）</div>
           <div class="dh-row">
-            <button v-for="d in demos" :key="d.sno" class="dh-btn" @click="fill(d)">
+            <button v-for="d in demos" :key="d.sno" class="dh-btn" :disabled="busy" @click="fill(d); doLogin()">
               <span class="dh-tag" :class="{ t: d.tag === '教师' }">{{ d.tag }}</span>
               {{ d.sno }}<span class="dh-name">{{ d.name }}</span>
             </button>

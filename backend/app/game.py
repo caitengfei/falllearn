@@ -32,11 +32,14 @@ class SignInIn(BaseModel):
 def checkin(u: dict = Depends(current_user)):
     d = db.get_db()
     date = _today()
-    if d.execute("SELECT 1 FROM checkins WHERE student_id=? AND date=?", (u["id"], date)).fetchone():
+    # INSERT OR IGNORE + rowcount 判断：并发重复签到只有一次生效（不会撞 UNIQUE 抛 500）
+    cur = d.execute("INSERT OR IGNORE INTO checkins(student_id,date) VALUES(?,?)", (u["id"], date))
+    if cur.rowcount == 0:
+        d.close()
         return {"ok": False, "msg": "今日已签到"}
-    d.execute("INSERT INTO checkins(student_id,date) VALUES(?,?)", (u["id"], date))
     db.add_points(d, u["id"], 5, "每日签到", date)
     d.commit()
+    d.close()
     return {"ok": True, "points": 5}
 
 

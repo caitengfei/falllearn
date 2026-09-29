@@ -6,6 +6,7 @@ import { api, clusterName, clusterColor } from '../api'
 const list = ref([])
 const pill = ref('active')
 const loading = ref(true)
+const err = ref('')
 const modal = ref(null) // {mode:'explain'|'redo', q}
 const picked = ref('')
 const reviewResult = ref(null)
@@ -20,10 +21,14 @@ function fmtDate(ts) {
 
 async function load() {
   loading.value = true
+  err.value = ''
   try {
     const r = await api.wrongList(pill.value)
     list.value = r.items || []
-  } catch {}
+  } catch (e) {
+    list.value = []
+    err.value = e.message // 关键：区分「接口失败」与「没有错题」，避免评委把失败看成复习完了
+  }
   loading.value = false
 }
 onMounted(load)
@@ -36,6 +41,9 @@ function openRedo(q) {
   modal.value = { mode: 'redo', q }
   picked.value = ''
   reviewResult.value = null
+}
+function printPage() {
+  window.print() // 打印样式已隐藏导航/按钮，输出即复习清单（可直接另存 PDF）
 }
 function shortSource(s) {
   if (!s) return ''
@@ -51,9 +59,16 @@ async function doReview() {
   try {
     const r = await api.wrongReview(m.q.id, picked.value)
     reviewResult.value = r
-    if (r.correct) setTimeout(() => { modal.value = null; load() }, 2000)
+    // 只有「已到期且答对」才推进流程（未到期的提前练习不改状态、不计分）
+    if (r.correct && r.due !== false) setTimeout(() => { modal.value = null; load() }, 2200)
   } catch (e) {
-    alert(e.message)
+    // 已掌握/不在待复习（后端 404）：关闭弹层、刷新列表，不让评委看到 alert 弹窗
+    if (/不在待复习|不存在/.test(e.message)) {
+      modal.value = null
+      load()
+    } else {
+      alert(e.message)
+    }
   }
   busy.value = false
 }
@@ -61,10 +76,11 @@ async function doReview() {
 
 <template>
   <div class="page" style="max-width: 880px">
-    <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-size: 13px">
+    <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap">
       <span>📕 错题本</span>
       <span class="tag red">待复习 {{ list.length }}</span>
-      <span style="color: var(--text-3); margin-left: auto">间隔复习：首错<b>次日</b>到期 → 答对后<b>第 3 天</b> → <b>连对 2 次</b>标记掌握 · 答错回到次日</span>
+      <span style="color: var(--text-3); margin-left: auto" class="hide-sm">间隔复习：首错<b>次日</b>到期 → 答对后<b>第 3 天</b> → <b>连对 2 次</b>标记掌握 · 答错回到次日</span>
+      <button class="btn sm ghost" title="打印或另存为 PDF（复习清单）" @click="printPage">🖨 打印 / 导出 PDF</button>
     </div>
 
     <div class="pills mt16">
@@ -72,7 +88,11 @@ async function doReview() {
       <span class="pill" :class="{ on: pill === 'mastered' }" @click="pill = 'mastered'; load()">已掌握</span>
     </div>
 
-    <div v-if="!loading && !list.length" class="card mt16 empty">
+    <div v-if="err" class="card mt16" style="border-color: #fca5a5; color: #b91c1c">
+      加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button>
+    </div>
+
+    <div v-else-if="!loading && !list.length" class="card mt16 empty">
       暂无{{ pill === 'active' ? '待复习' : '' }}错题
       <template v-if="pill === 'active'">：练习/模拟考答错的题会自动进来，连对 2 次后移入「已掌握」</template>
     </div>
@@ -94,7 +114,7 @@ async function doReview() {
       </div>
       <div style="font-size: 12px; color: var(--text-3); margin-top: 10px">
         来源：<span class="mono">{{ shortSource(x.source_doc) }}</span>
-        <span v-if="x.correct_answer" style="margin-left: 14px; color: var(--success); font-weight: 700">正确答案：{{ x.correct_answer }}</span>
+        <span v-if="x.answer" style="margin-left: 14px; color: var(--success); font-weight: 700">正确答案：{{ x.answer }}</span>
       </div>
       <div style="display: flex; gap: 10px; margin-top: 14px">
         <button class="btn sm" @click="openRedo(x)">重答这道题</button>
@@ -131,11 +151,21 @@ async function doReview() {
     <div v-if="modal && modal.mode === 'redo'" class="mask" @click.self="modal = null">
       <div class="modal" style="max-width: 560px">
         <div class="modal-h">✏ 重答 · {{ clusterName(modal.q.cluster) }} <span class="more" @click="modal = null">✕</span></div>
-        <div v-if="reviewResult && reviewResult.correct" style="text-align: center; padding: 30px 0">
+        <div v-if="reviewResult && reviewResult.correct && reviewResult.due !== false" style="text-align: center; padding: 30px 0">
           <div style="font-size: 44px">🎉</div>
           <div style="font-size: 15px; font-weight: 700; margin-top: 8px">答对了 +10 积分</div>
           <div style="font-size: 12.5px; color: var(--text-3); margin-top: 6px">
             {{ reviewResult.status === 'mastered' ? '连对 2 次，已标记掌握 ✓' : '再答对 1 次即标记掌握（下次到期：第 3 天）' }}
+          </div>
+        </div>
+        <div v-else-if="reviewResult && reviewResult.correct" style="text-align: center; padding: 30px 0">
+          <div style="font-size: 44px">✅</div>
+          <div style="font-size: 15px; font-weight: 700; margin-top: 8px">答对了（本次为提前练习，不计分）</div>
+          <div style="font-size: 12.5px; color: var(--text-3); margin-top: 6px">
+            {{ reviewResult.message || '到期后重答才算有效复习，可继续按自己的节奏练习' }}
+          </div>
+          <div style="display: flex; justify-content: center; margin-top: 16px">
+            <button class="btn sm ghost" @click="modal = null; load()">知道了</button>
           </div>
         </div>
         <template v-else-if="reviewResult">

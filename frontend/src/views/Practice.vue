@@ -69,20 +69,25 @@ const visible = computed(() => {
   return ts
 })
 
+const err = ref('')
 async function load() {
   tasks.value = buildTasks()
+  err.value = ''
   try {
     const [s] = await Promise.all([api.quizSummary()])
     summary.value = s
     tasks.value = buildTasks()
-  } catch {}
+  } catch (e) {
+    err.value = e.message // 原为静默：统计恒为 0 且无提示
+  }
   if (menu.value === 'teacher') loadAssignments()
 }
 async function loadAssignments() {
   try {
     assignments.value = (await api.quizAssignments()).items || []
-  } catch {
+  } catch (e) {
     assignments.value = []
+    err.value = e.message
   }
 }
 watch(menu, (m) => { if (m === 'teacher') loadAssignments() })
@@ -116,6 +121,9 @@ function viewResult(t) {
 
 <template>
   <div class="page">
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 12px">
+      数据加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button>
+    </div>
     <div class="practice-grid">
       <!-- 左竖排菜单 -->
       <div class="card" style="padding: 10px">

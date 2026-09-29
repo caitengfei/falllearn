@@ -15,9 +15,57 @@ const inputEl = ref(null)
 let pollTimer = null
 let streamCtrl = null
 let bubbleSeq = 0  // 流式气泡唯一 id（filter 后用 bid 定位，避免 raw/proxy 身份比较失效）
+let lastQ = ''     // 最近一次提问文本（失败重试用）
+const speakingIdx = ref(-1)  // 正在朗读的消息下标（-1=未朗读）
+const copiedIdx = ref(-1)    // 刚复制的消息下标（显示「已复制」）
+const historyAll = ref([])   // 历史问答完整副本（首屏默认只展示最近几轮）
 
 function push(m) {
   flow.value.push(m)
+  nextTick(scrollBottom)
+}
+
+// ---------- 多模态与可用性：朗读 / 复制 / 重试 ----------
+function isVoiceReady() {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window
+}
+function stripForSpeech(t) {
+  return String(t || '').replace(/\*\*/g, '').replace(/（来源：[^）]*）/g, '').replace(/\s+/g, ' ')
+}
+function speak(m, i) {
+  if (!isVoiceReady()) return
+  const synth = window.speechSynthesis
+  if (speakingIdx.value === i) { synth.cancel(); speakingIdx.value = -1; return }
+  synth.cancel()
+  const u = new SpeechSynthesisUtterance(stripForSpeech(m.text))
+  u.lang = 'zh-CN'
+  u.rate = 1.02
+  u.onend = () => { if (speakingIdx.value === i) speakingIdx.value = -1 }
+  u.onerror = () => { if (speakingIdx.value === i) speakingIdx.value = -1 }
+  speakingIdx.value = i
+  synth.speak(u)
+}
+async function copyMsg(m, i) {
+  try {
+    await navigator.clipboard.writeText(String(m.text || ''))
+    copiedIdx.value = i
+    setTimeout(() => { if (copiedIdx.value === i) copiedIdx.value = -1 }, 1800)
+  } catch {
+    /* 非 https / 无剪贴板权限：静默（不打扰演示） */
+  }
+}
+function isErrMsg(t) {
+  return typeof t === 'string' && (t.startsWith('出错了') || t.startsWith('😵'))
+}
+function retry(m) {
+  const q = m.retryQ || lastQ
+  if (!q) return
+  flow.value = flow.value.filter((x) => x !== m)
+  send(q)
+}
+function expandHistory() {
+  const live = flow.value.filter((x) => !x.hist)
+  flow.value = [...historyAll.value, ...live]
   nextTick(scrollBottom)
 }
 function scrollBottom() {
@@ -29,7 +77,9 @@ async function send(preFilled) {
   const q = (preFilled ?? input.value).trim()
   if (!q || busy.value) return
   input.value = ''
+  lastQ = q
   busy.value = true
+  if (isVoiceReady()) { window.speechSynthesis.cancel(); speakingIdx.value = -1 }
   push({ role: 'me', text: q })
   push({ role: 'typing' })
   try {
@@ -39,7 +89,7 @@ async function send(preFilled) {
     startStream(r.session_id, r.log_id)
   } catch (e) {
     flow.value.pop()
-    push({ role: 'ai', text: '出错了：' + e.message })
+    push({ role: 'ai', text: '出错了：' + e.message, retryQ: q })
     busy.value = false
   }
 }
@@ -86,6 +136,7 @@ async function startStream(sid, logIdV) {
           busy.value = false
         } else if (msg.type === 'failed' || msg.type === 'error') {
           live.text = '😵 ' + (msg.error || '出错了，请再试一次')
+          live.retryQ = lastQ
           live.streaming = false
           busy.value = false
         }
@@ -128,7 +179,7 @@ async function poll() {
     }
     if (s.status === 'failed') {
       flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
-      push({ role: 'ai', text: '😵 ' + (s.error || '出错了，请再试一次') })
+      push({ role: 'ai', text: '😵 ' + (s.error || '出错了，请再试一次'), retryQ: lastQ })
       busy.value = false
       stopPoll()
     }
@@ -221,10 +272,12 @@ async function load() {
     // 历史回放：构建消息数组（不能用 map 里 push 副作用——会产出 undefined 数组致白屏）
     const lh = await api.learnHistory()
     const msgs = (lh.items || []).slice().reverse().flatMap((x) => [
-      { role: 'me', text: x.question },
-      { role: 'ai', text: x.answer }
+      { role: 'me', text: x.question, hist: true },
+      { role: 'ai', text: x.answer, hist: true }
     ])
-    flow.value = msgs
+    // 历史折叠：首屏只显示最近 3 轮（6 条），让欢迎语与建议问法看得见；更早记录一键展开
+    historyAll.value = msgs
+    flow.value = msgs.slice(-6)
     const wl = await api.wrongList('active')
     wrongByCluster.value = (wl.items || []).reduce((acc, x) => ((acc[x.cluster] = (acc[x.cluster] || 0) + 1), acc), {})
     // 深链：/learn?cluster=xxx 预置簇过滤+抽屉居中；/learn?k=xxx 预填提问；/learn?ask=xxx 自动发送
@@ -251,10 +304,14 @@ function askCluster() {
   send(name + ' 要点')
 }
 
+const histCollapsed = computed(() =>
+  historyAll.value.length > 6 && flow.value.length > 0 && flow.value.every((m) => m.hist))
+
 onMounted(load)
 onBeforeUnmount(() => {
   stopPoll()
   if (streamCtrl) streamCtrl.abort()
+  if (isVoiceReady()) window.speechSynthesis.cancel()  // 离开页面停止朗读
 })
 </script>
 
@@ -263,8 +320,11 @@ onBeforeUnmount(() => {
     <div class="learn-grid">
       <!-- 左：对话 -->
       <div class="card chat-card">
-        <div class="card-title">🎓 AI 老师 <span class="more">答案均取材自 46 份知识库文档并标注来源</span></div>
+        <div class="card-title">🎓 AI 老师 <span class="more">答案均取材自 46 份知识库文档并标注来源 · 支持朗读</span></div>
         <div class="chat-flow">
+          <div v-if="histCollapsed" class="hist-more">
+            <button class="chip-ask" @click="expandHistory">↑ 展开更早的 {{ historyAll.length - flow.length }} 条历史问答</button>
+          </div>
           <div v-if="!flow.length" class="empty" style="padding: 70px 20px">
             <div style="font-size: 40px">👋</div>
             <div style="margin-top: 10px; font-size: 14px; color: var(--text-2)">我是你的 AI 老师，只答「老年人跌倒」一个技能点，<br>但会按【岗】【课】【赛】【证】四栏讲透，每栏标来源。</div>
@@ -304,6 +364,12 @@ onBeforeUnmount(() => {
                 <template v-else>{{ m.text }}</template>
                 <div v-if="m.role === 'ai' && sources(m.text).length" class="src">
                   来源：{{ sources(m.text).join('；') }}
+                </div>
+                <div v-if="m.role === 'ai' && !m.streaming && m.text" class="msg-ops">
+                  <button v-if="isVoiceReady()" class="op" :aria-label="speakingIdx === i ? '停止朗读' : '朗读这条答案'"
+                    @click="speak(m, i)">{{ speakingIdx === i ? '⏹ 停止朗读' : '🔊 朗读' }}</button>
+                  <button class="op" aria-label="复制答案" @click="copyMsg(m, i)">{{ copiedIdx === i ? '✓ 已复制' : '📋 复制' }}</button>
+                  <button v-if="isErrMsg(m.text)" class="op op-retry" @click="retry(m)">↻ 重试</button>
                 </div>
               </div>
             </template>
@@ -377,6 +443,15 @@ onBeforeUnmount(() => {
   font-size: 12px; padding: 5px 12px; color: var(--text-2); transition: all .15s;
 }
 .chip-ask:hover { border-color: var(--primary); color: var(--primary); }
+.hist-more { text-align: center; padding: 4px 0 10px; }
+.msg-ops { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.op {
+  border: 1px solid var(--line); background: #fff; border-radius: 12px; cursor: pointer;
+  font-size: 11.5px; padding: 3px 10px; color: var(--text-2); transition: all .15s;
+}
+.op:hover { border-color: var(--primary); color: var(--primary); }
+.op:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.op-retry { border-color: #fca5a5; color: #b91c1c; }
 .cluster-kp {
   margin: 8px 0 0 18px; font-size: 13px; color: var(--text-2); line-height: 2;
 }

@@ -41,25 +41,35 @@ class ReviewIn(BaseModel):
     answer: str
 
 
+REVIEW_DAILY_MINUTES = 30  # 复习学时每日封顶（防脚本刷学时刷分）
+
+
+def _today_start(now: int) -> int:
+    lt = time.localtime(now)
+    return int(time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1)))
+
+
 @router.post("/review")
 def review(body: ReviewIn, u: dict = Depends(current_user)):
     d = db.get_db()
     now = int(time.time())
-    w = d.execute("SELECT * FROM wrong_records WHERE student_id=? AND question_id=?",
+    # 只认「待复习（active）」记录：已掌握不再接受重答——否则同一题可无限答对刷积分/刷学时
+    w = d.execute("SELECT * FROM wrong_records WHERE student_id=? AND question_id=? AND status='active'",
                   (u["id"], body.question_id)).fetchone()
     if not w:
-        raise HTTPException(404, "不在错题本")
+        d.close()
+        raise HTTPException(404, "该题不在待复习列表（可能已掌握）")
     q = d.execute("SELECT * FROM questions WHERE id=?", (body.question_id,)).fetchone()
     opts = json.loads(q["options"])
     correct, fb = grade_objective(q["qtype"], opts, q["answer"], body.answer)
-    # 也记一条 answers（计入 mastery 与连对）
-    att = d.execute(
-        "SELECT id FROM attempts WHERE student_id=? ORDER BY id DESC LIMIT 1", (u["id"],)).fetchone()
-    if att:
-        d.execute(
-            "INSERT INTO answers(attempt_id,question_id,student_answer,correct,score,feedback,graded_by,answered_at) "
-            "VALUES(?,?,?,?,?,?,?,?)",
-            (att["id"], q["id"], body.answer, correct, 10 if correct else 0, fb, "rules-review", now))
+    # 到期判定：只有「已到期」的复习才计入掌握度/积分/学时；未到期只是提前练习，不给奖励
+    due = bool(w["due_at"] and w["due_at"] <= now)
+    if not due:
+        d.close()
+        return {"correct": correct, "feedback": fb, "status": "active", "due": False,
+                "message": "尚未到期（提前练习不计分）；到期后重答才算有效复习",
+                "correct_answer": q["answer"], "source_doc": q["source_doc"]}
+    # 不再往 answers 表插行：复习历史不是考试作答，避免污染已交卷试卷与班级正确率统计
     db.update_mastery(d, u["id"], q["cluster_id"], 1.0 if correct else 0.0)
     # 间隔复习调度（与 UI 文案一致）：首错次日到期 → 答对后第 3 天 → 连对 2 次标记掌握；答错回到次日
     if correct:
@@ -77,8 +87,13 @@ def review(body: ReviewIn, u: dict = Depends(current_user)):
         d.execute("UPDATE wrong_records SET review_count=review_count+1, last_review_at=?, due_at=?, correct_streak=0, status='active' WHERE id=?",
                   (now, now + 86400, w["id"]))
         status = "active"
-    # 学时：每次复习计 1 分钟
-    db.add_study(d, u["id"], "review", 1, f"q:{q['id']}")
+    # 学时：每次有效复习计 1 分钟，每日封顶（防无限刷）
+    used = d.execute(
+        "SELECT COALESCE(SUM(minutes),0) m FROM study_events WHERE student_id=? AND type='review' AND created_at>=?",
+        (u["id"], _today_start(now))).fetchone()["m"]
+    if used < REVIEW_DAILY_MINUTES:
+        db.add_study(d, u["id"], "review", 1, f"q:{q['id']}")
     d.commit()
-    return {"correct": correct, "feedback": fb, "status": status,
+    d.close()
+    return {"correct": correct, "feedback": fb, "status": status, "due": True,
             "correct_answer": q["answer"], "source_doc": q["source_doc"]}

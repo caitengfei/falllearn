@@ -96,3 +96,64 @@
 3. DeepSeek 消费预警（控制台配置）——AI 资源兜底告警；
 4. 服务器到期（2026-12-18）前评估释放/转包月，避免闲置风险；
 5. 代码修改走 Git 提交（含安全修复记录），仓库即审计轨迹。
+
+---
+
+# 第二轮加固（P1.1，2026-09-29 晚）
+
+- **范围**：应用后端（13 个模块全量代码走查）+ 前端（20 个 SFC）+ 依赖树 + 静态/动态扫描
+- **方法**：Bandit / pip-audit(OSV) / OSV npm / 人工按 OWASP Top 10 逐项走查 / 自动化安全验收脚本
+- **新增验收脚本**：`tools/security_check.py`（26 项，可一键复跑）、`tools/ui_check.py`（界面与转义验收）
+
+## A. 高危修复（学生端可实际利用 → 已修复）
+
+| # | 发现 | 风险 | 修复 |
+|---|---|---|---|
+| A1 | 错题复习可无限刷分/刷学时：`/api/wrong/review` 对已掌握错题仍接受重答，每次答对 +10 积分 +1 分钟学时，无幂等 | 单账号脚本可刷出任意积分/学时，污染排行榜与教师端统计 | 仅接受 `status='active'` 记录（已掌握 → 404）；**只有「到期」复习才计分/计掌握度/计学时**（未到期仅练习，明确提示不计分）；复习学时每日封顶 30 分钟 |
+| A2 | 交卷/开卷竞态：`/quiz/submit` 为「先查状态后写」，无事务与唯一约束；并发提交可重复加分、写入重复作答行 | 并发重复交卷 → 积分/掌握度翻倍、班级统计失真 | 交卷改为**条件更新幂等闸门**（`UPDATE … WHERE status='open'`，rowcount=0 即拒绝）；数据库新增 `UNIQUE(attempt_id,question_id)` 与部分唯一索引 `UNIQUE(student_id,exam_id) WHERE status='open'`（迁移时自动去重历史脏数据）；开卷冲突捕获 `IntegrityError` 转为断点续考 |
+| A3 | 全站无请求体上限 + `question` 无长度限制（可 POST 200MB 文本打满单进程内存） | 拒绝服务（演示期被单请求打挂） | 全局 `Content-Length > 6MB → 413` 中间件；`AskIn.question` 限 2–1000 字；作答字典限 200 键/值 ≤20 字；KB 检索词限 100 字/8 词；上传改**分块读 + 累计判长**（不再一次性读入内存） |
+
+## B. 中危修复
+
+| # | 发现 | 修复 |
+|---|---|---|
+| B1 | 教师横向越权：任何教师可改/删其他教师账号密码、创建教师账号、改他人培训 | 账号与培训操作加归属校验（其他教师 → 403）；管理后台禁止创建教师账号（防提权）；培训 `PUT/DELETE/enroll/status` 仅创建者可操作 |
+| B2 | 复习作答被写入「最后一条 attempt」（可能是已交卷的卷），污染考试记录与班级正确率 | 复习不再写 `answers` 表（掌握度/积分改由错题本自身状态驱动） |
+| B3 | 错误响应透传内部信息（DSH 内网地址 `127.0.0.1:3090`、上游 API 原始报错） | 对外统一文案（"AI 服务暂时不可用"），细节只进服务端日志（4 处） |
+| B4 | `/docs`、`/redoc`、`/openapi.json` 公网开放（匿名可枚举全部端点与模型） | 生产默认关闭（`FALLLEARN_ENABLE_DOCS=1` 才开）；SPA 回退对这三个路径返回 404；补 `Content-Security-Policy`（script/connect 仅同源）与 `Permissions-Policy` |
+| B5 | 知识库文本 → 前端 `v-html` 未转义（存储型 XSS → 窃取 localStorage 中的 30 天 JWT） | 前端 `hi()` 改为**先 HTML 转义再做高亮**（关键词同步转义，`<mark>` 仍生效）；后端 `kb_doc` 加 realpath + 目录白名单双校验 |
+| B6 | AI 直连 `base_url` 无白名单 → SSRF + API Key 可被导向任意主机（云元数据端点可窃取凭证） | 新增 `_validate_base_url()`：强制 http(s)、拦截 `169.254.0.0/16`（含 169.254.169.254）/`100.100.100.200`/multicast/unspecified（内网 LLM 网关仍允许，属合法教学场景） |
+| B7 | check-then-insert 竞态产生 500（签到、开卷等） | 签到改 `INSERT OR IGNORE` + rowcount 判定；开卷捕获 `IntegrityError` |
+| B8 | 口令无强度校验（空串/1 位可创建账号） | 新建/重置口径统一为 **6–128 位**（4 处入口） |
+| B9 | 教师可控的 `link`/`image` 未做 scheme 校验（`javascript:`/`data:` 注入） | 白名单：`link` 仅站内 `/…` 或 http(s)；`image` 仅 `/uploads/…` 或 http(s) |
+| B10 | AI 出题入库字段未校验（脏数据进入组卷池） | 白名单校验 qtype/cluster/难度/长度后才落库 |
+| B11 | 登录节流内存表无界 + JWT `sub` 缺失可致 500 | 过期项自动淘汰（上限 2000）；`jwt.decode` 显式 `algorithms` + `require exp` + `sub` 缺失返回 401 |
+
+## C. 依赖漏洞（第二轮）
+
+| 包 | 原版本 | 漏洞 | 处置 |
+|---|---|---|---|
+| starlette | 0.50.0 | **10 条**（PYSEC-2026-161/248/249/2280/2281；含查询串二次方复杂度 DoS 等） | 升级 **fastapi 0.141.1 + starlette 1.7.0**（requirements.txt 显式锁定 starlette） |
+| vite（devDependency） | 6.3.5 | **7 条**（GHSA-4w7w-66w2-5vf9 等，dev server 相关） | 升级 **vite 8.3.1 + @vitejs/plugin-vue 6.0.9**（构建产物复验通过） |
+
+- 复扫：`pip-audit -r requirements.txt --vulnerability-service osv` → **No known vulnerabilities found**
+- 前端：OSV npm batch 查询（vue/vue-router/vite/plugin-vue/esbuild/rollup/postcss）→ **HITS 0**
+- Bandit 复扫：**0 HIGH / 0 MEDIUM**（9 LOW 为 DSH 中继的有意容错降级，已在首轮说明）
+
+## D. 自动化验收（可复跑）
+
+| 脚本 | 覆盖 | 结果 |
+|---|---|---|
+| `tools/security_check.py` | 26 项：请求体上限/口令强度/教师越权/SSRF/scheme/并发交卷幂等/复习防刷/扫描面 404/CSP | **26/26 通过** |
+| `tools/ui_check.py` | 一键体验登录/答案朗读·复制/错题打印/知识库高亮与转义/移动端溢出/JS 异常 | **全过** |
+| `tools/api_check_admin.py` | 管理后台 API 31 项 | **31/31 通过** |
+| `tools/smoke_platform.py` | 页面渲染 + 移动端 390 溢出 + 守卫/404 | **SMOKE ALL PASS** |
+| XSS 端到端探针 | 向知识库写入 `<img onerror>` 载荷文档 → 前端检索 → 载荷被转义为文本、脚本未执行（验证后删除探针） | **通过** |
+
+## E. 仍接受的风险（不变）
+
+| 风险 | 说明 |
+|---|---|
+| HTTP 明文（无 TLS） | 比赛周期内无域名/ICP 备案；登录已节流、数据面已限次、密码为演示账号。赛后上域名为 P0 |
+| JWT 30 天有效期 | 演示场景可接受；停用账号即时生效（每次请求查库校验） |
+| SQLite 单文件 | 比赛规模足够；WAL 已开；并发写入由唯一索引 + 条件更新兜底 |

@@ -6,12 +6,18 @@ const trainings = ref([])
 const students = ref([])
 const modal = ref(null) // {title, batch, start_date, end_date, capacity, note, picks: Set}
 const toastMsg = ref('')
+const err = ref('')
 function toast(m) { toastMsg.value = m; setTimeout(() => (toastMsg.value = ''), 2400) }
 
 async function load() {
-  const [t, s] = await Promise.all([api.trainings(), api.adminStudents()])
-  trainings.value = t.items
-  students.value = s.items.filter((x) => x.enabled)
+  err.value = ''
+  try {
+    const [t, s] = await Promise.all([api.trainings(), api.adminStudents()])
+    trainings.value = t.items
+    students.value = s.items.filter((x) => x.enabled)
+  } catch (e) {
+    err.value = e.message // 此前无 try/catch：接口异常即白屏
+  }
 }
 onMounted(load)
 
@@ -72,6 +78,7 @@ async function remove(t) {
     </div>
 
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
 
     <div v-for="t in trainings" :key="t.id" class="card" style="margin-bottom: 14px">
       <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap">

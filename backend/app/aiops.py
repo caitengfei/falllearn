@@ -4,10 +4,12 @@
 （session.selectModel，DSH 原生支持，实测目录见 settings.yaml llm-pi-ai）。
 """
 import asyncio
+import ipaddress
 import json
 import os
 import re
 import time
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -204,13 +206,38 @@ async def direct_get(u: dict = Depends(require_teacher)):
     return llm_direct.public_view(llm_direct.get_cfg())
 
 
+_BLOCKED_LLM_HOSTS = {"metadata.google.internal", "metadata.goog"}  # 云厂商元数据域名（凭证窃取高危目标）
+
+
+def _validate_base_url(raw: str) -> str:
+    """直连 base_url 校验（SSRF 收敛）：必须 http(s)；禁止云元数据/链路本地地址。
+    说明：教学场景常用内网 LLM 网关（如 172.x），故内网域名与私网 IP 不一律禁止，
+    但 169.254.0.0/16（含 169.254.169.254）等元数据段必须拦死。"""
+    u = (raw or "").strip().rstrip("/")
+    if not u.startswith(("http://", "https://")):
+        raise HTTPException(400, "base_url 需以 http:// 或 https:// 开头")
+    try:
+        host = urlsplit(u).hostname or ""
+    except ValueError:
+        raise HTTPException(400, "base_url 格式不正确")
+    if not host:
+        raise HTTPException(400, "base_url 缺少主机名")
+    if host.lower() in _BLOCKED_LLM_HOSTS or host in ("169.254.169.254", "100.100.100.200"):
+        raise HTTPException(400, "该地址不允许（云元数据端点）")
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+            raise HTTPException(400, "该 IP 段不允许作为 AI 服务地址")
+    except ValueError:
+        pass  # 域名形态：放行（本端点仅教师可用，内网网关属合法教学场景）
+    return u
+
+
 @router.post("/direct")
 async def direct_save(b: DirectIn, u: dict = Depends(require_teacher)):
     """保存直连配置（settings.ai_direct）。api_key 留空=沿用现有密钥（无现存则 400）。"""
-    base_url = (b.base_url or "").strip().rstrip("/")
+    base_url = _validate_base_url(b.base_url)
     model = (b.model or "").strip()
-    if not base_url.startswith(("http://", "https://")):
-        raise HTTPException(400, "base_url 需以 http:// 或 https:// 开头")
     if not model:
         raise HTTPException(400, "model 不能为空")
     d = db.get_db()
@@ -399,19 +426,29 @@ class SaveQIn(BaseModel):
     items: list
 
 
+_QTYPES = ("单选", "多选", "判断")
+
+
 @router.post("/questions/save")
 def gen_save(b: SaveQIn, u: dict = Depends(require_teacher)):
-    """确认预览后入库（origin=AI生成）。"""
+    """确认预览后入库（origin=AI生成）。字段逐项白名单校验后再落库（防脏数据进组卷池）。"""
     d = db.get_db()
     n = 0
-    for q in b.items:
-        if not q.get("stem") or not q.get("answer"):
+    for q in (b.items or [])[:200]:
+        qt = str(q.get("qtype") or "").strip()
+        stem = str(q.get("stem") or "").strip()[:500]
+        ans = str(q.get("answer") or "").strip().upper()[:10]
+        if qt not in _QTYPES or not stem or not ans:
             continue
+        cid = q.get("cluster_id") if q.get("cluster_id") in db.CLUSTER_IDS else "general"
+        try:
+            diff = max(1, min(int(q.get("difficulty") or 2), 3))
+        except (TypeError, ValueError):
+            diff = 2
+        opts = [str(o).strip()[:200] for o in (q.get("options") or [])][:6]
         d.execute(
             "INSERT INTO questions(qtype,cluster_id,difficulty,stem,options,answer,source_doc,origin) VALUES(?,?,?,?,?,?,?,?)",
-            (q["qtype"], q.get("cluster_id", "general"), q.get("difficulty", 2),
-             q["stem"], json.dumps(q.get("options") or [], ensure_ascii=False), q["answer"],
-             "AI 生成", "AI生成"))
+            (qt, cid, diff, stem, json.dumps(opts, ensure_ascii=False), ans, "AI 生成", "AI生成"))
         n += 1
     d.commit()
     d.close()

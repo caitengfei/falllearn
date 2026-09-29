@@ -126,7 +126,7 @@ function openBannerModal() {
   <div class="page">
     <div style="font-size: 19px; font-weight: 700; margin-bottom: 16px">业务管理 · 课程预告 & 主界面轮播</div>
 
-    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }}</div>
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
     <div v-if="msg" class="toast">{{ msg }}</div>
 
     <!-- 课程预告 -->

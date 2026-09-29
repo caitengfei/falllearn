@@ -182,6 +182,25 @@ def _migrate(db):
             "(SELECT id FROM wrong_records WHERE student_id IS NOT NULL "
             "GROUP BY student_id, question_id HAVING id = MAX(id))")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_wrong_sq ON wrong_records(student_id, question_id)")
+    # 并发防护①：同一张卷同一题只允许一条作答（并发重复交卷会插入重复行 → 统计翻倍）
+    try:
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_answers_aq_uq ON answers(attempt_id, question_id)")
+    except sqlite3.IntegrityError:
+        db.execute("DELETE FROM answers WHERE id NOT IN "
+                   "(SELECT MIN(id) FROM answers GROUP BY attempt_id, question_id)")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_answers_aq_uq ON answers(attempt_id, question_id)")
+    # 并发防护②：同一学生同一张卷最多一张未交卷（并发开卷会造出两张 open 卷 → 双份得分）
+    try:
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_attempts_open_uq "
+                   "ON attempts(student_id, exam_id) WHERE status='open'")
+    except sqlite3.IntegrityError:
+        db.execute("DELETE FROM answers WHERE attempt_id IN ("
+                   "SELECT id FROM attempts WHERE status='open' AND id NOT IN ("
+                   "SELECT MAX(id) FROM attempts WHERE status='open' GROUP BY student_id, exam_id))")
+        db.execute("DELETE FROM attempts WHERE status='open' AND id NOT IN ("
+                   "SELECT MAX(id) FROM attempts WHERE status='open' GROUP BY student_id, exam_id)")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_attempts_open_uq "
+                   "ON attempts(student_id, exam_id) WHERE status='open'")
     db.commit()
 
 

@@ -19,7 +19,13 @@ from .manage import router as manage_router, content_router, meta_router  # noqa
 from .aiops import router as aiops_router
 from .kb import router as kb_router
 
-app = FastAPI(title="防跌学堂", version="1.2.0")
+# 生产关闭交互式 API 文档（/docs、/redoc、/openapi.json 会向匿名访问者暴露全部端点与模型）。
+# 本地开发需要时置环境变量 FALLLEARN_ENABLE_DOCS=1。
+_ENABLE_DOCS = os.environ.get("FALLLEARN_ENABLE_DOCS") == "1"
+app = FastAPI(title="防跌学堂", version="1.3.0",
+              docs_url="/docs" if _ENABLE_DOCS else None,
+              redoc_url="/redoc" if _ENABLE_DOCS else None,
+              openapi_url="/openapi.json" if _ENABLE_DOCS else None)
 # CORS 收敛：仅允许本平台来源（生产同源为主；5173 为本地 vite 开发）。
 # 不开放 "*"：虽为 token 鉴权（无 cookie 窃取面），收敛后杜绝跨域探测面，审计可解释。
 app.add_middleware(CORSMiddleware,
@@ -28,14 +34,37 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=1024)  # JS/HTML 传输体积 -60%+（校园网/公网演示收益）
 
+MAX_BODY_BYTES = 6 * 1024 * 1024  # 请求体硬上限（覆盖 4MB 轮播图上传 + multipart 开销）
+
+
+@app.middleware("http")
+async def body_guard(request: Request, call_next):
+    """请求体大小闸门：拒绝超大 body（防单进程实例被超大 JSON 打满内存/CPU）。"""
+    cl = request.headers.get("content-length")
+    if cl:
+        try:
+            if int(cl) > MAX_BODY_BYTES:
+                return JSONResponse({"detail": "请求体过大（上限 6MB）"}, status_code=413)
+        except ValueError:
+            return JSONResponse({"detail": "请求体长度不合法"}, status_code=400)
+    return await call_next(request)
+
 
 @app.middleware("http")
 async def security_headers(_: Request, call_next):
-    """基础安全响应头（防 MIME 嗅探 / 点击劫持 / 信息外泄）。"""
+    """基础安全响应头（防 MIME 嗅探 / 点击劫持 / 信息外泄 / XSS 纵深）。"""
     resp = await call_next(_)
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("X-Frame-Options", "DENY")
     resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    # CSP：脚本/连接仅同源（Vue 构建产物无内联脚本）；样式允许内联（Vue 内联 style 绑定）
+    resp.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")
+    resp.headers.setdefault("Permissions-Policy",
+                            "geolocation=(), camera=(), microphone=(self), payment=()")
     return resp
 
 
@@ -115,6 +144,8 @@ async def spa(full_path: str):
     """SPA 静态资源 + 路由回退（必须定义在 API 路由之后）。"""
     if full_path.startswith("api/"):
         return JSONResponse({"detail": "接口不存在（API 404）"}, status_code=404)
+    if not _ENABLE_DOCS and full_path in ("docs", "redoc", "openapi.json"):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)  # 文档已关闭，不给扫描器留 200
     if os.path.isdir(DIST):
         candidate = os.path.normpath(os.path.join(DIST, full_path))
         if full_path and _within(DIST, candidate) and os.path.isfile(candidate):

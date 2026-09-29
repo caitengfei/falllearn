@@ -88,7 +88,9 @@ function goGuide(g) {
   <template v-if="!isPublic">
     <div class="topbar">
       <div class="topbar-inner">
-        <div class="logo" @click="router.push(isTeacher ? '/admin' : '/')">
+        <div class="logo" role="button" tabindex="0" aria-label="返回首页"
+          @click="router.push(isTeacher ? '/admin' : '/')"
+          @keyup.enter="router.push(isTeacher ? '/admin' : '/')">
           <span class="logo-mark">跌</span>
           <span>防跌学堂</span>
         </div>
@@ -100,12 +102,16 @@ function goGuide(g) {
         </div>
         <div class="topbar-right" style="margin-left: auto">
           <router-link v-if="isTeacher" to="/" class="back-student">{{ isAdmin ? '回学生端' : '进管理后台' }}</router-link>
-          <div class="bell" title="错题本" @click="router.push('/wrong')" v-if="!isAdmin">
+          <div class="bell" title="错题本" role="button" tabindex="0" :aria-label="`错题本，${dueCount || 0} 题待复习`"
+            @click="router.push('/wrong')" @keyup.enter="router.push('/wrong')" v-if="!isAdmin">
             🔔
             <span v-if="dueCount" class="dot">{{ dueCount }}</span>
           </div>
-          <div class="bell" title="演示体验路径" @click="guideOpen = true" v-if="!isAdmin">？</div>
-          <div class="userchip" @click="router.push(isTeacher ? '/admin' : '/mine')">
+          <div class="bell" title="演示体验路径" role="button" tabindex="0" aria-label="演示体验路径"
+            @click="guideOpen = true" @keyup.enter="guideOpen = true" v-if="!isAdmin">？</div>
+          <div class="userchip" role="button" tabindex="0" aria-label="个人中心"
+            @click="router.push(isTeacher ? '/admin' : '/mine')"
+            @keyup.enter="router.push(isTeacher ? '/admin' : '/mine')">
             <div class="avatar">{{ (auth.user?.name || '学')[0] }}</div>
             <div class="userchip-text">
               <div class="uname">{{ auth.user?.name }}</div>
@@ -150,7 +156,8 @@ function goGuide(g) {
       </div>
       <div class="gm-sub">6 步看懂平台全流程 · 每一步都能直接点开</div>
       <div class="gm-steps">
-        <div v-for="(g, i) in DEMO_GUIDE.student" :key="i" class="gm-step" @click="goGuide(g)">
+        <div v-for="(g, i) in DEMO_GUIDE.student" :key="i" class="gm-step" role="button" tabindex="0"
+          @click="goGuide(g)" @keyup.enter="goGuide(g)">
           <span class="gm-ic">{{ g.ic }}</span>
           <span class="gm-num">{{ i + 1 }}</span>
           <div class="gm-step-b">

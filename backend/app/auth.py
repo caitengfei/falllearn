@@ -8,7 +8,7 @@ import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, APIRouter, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import db
 
@@ -54,8 +54,8 @@ bearer = HTTPBearer(auto_error=False)
 
 
 class LoginIn(BaseModel):
-    student_no: str
-    password: str
+    student_no: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)  # 上限防超长密码拖慢 bcrypt
 
 
 def _token(user):
@@ -102,22 +102,35 @@ def _login_fail(ip: str, now: int):
     _FAIL_LOGINS[ip] = hist
     if len(hist) >= FAIL_MAX:
         _LOCKED[ip] = now + FAIL_LOCK_SEC
+    # 内存有界：淘汰过期窗口/已解锁的 IP（防大量伪造源 IP 撑爆进程内存）
+    if len(_FAIL_LOGINS) > 2000:
+        for k in [k for k, ts in _FAIL_LOGINS.items() if not ts or now - ts[-1] > FAIL_WINDOW]:
+            _FAIL_LOGINS.pop(k, None)
+    if len(_LOCKED) > 2000:
+        for k in [k for k, t in _LOCKED.items() if t <= now]:
+            _LOCKED.pop(k, None)
 
 
 def current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> dict:
     if not creds:
         raise HTTPException(401, "未登录")
     try:
-        p = jwt.decode(creds.credentials, SECRET, ALG)
+        p = jwt.decode(creds.credentials, SECRET, algorithms=[ALG], options={"require": ["exp"]})
     except jwt.PyJWTError:
         raise HTTPException(401, "token 无效或过期")
+    sub = p.get("sub")
+    if not sub:
+        raise HTTPException(401, "token 无效或过期")
     d = db.get_db()
-    u = d.execute("SELECT * FROM users WHERE id=?", (p["sub"],)).fetchone()
-    if not u:
-        raise HTTPException(401, "用户不存在")
-    if not u["enabled"]:
-        raise HTTPException(403, "账号已停用，请联系管理员")
-    return dict(u)
+    try:
+        u = d.execute("SELECT * FROM users WHERE id=?", (sub,)).fetchone()
+        if not u:
+            raise HTTPException(401, "用户不存在")
+        if not u["enabled"]:
+            raise HTTPException(403, "账号已停用，请联系管理员")
+        return dict(u)
+    finally:
+        d.close()
 
 
 def require_teacher(u: dict = Depends(current_user)) -> dict:

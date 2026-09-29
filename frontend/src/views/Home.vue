@@ -13,6 +13,7 @@ const lb = ref({ points: [], mastery: [], my_rank_points: null, my_rank_mastery:
 const lbTab = ref('points')
 const wrongByCluster = ref({})
 const toast = ref(null)
+const loadErr = ref('')
 
 // ---------- 评委演示引导（首访卡；顶栏 ? 可随时重开弹窗） ----------
 const showGuide = ref(!localStorage.getItem('fl_guide_v1'))
@@ -128,6 +129,7 @@ function openClusterMap() {
 
 async function load() {
   loadContent() // 轮播/公告独立加载，不阻塞主体
+  loadErr.value = ''
   try {
     const [m, t, l, wl, wh, lh] = await Promise.all([
       api.me(), api.today(), api.leaderboard(), api.wrongList('active'),
@@ -146,6 +148,8 @@ async function load() {
       c: 'AI 问答', tag: x.question.slice(0, 14)
     }))
   } catch (e) {
+    // 静默失败会让首页统计/排行/日历全为空，评委极易误判为"没数据"：改为可见错误条 + 重试
+    loadErr.value = e.message || '加载失败'
     console.error(e)
   }
 }
@@ -158,8 +162,12 @@ async function doCheckin() {
       checkedIn.value = true
       points.value += 5
       showToast('签到成功 +5 积分')
+    } else {
+      showToast(r.msg || '今日已签到')
     }
-  } catch {}
+  } catch (e) {
+    showToast('签到失败：' + e.message)
+  }
 }
 
 function showToast(msg) {
@@ -193,6 +201,9 @@ onBeforeUnmount(stopSlides)
           <span class="gc-go">›</span>
         </div>
       </div>
+    </div>
+    <div v-if="loadErr" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 12px">
+      首页数据加载失败：{{ loadErr }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button>
     </div>
     <!-- 课程预告公告条（教师后台配置） -->
     <div v-if="notices.length" class="notice-strip" @click="noticeOpen = true">
@@ -269,9 +280,9 @@ onBeforeUnmount(stopSlides)
           </template>
           <div v-else style="font-size: 13.5px; color: var(--text-2)">全簇达标！挑战 12 分钟模拟考吧 🏆</div>
         </div>
-        <div class="card mt16" style="cursor: pointer" @click="showToast('积分商城 C 期上线，敬请期待 🛒')">
-          <div class="card-title">积分商城</div>
-          <div style="font-size: 12.5px; color: var(--text-3)">敬请期待（C 期上线）· 点击试试</div>
+        <div class="card mt16" style="cursor: pointer" @click="router.push('/mine')">
+          <div class="card-title">积分与勋章</div>
+          <div style="font-size: 12.5px; color: var(--text-3)">看积分明细与勋章墙 · 积分商城（C 期上线）</div>
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@
 """
 import asyncio
 import json
+import logging
 import os
 import re
 import time
@@ -19,6 +20,8 @@ import time
 import httpx
 
 from . import db
+
+_log = logging.getLogger("falllearn")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 项目根
 KB_DIR = os.environ.get("FALLLEARN_KB") or os.path.join(BASE_DIR, "knowledge")
@@ -308,7 +311,9 @@ async def _direct_finish(s, user_text):
         s.update(state="done", answer=answer, answer_clusters=touched, t=time.time())
         _push(None)
     except Exception as e:
-        s.update(state="failed", error=str(e)[:300], t=time.time())
+        # 细节仅进服务端日志；对外统一文案（防上游响应原文/内网地址外泄给学生）
+        _log.warning("direct_ask_failed err=%s", str(e)[:300])
+        s.update(state="failed", error="AI 服务暂时不可用，请稍后重试", t=time.time())
         _push(None)
     finally:
         d.close()

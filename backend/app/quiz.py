@@ -2,7 +2,9 @@
 """组卷 + 判分（客观题规则判，秒判零误差）"""
 import datetime
 import json
+import logging
 import random
+import sqlite3
 import time
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -141,11 +143,22 @@ def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
         if open_att:
             attempt_id = open_att["id"]  # 断点续考：沿用未交卷记录
         else:
-            attempt_id = d.execute(
-                "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
-                (u["id"], ex["id"], now, "open")).lastrowid
-            db.add_points(d, u["id"], 0, "开卷", f"attempt:{attempt_id}")
-            d.commit()
+            try:
+                attempt_id = d.execute(
+                    "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
+                    (u["id"], ex["id"], now, "open")).lastrowid
+                db.add_points(d, u["id"], 0, "开卷", f"attempt:{attempt_id}")
+                d.commit()
+            except sqlite3.IntegrityError:
+                # 并发开卷：唯一索引拦截第二张未交卷，改用已存在的那张（断点续考）
+                d.rollback()
+                open_att = d.execute(
+                    "SELECT id FROM attempts WHERE student_id=? AND exam_id=? AND status='open'",
+                    (u["id"], ex["id"])).fetchone()
+                if not open_att:
+                    d.close()
+                    raise HTTPException(409, "开卷冲突，请重试")
+                attempt_id = open_att["id"]
         items = _exam_items_payload(d, ex["id"])
         d.close()
         return {"attempt_id": attempt_id, "items": items, "count": len(items),
@@ -327,7 +340,8 @@ async def quiz_report_ai(u: dict = Depends(current_user)):
                   {"role": "user", "content": json.dumps(compact, ensure_ascii=False)}],
             max_tokens=300, timeout=60)
     except Exception as e:
-        raise HTTPException(502, f"AI 分析生成失败：{str(e)[:120]}")
+        logging.getLogger("falllearn").warning("ai_report_failed err=%s", str(e)[:300])  # 细节仅进服务端日志
+        raise HTTPException(502, "AI 分析暂时不可用，请稍后重试")
     return {"analysis": text.strip()}
 
 
@@ -356,14 +370,24 @@ def grade_objective(qtype, options, answer_key, student_ans):
 
 @router.post("/quiz/submit")
 def submit(body: SubmitIn, u: dict = Depends(current_user)):
+    # 输入收敛：作答键数与单值长度设上限（防超大 body / 脏数据入库）
+    if len(body.answers) > 200 or any(not isinstance(v, str) or len(v) > 20 for v in body.answers.values()):
+        raise HTTPException(400, "作答数据异常")
     d = db.get_db()
     att = d.execute("SELECT * FROM attempts WHERE id=? AND student_id=?",
                     (body.attempt_id, u["id"])).fetchone()
     if not att:
+        d.close()
         raise HTTPException(404, "练习不存在")
-    if att["status"] != "open":
-        raise HTTPException(400, "该练习已交卷")
     now = int(time.time())
+    # 幂等闸门：以「open → done」条件更新抢占交卷权（并发重复提交只有一次能成功，防重复加分/重复作答行）
+    claimed = d.execute(
+        "UPDATE attempts SET status='done', submitted_at=?, score=-1 WHERE id=? AND student_id=? AND status='open'",
+        (now, att["id"], u["id"]))
+    if claimed.rowcount == 0:
+        d.close()
+        raise HTTPException(400, "该练习已交卷")
+    d.commit()
     total = 0
     per_cluster = {}
     for row in d.execute(
@@ -402,7 +426,7 @@ def submit(body: SubmitIn, u: dict = Depends(current_user)):
                     "SELECT COUNT(*) FROM user_badges WHERE student_id=? AND badge_id='b_streak10'",
                     (u["id"],)).fetchone()[0] == 0:
                 db.ensure_badge(d, u["id"], "b_streak10")
-    d.execute("UPDATE attempts SET submitted_at=?, score=?, status='done' WHERE id=?", (now, total, att["id"]))
+    d.execute("UPDATE attempts SET score=? WHERE id=?", (total, att["id"]))
     # 学时：按开卷→交卷实际时长
     db.add_study(d, u["id"], "practice", (now - (att["started_at"] or now)) / 60, str(att["id"]))
     # 簇达标徽章 + 六簇全达标徽章

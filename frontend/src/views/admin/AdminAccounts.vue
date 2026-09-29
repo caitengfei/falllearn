@@ -6,13 +6,17 @@ const accounts = ref([])
 const modal = ref(null) // {name, role, student_no, password}
 const authSno = computed(() => auth.user?.student_no)
 const toastMsg = ref('')
+const err = ref('')
 function toast(m) { toastMsg.value = m; setTimeout(() => (toastMsg.value = ''), 2400) }
 
 async function load() {
+  err.value = ''
   try {
     const r = await api.accounts()
     accounts.value = r.items
-  } catch (e) { toast('加载失败：' + e.message) }
+  } catch (e) {
+    err.value = e.message // 页面级错误条 + 重试（表格空着时不能只弹 3 秒 toast）
+  }
 }
 onMounted(load)
 
@@ -87,6 +91,7 @@ async function doBatch() {
     </div>
 
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
 
     <div class="card" style="margin-bottom: 14px">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">

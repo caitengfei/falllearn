@@ -51,13 +51,52 @@ def _check_title(title: str):
     return title.strip()
 
 
+def _safe_link(v: str) -> str:
+    """链接白名单：站内路径（/…）或 http(s)（阻断 javascript:/data: 等 scheme 注入）。"""
+    v = (v or "").strip()
+    if v and not (v.startswith("/") or v.startswith("http://") or v.startswith("https://")):
+        raise HTTPException(400, "链接仅支持站内路径（/…）或 http(s) 地址")
+    return v or "/"
+
+
+def _safe_image(v: str) -> str:
+    """轮播图地址白名单：/uploads/ 或 http(s)（阻断 data:/javascript:/CSS url() 注入）。"""
+    v = (v or "").strip()
+    if v and not (v.startswith("/uploads/") or v.startswith("http://") or v.startswith("https://")):
+        raise HTTPException(400, "图片地址仅支持本平台上传（/uploads/…）或 http(s) 地址")
+    return v
+
+
+def _clean_pwd(v: str, *, strict: bool = True) -> str:
+    """口令校验：新建/重置时长度 6–128（空串在 strict=False 表示“不改密码”）。"""
+    v = (v or "").strip()
+    if not strict and not v:
+        return ""
+    if not (6 <= len(v) <= 128):
+        raise HTTPException(400, "密码长度需 6–128 位")
+    return v
+
+
+def _teacher_owned_only(d, uid: int, me: int, what: str = "账号"):
+    """横向越权防护：教师只能管理学生账号 / 自己创建的培训；不能操作其他教师。
+    失败时关闭连接再抛出（避免异常路径遗留 sqlite 连接）。"""
+    row = d.execute("SELECT role FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        d.close()
+        raise HTTPException(404, f"{what}不存在")
+    if row["role"] == "teacher" and uid != me:
+        d.close()
+        raise HTTPException(403, "不能操作其他教师账号")
+    return row
+
+
 @router.post("/banners")
 def banners_create(b: BannerIn, u: dict = Depends(require_teacher)):
     title = _check_title(b.title)
     d = db.get_db()
     cur = d.execute(
         "INSERT INTO banners(title,tag,sub,image,link,sort,enabled,created_at) VALUES(?,?,?,?,?,?,?,?)",
-        (title, b.tag.strip(), b.sub.strip(), b.image, b.link.strip() or "/", b.sort, b.enabled, int(time.time())))
+        (title, b.tag.strip(), b.sub.strip(), _safe_image(b.image), _safe_link(b.link), b.sort, b.enabled, int(time.time())))
     d.commit()
     d.close()
     return {"ok": True, "id": cur.lastrowid}
@@ -69,7 +108,7 @@ def banners_update(bid: int, b: BannerIn, u: dict = Depends(require_teacher)):
     d = db.get_db()
     cur = d.execute(
         "UPDATE banners SET title=?,tag=?,sub=?,image=?,link=?,sort=?,enabled=? WHERE id=?",
-        (title, b.tag.strip(), b.sub.strip(), b.image, b.link.strip() or "/", b.sort, b.enabled, bid))
+        (title, b.tag.strip(), b.sub.strip(), _safe_image(b.image), _safe_link(b.link), b.sort, b.enabled, bid))
     d.commit()
     d.close()
     if cur.rowcount == 0:
@@ -91,9 +130,17 @@ def banners_delete(bid: int, u: dict = Depends(require_teacher)):
 @router.post("/upload")
 async def upload_image(file: UploadFile = File(...), u: dict = Depends(require_teacher)):
     """图片上传（轮播图用）：仅接受真实图片扩展名，落 backend/uploads/，返回 /uploads/xxx。"""
-    data = await file.read()
-    if len(data) > 4 * 1024 * 1024:
-        raise HTTPException(400, "图片超过 4MB 上限")
+    # 分块读 + 累计判长：不在内存里接住超大文件（上限 4MB）
+    chunks, size = [], 0
+    while True:
+        chunk = await file.read(256 * 1024)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > 4 * 1024 * 1024:
+            raise HTTPException(400, "图片超过 4MB 上限")
+        chunks.append(chunk)
+    data = b"".join(chunks)
     if not file.filename or "." not in file.filename:
         raise HTTPException(400, "无法识别的文件名，请上传 png/jpg/webp/gif 图片")
     ext = file.filename.rsplit(".", 1)[-1].lower()
@@ -469,7 +516,7 @@ def students_create(s: StudentIn, u: dict = Depends(require_teacher)):
             sno = f"S2026{n + 1:03d}"
     elif d.execute("SELECT 1 FROM users WHERE student_no=?", (sno,)).fetchone():
         raise HTTPException(400, "学号已存在")
-    h = bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(10)).decode()
+    h = bcrypt.hashpw(_clean_pwd(s.password).encode(), bcrypt.gensalt(10)).decode()
     cur = d.execute(
         "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,?,?)",
         (sno, s.name, "student", h, s.enabled, int(time.time())))
@@ -488,7 +535,7 @@ def students_update(uid: int, s: StudentIn, u: dict = Depends(require_teacher)):
     if s.name:
         sets.append("name=?"); args.append(s.name)
     if s.password:
-        sets.append("pwd_hash=?"); args.append(bcrypt.hashpw(s.password.encode(), bcrypt.gensalt(10)).decode())
+        sets.append("pwd_hash=?"); args.append(bcrypt.hashpw(_clean_pwd(s.password, strict=False).encode(), bcrypt.gensalt(10)).decode())
     sets.append("enabled=?"); args.append(s.enabled)
     args.append(uid)
     d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)  # nosec B608（人工确认：参数化/白名单常量拼接）
@@ -529,7 +576,10 @@ def accounts_create(a: AccountIn, u: dict = Depends(require_teacher)):
         raise HTTPException(400, "账号已存在")
     if a.role not in ("student", "teacher"):
         raise HTTPException(400, "角色仅支持 student/teacher")
-    h = bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(10)).decode()
+    if a.role == "teacher":
+        # 横向越权防护：教师账号只能由部署方（数据库/CLI）创建，管理后台不允许再造教师号
+        raise HTTPException(403, "管理后台仅可创建学生账号")
+    h = bcrypt.hashpw(_clean_pwd(a.password).encode(), bcrypt.gensalt(10)).decode()
     cur = d.execute(
         "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,?,?)",
         (sno, a.name, a.role, h, a.enabled, int(time.time())))
@@ -553,7 +603,7 @@ def accounts_batch(b: AccountBatchIn, u: dict = Depends(require_teacher)):
         raise HTTPException(400, "单次批量 1–100 个")
     if not re.match(r"^[A-Za-z0-9]{2,12}$", b.prefix):
         raise HTTPException(400, "前缀仅支持字母/数字（2–12 位）")
-    h = bcrypt.hashpw(b.password.encode(), bcrypt.gensalt(10)).decode()
+    h = bcrypt.hashpw(_clean_pwd(b.password).encode(), bcrypt.gensalt(10)).decode()
     d = db.get_db()
     made, skipped = [], []
     for i in range(1, b.count + 1):
@@ -576,9 +626,7 @@ def accounts_delete(uid: int, u: dict = Depends(require_teacher)):
     if uid == u["id"]:
         raise HTTPException(400, "不能删除自己的账号")
     d = db.get_db()
-    if not d.execute("SELECT 1 FROM users WHERE id=?", (uid,)).fetchone():
-        d.close()
-        raise HTTPException(404, "账号不存在")
+    _teacher_owned_only(d, uid, u["id"])  # 不存在 → 404；其他教师 → 403（横向越权防护）
     d.execute("DELETE FROM answers WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id=?)", (uid,))
     d.execute("DELETE FROM ai_grades WHERE attempt_id IN (SELECT id FROM attempts WHERE student_id=?)", (uid,))
     # 教师创建的考卷一并删除（否则 exams 表残留死行，FK 悬空）
@@ -609,15 +657,13 @@ def accounts_update(uid: int, a: AccountPatch, u: dict = Depends(require_teacher
     if a.enabled is not None and a.enabled == 0 and uid == u["id"]:
         d.close()
         raise HTTPException(400, "不能停用自己的账号")
-    if not d.execute("SELECT 1 FROM users WHERE id=?", (uid,)).fetchone():
-        d.close()
-        raise HTTPException(404, "账号不存在")
+    _teacher_owned_only(d, uid, u["id"])  # 不存在 → 404；其他教师 → 403（横向越权防护）
     sets, args = [], []
     if a.enabled is not None:
         sets.append("enabled=?"); args.append(a.enabled)
     if a.password:
         sets.append("pwd_hash=?")
-        args.append(bcrypt.hashpw(a.password.encode(), bcrypt.gensalt(10)).decode())
+        args.append(bcrypt.hashpw(_clean_pwd(a.password, strict=False).encode(), bcrypt.gensalt(10)).decode())
     args.append(uid)
     d.execute(f"UPDATE users SET {', '.join(sets)} WHERE id=?", args)  # nosec B608（人工确认：参数化/白名单常量拼接）
     d.commit()
@@ -681,10 +727,23 @@ def trainings_create(t: TrainingIn, u: dict = Depends(require_teacher)):
     return {"ok": True, "id": tid}
 
 
+def _own_training(d, tid: int, me: int):
+    """培训归属校验：只有创建者能改（防教师互相改动/删除他人培训）。失败时关闭连接。"""
+    row = d.execute("SELECT teacher_id FROM trainings WHERE id=?", (tid,)).fetchone()
+    if not row:
+        d.close()
+        raise HTTPException(404, "培训不存在")
+    if row["teacher_id"] != me:
+        d.close()
+        raise HTTPException(403, "只能管理自己创建的培训")
+    return row
+
+
 @router.put("/trainings/{tid}")
 def trainings_update(tid: int, t: TrainingIn, u: dict = Depends(require_teacher)):
     title = _check_title(t.title)
     d = db.get_db()
+    _own_training(d, tid, u["id"])
     cur = d.execute(
         "UPDATE trainings SET title=?,batch=?,start_date=?,end_date=?,capacity=?,note=? WHERE id=?",
         (title, t.batch.strip(), t.start_date, t.end_date, t.capacity, t.note.strip(), tid))
@@ -699,10 +758,8 @@ def trainings_update(tid: int, t: TrainingIn, u: dict = Depends(require_teacher)
 def trainings_enroll(tid: int, body: dict, u: dict = Depends(require_teacher)):
     """body: {student_ids: [...], status?: 'enrolled'|'done'}（追加或批量改状态）"""
     d = db.get_db()
+    _own_training(d, tid, u["id"])
     tr = d.execute("SELECT capacity FROM trainings WHERE id=?", (tid,)).fetchone()
-    if not tr:
-        d.close()
-        raise HTTPException(404, "培训不存在")
     status = body.get("status") or "enrolled"
     if status not in ("enrolled", "done"):
         d.close()
@@ -732,6 +789,7 @@ def trainings_enroll(tid: int, body: dict, u: dict = Depends(require_teacher)):
 @router.post("/trainings/{tid}/students/{uid}/status")
 def trainings_set_status(tid: int, uid: int, body: dict, u: dict = Depends(require_teacher)):
     d = db.get_db()
+    _own_training(d, tid, u["id"])
     status = (body or {}).get("status")
     if status not in ("enrolled", "done"):
         d.close()
@@ -747,6 +805,7 @@ def trainings_set_status(tid: int, uid: int, body: dict, u: dict = Depends(requi
 @router.delete("/trainings/{tid}")
 def trainings_delete(tid: int, u: dict = Depends(require_teacher)):
     d = db.get_db()
+    _own_training(d, tid, u["id"])
     d.execute("DELETE FROM training_enrolls WHERE training_id=?", (tid,))
     d.execute("DELETE FROM trainings WHERE id=?", (tid,))
     d.commit()
@@ -925,19 +984,19 @@ def stats_wrong(u: dict = Depends(require_teacher)):
     if sids:
         ph = ",".join("?" * len(sids))
         rows = d.execute(
-            f"SELECT q.id, q.stem, q.cluster_id, COUNT(DISTINCT w.student_id) c FROM wrong_records w "
+            f"SELECT q.id, q.stem, q.cluster_id, COUNT(DISTINCT w.student_id) c FROM wrong_records w "  # nosec B608（人工确认：{ph} 由 ? 占位符拼接，值全部参数化绑定）
             f"JOIN questions q ON q.id=w.question_id WHERE w.status='active' AND w.student_id IN ({ph}) "
             f"GROUP BY w.question_id ORDER BY c DESC, MIN(w.first_wrong_at) DESC LIMIT 10", sids).fetchall()
         top_wrong = [{"qid": r["id"], "stem": r["stem"], "cluster": r["cluster_id"], "students_wrong": r["c"]}
                      for r in rows]
         ar = d.execute(
-            f"SELECT q.cluster_id, COUNT(*) n, SUM(a.correct) ok FROM answers a "
+            f"SELECT q.cluster_id, COUNT(*) n, SUM(a.correct) ok FROM answers a "  # nosec B608（人工确认：{ph} 由 ? 占位符拼接，值全部参数化绑定）
             f"JOIN attempts t ON t.id=a.attempt_id JOIN questions q ON q.id=a.question_id "
             f"WHERE t.student_id IN ({ph}) GROUP BY q.cluster_id ORDER BY n DESC", sids).fetchall()
         correct_rate = [{"cluster": r["cluster_id"], "n": r["n"],
                          "rate": round((r["ok"] or 0) * 100 / r["n"], 1) if r["n"] else None} for r in ar]
         wc = d.execute(
-            f"SELECT q.cluster_id, w.status, COUNT(*) c FROM wrong_records w "
+            f"SELECT q.cluster_id, w.status, COUNT(*) c FROM wrong_records w "  # nosec B608（人工确认：{ph} 由 ? 占位符拼接，值全部参数化绑定）
             f"JOIN questions q ON q.id=w.question_id WHERE w.student_id IN ({ph}) "
             f"GROUP BY q.cluster_id, w.status", sids).fetchall()
         per = {}

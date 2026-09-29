@@ -12,8 +12,11 @@
   --bg: #f5f6f8;
   --card: #ffffff;
   --text: #1f2430;
+  --text-1: #1f2430;      /* 与 --text 同值：多个页面正文引用 --text-1，缺失会导致回退色 */
   --text-2: #6b7280;
-  --text-3: #9ca3af;
+  --text-3: #6f7887;      /* 原 #9ca3af 对白底约 2.8:1，提升到可读水平（小字大量使用） */
+  --success: #22c55e;      /* 正确答案/已答标记等语义色（此前未定义 → 绿色不生效） */
+  --success-light: #e8f8ee;
   --line: #eceef1;
   --radius: 10px;
   --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
@@ -355,8 +358,14 @@ input, textarea, select { font-family: inherit; font-size: 14px; }
 @media (max-width: 900px) {
   .hide-sm { display: none; }
   .topbar-inner { padding: 0 14px; gap: 12px; height: 52px; }
-  .navtabs-inner { padding: 0 14px; gap: 18px; overflow-x: auto; }
-  .navtabs { white-space: nowrap; }
+  .navtabs-inner { padding: 0 14px; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  .navtabs-inner::-webkit-scrollbar { display: none; }
+  .navtabs { white-space: nowrap; position: relative; }
+  /* 右侧渐隐提示：告诉用户导航栏还能横向滑动（此前无任何提示） */
+  .navtabs::after {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 26px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), var(--card)); pointer-events: none;
+  }
   .page { padding: 14px 14px 40px; }
   .banner { padding: 0 24px; }
   .banner h2 { font-size: 21px; }
@@ -486,11 +495,40 @@ input, textarea, select { font-family: inherit; font-size: 14px; }
   .admin-side .side-head, .admin-side .side-group { width: 100%; }
   .admin-side a { flex: 0 0 auto; }
   .admin-main { margin-left: 0; margin-top: 14px; width: 100%; }
-  /* 宽表在卡片内横向滚动，不撑破整页 */
-  .card:has(.atable) { overflow-x: auto; }
+  /* 宽表在卡片内横向滚动，不撑破整页（不依赖 :has()，兼容旧内核浏览器） */
+  .card { overflow-x: auto; }
+  .atable { min-width: 620px; }
   .mgrid.c3, .mgrid.c2, .mgrid.c4 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
   .mgrid.c6, .mgrid.c4, .mgrid.c3, .mgrid.c2 { grid-template-columns: 1fr; }
   .bar-row .bl { width: 56px; }
+}
+
+/* ---------- 无障碍：键盘焦点可见（此前仅 input/textarea 有焦点样式） ---------- */
+:where(button, a, [tabindex], .pill, .chip, .switch, .op, .nbtn):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- 减少动效偏好（前庭敏感/晕动用户） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- 打印样式：错题本/比赛资料/报告可直接打印或导出 PDF ---------- */
+@media print {
+  .topbar, .navtabs, .admin-side, .chat-input, .btn, .pill, .more, .toast, .mask,
+  .guide-card, .notice-strip, .ksearch, .chat-flow { display: none !important; }
+  body { background: #fff; }
+  .page { max-width: 100% !important; padding: 0 !important; }
+  .card { box-shadow: none !important; border: 1px solid #e3e5e9 !important; break-inside: avoid; page-break-inside: avoid; }
+  .learn-grid, .rgrid { display: block !important; }
+  a[href]::after { content: ''; }
 }

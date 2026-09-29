@@ -65,7 +65,7 @@ async function saveNew() {
       <button class="btn sm" style="margin-left: auto" @click="modal = { name: '', password: '123456' }">＋ 新增学生</button>
     </div>
 
-    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }}</div>
+    <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
 
     <div class="card">

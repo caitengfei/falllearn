@@ -93,12 +93,23 @@ function askAi() {
   router.push({ path: '/learn', query: { ask: `「${doc.value.title}」这份文档的核心内容是什么？帮我划重点。` } })
 }
 
-// 片段高亮（与后端一致的空白分词，逐词高亮）
+// HTML 转义（v-html 前的强制步骤：KB 文档/检索片段不可信，防存储型 XSS）
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+// 片段高亮（与后端一致的空白分词，逐词高亮）；先转义再插入 <mark>，杜绝 HTML 注入
 function hi(s) {
-  let out = s
-  for (const k of q.value.trim().split(/\s+/)) {
+  let out = esc(s)
+  for (const k of q.value.trim().split(/\s+/).slice(0, 8)) {
     if (!k) continue
-    out = out.replace(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+    const kk = esc(k) // 关键词同样转义后与转义文本匹配（& < > 等字符一致）
+    if (!kk) continue
+    out = out.replace(new RegExp(kk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
       (m) => '<mark>' + m + '</mark>')
   }
   return out
@@ -123,6 +134,7 @@ function hi(s) {
     <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="search">重试</button></div>
 
     <div v-else class="kgrid">
+      <div v-if="loading" class="kloading">🔍 检索中…</div>
       <button v-for="it in items" :key="it.path" class="kcard" @click="open(it); loadDoc(it)">
         <span class="ktag" :style="{ background: DIM_COLOR[it.dim] + '14', color: DIM_COLOR[it.dim] }">{{ it.dim.slice(3, 4) || it.dim }}</span>
         <div class="kinfo">
@@ -132,8 +144,7 @@ function hi(s) {
         </div>
         <span class="karrow">›</span>
       </button>
-      <div v-if="items && !items.length" class="card" style="color: var(--text-3)">没有匹配「{{ q }}」的文档 —— 换个词，或去「学习中心」问 AI 老师</div>
-      <div v-if="loading" class="card" style="color: var(--text-3)">检索中…</div>
+      <div v-if="items && !items.length && !loading" class="card" style="color: var(--text-3)">没有匹配「{{ q }}」的文档 —— 换个词，或去「学习中心」问 AI 老师</div>
     </div>
 
     <!-- 文档阅读器 -->
@@ -165,6 +176,7 @@ function hi(s) {
 .kgrid { display: flex; flex-direction: column; gap: 8px; }
 .kcard { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; cursor: pointer; transition: all .12s; }
 .kcard:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(228,57,60,.08); }
+.kloading { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-3); padding: 4px 2px; }
 .ktag { font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 8px; min-width: 40px; text-align: center; }
 .kinfo { flex: 1; min-width: 0; }
 .ktitle { font-size: 13.5px; font-weight: 600; }

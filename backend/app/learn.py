@@ -10,15 +10,18 @@
 """
 import asyncio
 import json
+import logging
 import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import db, dsh_client, llm_direct
 from .auth import current_user
+
+_log = logging.getLogger("falllearn")
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
 
@@ -158,7 +161,7 @@ def _assistant_text(events) -> str:
 
 
 class AskIn(BaseModel):
-    question: str
+    question: str = Field(min_length=2, max_length=1000)  # 上限防超大输入（打满内存/LLM 计费）
 
 
 @router.post("/ask", response_model=None)
@@ -220,7 +223,8 @@ async def ask(body: AskIn, u: dict = Depends(current_user)):
                 d.commit()
                 continue
             d.close()
-            raise HTTPException(502, f"DSH 转发失败：{e}")
+            _log.warning("learn_ask_dsh_failed err=%s", str(e)[:300])  # 细节仅进服务端日志（不外泄内网拓扑）
+            raise HTTPException(502, "AI 服务暂时不可用，请稍后重试")
     # 预落一条 chat_log
     log_id = d.execute(
         "INSERT INTO chat_logs(student_id,dsh_session_id,question,answer,clusters_touched,created_at,dsh_base_seq) VALUES(?,?,?,?,?,?,?)",
@@ -283,7 +287,8 @@ async def answer(body: AnswerIn, u: dict = Depends(current_user)):
         raise
     except Exception as e:
         d.close()
-        raise HTTPException(502, f"应答失败：{e}")
+        _log.warning("learn_respond_failed err=%s", str(e)[:300])
+        raise HTTPException(502, "应答提交失败，请重试")
     _answered_touch(sid)
     d.close()
     return {"ok": True, "method": method, "label": label}
@@ -309,7 +314,8 @@ async def status(session_id: str, log_id: int, u: dict = Depends(current_user)):
         events = [ev for ev in h.get("events", []) if ev.get("event", ev).get("seq", 0) > base]
     except Exception as e:
         d.close()
-        raise HTTPException(502, f"history 失败：{e}")
+        _log.warning("learn_status_history_failed err=%s", str(e)[:300])
+        raise HTTPException(502, "AI 服务暂时不可用，请稍后重试")
     if not _answered(session_id):
         q = _parse_question(events)
         if q:

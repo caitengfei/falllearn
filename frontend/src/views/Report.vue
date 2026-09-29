@@ -118,7 +118,7 @@ function fmtAt(ts) {
       <div class="card-title-row">
         <div class="card-title" style="margin: 0">AI 学习分析</div>
         <button class="btn sm" :disabled="ai.loading || !data.practice_count && !data.wrong_active" @click="runAi">
-          <span v-if="ai.loading" class="spin"></span>{{ ai.text ? '重新生成' : '生成 AI 分析' }}
+          <span v-if="ai.loading" class="spin"></span>{{ ai.loading ? 'AI 分析中…（约 10 秒）' : ai.text ? '重新生成' : '生成 AI 分析' }}
         </button>
       </div>
       <p v-if="ai.text" class="aitext">{{ ai.text }}</p>
@@ -191,5 +191,11 @@ function fmtAt(ts) {
 @media (max-width: 900px) {
   .mgrid.c4 { grid-template-columns: repeat(2, 1fr); }
   .rgrid { grid-template-columns: 1fr; }
+}
+/* 窄屏：错题分布行改为两行（标签+掌握度一行，进度条整行），避免 390px 挤压 */
+@media (max-width: 640px) {
+  .wrow { flex-wrap: wrap; }
+  .wrow .bar-row { flex-basis: 100%; order: 3; }
+  .wrow .tag { margin-left: auto; }
 }
 </style>
