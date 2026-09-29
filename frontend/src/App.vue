@@ -27,6 +27,7 @@ const tabs = [
   { to: '/', label: '首页' },
   { to: '/learn', label: '学习中心' },
   { to: '/practice', label: '练习考试' },
+  { to: '/report', label: '学习报告' },
   { to: '/competition', label: '比赛资料' },
   { to: '/wrong', label: '错题本' },
   { to: '/mine', label: '我的' }

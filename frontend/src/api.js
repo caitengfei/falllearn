@@ -89,6 +89,8 @@ quizWeak: () => request('/api/quiz/weak'),
   quizSubmit: (attempt_id, answers) =>
     request('/api/quiz/submit', { method: 'POST', body: { attempt_id, answers } }),
   quizSummary: () => request('/api/quiz/summary'),
+  quizReport: () => request('/api/quiz/report'),
+  quizReportAi: () => request('/api/quiz/report/ai', { method: 'POST', timeout: 90000 }),
   quizAssignments: () => request('/api/quiz/assignments'),
   quizResult: (attempt_id) => request(`/api/quiz/result/${attempt_id}`),
 
@@ -160,6 +162,7 @@ quizWeak: () => request('/api/quiz/weak'),
 
   statsOverview: () => request('/api/admin/stats/overview'),
   statsTrainings: () => request('/api/admin/stats/trainings'),
+  statsWrong: () => request('/api/admin/stats/wrong'),
 
   // ---------- 管理后台 · AI ----------
   aiModels: () => request('/api/admin/ai/models', { timeout: 300000 }),

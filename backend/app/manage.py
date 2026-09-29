@@ -881,3 +881,38 @@ def stats_trainings(u: dict = Depends(require_teacher)):
         teachers.append({"id": r["id"], "name": r["name"], "trainings": tcnt.get(r["id"], 0), "students": n_s})
     d.close()
     return {"trainings": trainings, "students": students, "teachers": teachers}
+
+
+@router.get("/stats/wrong")
+def stats_wrong(u: dict = Depends(require_teacher)):
+    """班级错题分析：高频错题 TOP10（多少名学生在错题本）+ 各知识点正确率 + 错题分布。"""
+    d = db.get_db()
+    sids = [r[0] for r in d.execute("SELECT id FROM users WHERE role='student' AND enabled=1 ORDER BY id")]
+    top_wrong, correct_rate, wrong_by_cluster = [], [], []
+    if sids:
+        ph = ",".join("?" * len(sids))
+        rows = d.execute(
+            f"SELECT q.id, q.stem, q.cluster_id, COUNT(DISTINCT w.student_id) c FROM wrong_records w "
+            f"JOIN questions q ON q.id=w.question_id WHERE w.status='active' AND w.student_id IN ({ph}) "
+            f"GROUP BY w.question_id ORDER BY c DESC, MIN(w.first_wrong_at) DESC LIMIT 10", sids).fetchall()
+        top_wrong = [{"qid": r["id"], "stem": r["stem"], "cluster": r["cluster_id"], "students_wrong": r["c"]}
+                     for r in rows]
+        ar = d.execute(
+            f"SELECT q.cluster_id, COUNT(*) n, SUM(a.correct) ok FROM answers a "
+            f"JOIN attempts t ON t.id=a.attempt_id JOIN questions q ON q.id=a.question_id "
+            f"WHERE t.student_id IN ({ph}) GROUP BY q.cluster_id ORDER BY n DESC", sids).fetchall()
+        correct_rate = [{"cluster": r["cluster_id"], "n": r["n"],
+                         "rate": round((r["ok"] or 0) * 100 / r["n"], 1) if r["n"] else None} for r in ar]
+        wc = d.execute(
+            f"SELECT q.cluster_id, w.status, COUNT(*) c FROM wrong_records w "
+            f"JOIN questions q ON q.id=w.question_id WHERE w.student_id IN ({ph}) "
+            f"GROUP BY q.cluster_id, w.status", sids).fetchall()
+        per = {}
+        for r in wc:
+            p = per.setdefault(r["cluster_id"], {"active": 0, "mastered": 0})
+            p[r["status"]] = p.get(r["status"], 0) + r["c"]
+        wrong_by_cluster = [{"cluster": cid, "active": p.get("active", 0), "mastered": p.get("mastered", 0)}
+                            for cid, p in per.items()]
+        wrong_by_cluster.sort(key=lambda x: -(x["active"] + x["mastered"]))
+    d.close()
+    return {"top_wrong": top_wrong, "correct_rate": correct_rate, "wrong_by_cluster": wrong_by_cluster}

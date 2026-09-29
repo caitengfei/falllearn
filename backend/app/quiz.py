@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """组卷 + 判分（客观题规则判，秒判零误差）"""
+import datetime
 import json
 import random
 import time
@@ -230,6 +231,104 @@ def quiz_summary(u: dict = Depends(current_user)):
     return {"practice_count": done, "last_score": last["score"] if last else None,
             "avg_score": round(avg, 1) if avg else None,
             "wrong_active": wrong_active, "wrong_due": wrong_due}
+
+
+def _report_data(me_id: int) -> dict:
+    """学习报告数据（/quiz/report 与 /quiz/report/ai 共用）。"""
+    d = db.get_db()
+    me = me_id
+    now = int(time.time())
+    # 1) 得分趋势（全部已交卷，按时间升序）
+    rows = d.execute(
+        "SELECT a.score, e.kind, a.submitted_at, e.title FROM attempts a LEFT JOIN exams e ON e.id=a.exam_id "
+        "WHERE a.student_id=? AND a.status='done' ORDER BY a.submitted_at ASC", (me,)).fetchall()
+    score_trend = [{"at": r["submitted_at"], "score": r["score"], "kind": r["kind"], "title": r["title"] or ""}
+                   for r in rows]
+    # 2) 近 14 天学习活跃（日历日分组，分钟）
+    ev = d.execute("SELECT created_at, minutes FROM study_events WHERE student_id=? AND created_at>=?",
+                   (me, now - 14 * 86400)).fetchall()
+    today = datetime.date.fromtimestamp(now)
+    acc = {}
+    for r in ev:
+        ds = datetime.date.fromtimestamp(r["created_at"]).isoformat()
+        acc[ds] = acc.get(ds, 0) + (r["minutes"] or 0)
+    activity = [{"day": (today - datetime.timedelta(days=i)).isoformat()[5:].replace("-", "/"),
+                 "minutes": round(acc.get((today - datetime.timedelta(days=i)).isoformat(), 0), 1)}
+                for i in range(13, -1, -1)]
+    # 3) 错题按知识点分布 + 复习进度（active/mastered）
+    wc = d.execute(
+        "SELECT q.cluster_id, w.status, COUNT(*) c FROM wrong_records w JOIN questions q ON q.id=w.question_id "
+        "WHERE w.student_id=? GROUP BY q.cluster_id, w.status", (me,)).fetchall()
+    per = {}
+    for r in wc:
+        p = per.setdefault(r["cluster_id"], {"active": 0, "mastered": 0})
+        p[r["status"]] = p.get(r["status"], 0) + r["c"]
+    mlevel = {r["cluster_id"]: r["level"] for r in d.execute(
+        "SELECT cluster_id, level FROM mastery WHERE student_id=?", (me,))}
+    wrong_by_cluster = [{"cluster": cid,
+                         "active": p.get("active", 0), "mastered": p.get("mastered", 0),
+                         "total": p.get("active", 0) + p.get("mastered", 0),
+                         "mastery": round(mlevel.get(cid) or 0)}
+                        for cid, p in per.items()]
+    wrong_by_cluster.sort(key=lambda x: -x["total"])
+    # 4) 各知识点正确率（answers × attempts × questions）
+    ar = d.execute(
+        "SELECT q.cluster_id, COUNT(*) n, SUM(a.correct) ok FROM answers a "
+        "JOIN attempts t ON t.id=a.attempt_id JOIN questions q ON q.id=a.question_id "
+        "WHERE t.student_id=? GROUP BY q.cluster_id", (me,)).fetchall()
+    correct_rate = [{"cluster": r["cluster_id"], "n": r["n"],
+                     "rate": round(r["ok"] * 100 / r["n"], 1) if r["n"] else None} for r in ar]
+    d.close()
+    return {
+        "score_trend": score_trend,
+        "activity": activity,
+        "total_hours_14d": round(sum(x["minutes"] for x in activity) / 60, 1),
+        "wrong_by_cluster": wrong_by_cluster,
+        "correct_rate": correct_rate,
+        "practice_count": len(score_trend),
+        "avg_score": round(sum(t["score"] for t in score_trend) / len(score_trend), 1) if score_trend else None,
+        "wrong_active": sum(x["active"] for x in wrong_by_cluster),
+        "wrong_mastered": sum(x["mastered"] for x in wrong_by_cluster),
+    }
+
+
+@router.get("/quiz/report")
+def quiz_report(u: dict = Depends(current_user)):
+    """学习报告：得分趋势 / 14 天活跃 / 错题知识点分布 / 正确率。"""
+    return _report_data(u["id"])
+
+
+@router.post("/quiz/report/ai")
+async def quiz_report_ai(u: dict = Depends(current_user)):
+    """AI 学习分析：报告数据 → 轻量 LLM 调用 → 诊断+建议（独立于四栏 persona）。"""
+    from . import llm_direct
+    cfg = llm_direct.get_cfg()
+    if not cfg:
+        raise HTTPException(400, "AI 直连通道未配置")
+    rep = _report_data(u["id"])
+    compact = {
+        "学生": u.get("name", "同学"),
+        "完成练习次数": rep["practice_count"],
+        "平均分": rep["avg_score"],
+        "得分趋势": [t["score"] for t in rep["score_trend"]][-10:],
+        "近14天总学时": rep["total_hours_14d"],
+        "错题分布": [{"知识点": CLUSTER_CN.get(x["cluster"], x["cluster"]),
+                     "待巩固": x["active"], "已掌握": x["mastered"], "掌握度%": x["mastery"]}
+                    for x in rep["wrong_by_cluster"]],
+        "各知识点正确率": [{"知识点": CLUSTER_CN.get(x["cluster"], x["cluster"]),
+                          "正确率%": x["rate"], "作答数": x["n"]} for x in rep["correct_rate"]],
+    }
+    sysp = ("你是防跌学堂的学业导师。根据学生近两周学习报告数据（JSON），用简体中文输出一段简洁的「AI 学习分析」，"
+            "不超过 160 字：先一句总体表现（结合平均分与趋势走向），再点出最薄弱的 1-2 个知识点（结合正确率与错题分布），"
+            "最后给一条具体可执行的建议。语气鼓励但诚实。不要 emoji、不要 markdown、不要分点编号。")
+    try:
+        text = await llm_direct.complete(
+            cfg, [{"role": "system", "content": sysp},
+                  {"role": "user", "content": json.dumps(compact, ensure_ascii=False)}],
+            max_tokens=300, timeout=60)
+    except Exception as e:
+        raise HTTPException(502, f"AI 分析生成失败：{str(e)[:120]}")
+    return {"analysis": text.strip()}
 
 
 class SubmitIn(BaseModel):
