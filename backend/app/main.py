@@ -17,6 +17,7 @@ from .learn import router as learn_router
 from .admin import router as admin_router
 from .manage import router as manage_router, content_router, meta_router  # noqa: F401
 from .aiops import router as aiops_router
+from .kb import router as kb_router
 
 app = FastAPI(title="防跌学堂", version="1.2.0")
 # CORS 收敛：仅允许本平台来源（生产同源为主；5173 为本地 vite 开发）。
@@ -76,7 +77,7 @@ async def validation_handler(_: Request, exc: RequestValidationError):
 db.init_db()
 
 for r in (auth_router, quiz_router, wrong_router, game_router, learn_router, admin_router,
-          manage_router, content_router, meta_router, aiops_router):
+          manage_router, content_router, meta_router, aiops_router, kb_router):
     app.include_router(r)
 
 

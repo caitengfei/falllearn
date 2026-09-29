@@ -26,6 +26,7 @@ onMounted(refreshDue)
 const tabs = [
   { to: '/', label: '首页' },
   { to: '/learn', label: '学习中心' },
+  { to: '/kb', label: '知识库' },
   { to: '/practice', label: '练习考试' },
   { to: '/report', label: '学习报告' },
   { to: '/competition', label: '比赛资料' },

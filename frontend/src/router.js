@@ -6,6 +6,7 @@ const routes = [
   { path: '/login', component: () => import('./views/Login.vue'), meta: { public: true } },
   { path: '/', component: () => import('./views/Home.vue') },
   { path: '/learn', component: () => import('./views/Learn.vue') },
+  { path: '/kb', component: () => import('./views/Kb.vue') },
   { path: '/competition', component: () => import('./views/Competition.vue') },
   { path: '/practice', component: () => import('./views/Practice.vue') },
   { path: '/report', component: () => import('./views/Report.vue') },

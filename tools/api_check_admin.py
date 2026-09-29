@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""管理后台 API 冒烟（教师 T2026）：27 项检查（含教师布置闭环 6 项、流式端点鉴权）。"""
+"""管理后台 API 冒烟（教师 T2026）：32 项检查（含教师布置闭环 6 项、流式端点鉴权、知识库 4 项）。"""
 import sys, time, requests
 sys.stdout.reconfigure(encoding="utf-8")
 BASE = "http://127.0.0.1:8010"
@@ -113,6 +113,16 @@ check("布置删除（清场）", r.get("ok"))
 # 27 流式端点鉴权（SSE /api/learn/stream：无 token 401，不触 AI）
 r = requests.get(BASE + "/api/learn/stream?session_id=x&log_id=1", timeout=10)
 check("流式端点鉴权", r.status_code == 401, str(r.status_code))
+
+# 28-31 知识库（学生端 /api/kb：目录/检索/原文/防穿越）
+r = requests.get(BASE + "/api/kb/search", headers=H, timeout=15).json()
+check("知识库目录 26 份", r.get("total") == 26, str(r.get("total")))
+r = requests.get(BASE + "/api/kb/search", params={"q": "Morse 量表"}, headers=H, timeout=15).json()
+check("知识库检索", r.get("total", 0) >= 3, f'{r.get("total")} 条')
+r = requests.get(BASE + "/api/kb/doc", params={"path": "02-课/知识点梳理.md"}, headers=H, timeout=15)
+check("知识库读原文", r.status_code == 200 and len(r.json().get("content", "")) > 500)
+r = requests.get(BASE + "/api/kb/doc", params={"path": "../../backend/app/main.py"}, headers=H, timeout=10)
+check("知识库路径穿越拦截", r.status_code in (400, 404), str(r.status_code))
 
 n_fail = sum(1 for _, ok in results if not ok)
 print(f"\n===== 管理后台 API: {len(results) - n_fail}/{len(results)} 通过 =====")
