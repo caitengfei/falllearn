@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, auth } from './api'
+import { api, auth, DEMO_GUIDE } from './api'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,6 +66,22 @@ function logout() {
   auth.clear()
   location.href = '/login'
 }
+
+// —— 评委演示引导弹窗（顶栏 ? 按钮）——
+const guideOpen = ref(false)
+function goGuide(g) {
+  guideOpen.value = false
+  if (g.to === '/login') {
+    auth.clear()
+    router.push('/login')
+    return
+  }
+  if (g.ask) {
+    router.push({ path: g.to, query: { ask: g.ask } })
+    return
+  }
+  router.push(g.to)
+}
 </script>
 
 <template>
@@ -88,6 +104,7 @@ function logout() {
             🔔
             <span v-if="dueCount" class="dot">{{ dueCount }}</span>
           </div>
+          <div class="bell" title="演示体验路径" @click="guideOpen = true" v-if="!isAdmin">？</div>
           <div class="userchip" @click="router.push(isTeacher ? '/admin' : '/mine')">
             <div class="avatar">{{ (auth.user?.name || '学')[0] }}</div>
             <div class="userchip-text">
@@ -123,6 +140,28 @@ function logout() {
     </template>
   </template>
   <router-view v-else />
+
+  <!-- 评委演示引导弹窗 -->
+  <div v-if="guideOpen" class="gm-mask" @click.self="guideOpen = false">
+    <div class="gm-box">
+      <div class="gm-head">
+        <div class="gm-title">🎓 演示体验路径</div>
+        <button class="gm-close" @click="guideOpen = false">✕</button>
+      </div>
+      <div class="gm-sub">6 步看懂平台全流程 · 每一步都能直接点开</div>
+      <div class="gm-steps">
+        <div v-for="(g, i) in DEMO_GUIDE.student" :key="i" class="gm-step" @click="goGuide(g)">
+          <span class="gm-ic">{{ g.ic }}</span>
+          <span class="gm-num">{{ i + 1 }}</span>
+          <div class="gm-step-b">
+            <b>{{ g.t }}</b>
+            <span>{{ g.d }}</span>
+          </div>
+          <span class="gm-go">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -131,4 +170,21 @@ function logout() {
   padding: 5px 12px; border-radius: 8px; margin-right: 4px;
 }
 .back-student:hover { background: #fbd9d9; }
+/* —— 评委演示引导弹窗 —— */
+.gm-mask { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.gm-box { background: #fff; border-radius: 16px; width: min(560px, 100%); max-height: 86vh; overflow-y: auto; padding: 18px 20px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+.gm-head { display: flex; justify-content: space-between; align-items: center; }
+.gm-title { font-size: 16px; font-weight: 700; }
+.gm-close { border: none; background: #f1f5f9; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; color: var(--text-2); }
+.gm-close:hover { background: #e2e8f0; }
+.gm-sub { font-size: 12px; color: var(--text-3); margin: 4px 0 12px; }
+.gm-steps { display: flex; flex-direction: column; gap: 8px; }
+.gm-step { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; transition: all .12s; }
+.gm-step:hover { border-color: var(--primary); background: #fff5f5; }
+.gm-ic { font-size: 18px; }
+.gm-num { font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 2px 7px; }
+.gm-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.gm-step-b b { font-size: 13px; }
+.gm-step-b span { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.gm-go { font-size: 18px; color: var(--text-3); }
 </style>

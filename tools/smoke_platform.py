@@ -77,6 +77,7 @@ with sync_playwright() as pw:
     check("学生登录", ok)
     p.screenshot(path=SHOT + "-home.png")
     check("首页水平溢出=0", overflow(p) <= 0, f"(overflow={overflow(p)})")
+    check("首页演示引导卡（首访）", p.locator(".gc-step").count() >= 6, f'({p.locator(".gc-step").count()} steps)')
     check("banner 4 dots", p.locator(".banner-dots i").count() == 4)
     check("轮播第2张可点", (p.locator(".banner-dots i").nth(1).click(), time.sleep(1), p.inner_text(".banner h2"))[2] != "")
 
@@ -100,6 +101,7 @@ with sync_playwright() as pw:
 
     # 比赛资料
     p.goto(BASE + "/competition", wait_until="domcontentloaded", timeout=30000)
+    time.sleep(1.5)
     check("/competition 渲染", "岗课赛证融通资料库" in p.inner_text("body"))
     check("/competition 文档数", p.locator(".doc-row").count() >= 15, f"({p.locator('.doc-row').count()} docs)")
     check("/competition 溢出=0", overflow(p) <= 0)

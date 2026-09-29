@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, auth, CLUSTERS, CLUSTER_QCOUNT, CLUSTER_KNOWLEDGE, clusterName } from '../api'
+import { api, auth, CLUSTERS, CLUSTER_QCOUNT, CLUSTER_KNOWLEDGE, clusterName, DEMO_GUIDE } from '../api'
 
 const router = useRouter()
 const me = ref({})
@@ -13,6 +13,25 @@ const lb = ref({ points: [], mastery: [], my_rank_points: null, my_rank_mastery:
 const lbTab = ref('points')
 const wrongByCluster = ref({})
 const toast = ref(null)
+
+// ---------- 评委演示引导（首访卡；顶栏 ? 可随时重开弹窗） ----------
+const showGuide = ref(!localStorage.getItem('fl_guide_v1'))
+function dismissGuide() {
+  localStorage.setItem('fl_guide_v1', '1')
+  showGuide.value = false
+}
+function goGuide(g) {
+  if (g.to === '/login') {
+    auth.clear()
+    router.push('/login')
+    return
+  }
+  if (g.ask) {
+    router.push({ path: g.to, query: { ask: g.ask } })
+    return
+  }
+  router.push(g.to)
+}
 
 // ---------- Banner 轮播（DB 驱动：教师后台可换图/增删；自动 5s + 可点） ----------
 const GRADS = [
@@ -154,6 +173,27 @@ onBeforeUnmount(stopSlides)
 
 <template>
   <div class="page">
+    <!-- 评委演示引导（首访展示，可不再显示；顶栏 ? 重开） -->
+    <div v-if="showGuide" class="guide-card">
+      <div class="gc-head">
+        <div>
+          <div class="gc-title">🎓 演示体验路径 · 6 步看懂平台</div>
+          <div class="gc-sub">每一步都能直接点开 · 右上角「？」随时重开</div>
+        </div>
+        <button class="gc-close" @click="dismissGuide">不再显示</button>
+      </div>
+      <div class="gc-grid">
+        <div v-for="(g, i) in DEMO_GUIDE.student" :key="i" class="gc-step" @click="goGuide(g)">
+          <span class="gc-ic">{{ g.ic }}</span>
+          <span class="gc-num">{{ i + 1 }}</span>
+          <div class="gc-step-b">
+            <b>{{ g.t }}</b>
+            <span>{{ g.d }}</span>
+          </div>
+          <span class="gc-go">›</span>
+        </div>
+      </div>
+    </div>
     <!-- 课程预告公告条（教师后台配置） -->
     <div v-if="notices.length" class="notice-strip" @click="noticeOpen = true">
       <span class="ns-ic">📢</span>
@@ -342,6 +382,33 @@ onBeforeUnmount(stopSlides)
 </template>
 
 <style scoped>
+/* —— 评委演示引导卡（首访）—— */
+.guide-card {
+  background: linear-gradient(120deg, #fff5f5, #ffffff 55%);
+  border: 1px solid #fbd9d9; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+}
+.gc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.gc-title { font-size: 14.5px; font-weight: 700; color: #9f1239; }
+.gc-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.gc-close {
+  border: none; background: #fff; color: var(--text-2); font-size: 11.5px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+.gc-close:hover { border-color: var(--primary); color: var(--primary); }
+.gc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.gc-step {
+  display: flex; align-items: center; gap: 8px; background: #fff; min-width: 0;
+  border: 1px solid var(--line); border-radius: 11px; padding: 9px 11px; cursor: pointer; transition: all .12s;
+}
+.gc-step:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(228,57,60,.08); transform: translateY(-1px); }
+.gc-ic { font-size: 17px; }
+.gc-num { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
+.gc-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.gc-step-b b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-step-b span { font-size: 11px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-go { font-size: 16px; color: var(--text-3); }
+@media (max-width: 1100px) { .gc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .gc-grid { grid-template-columns: minmax(0, 1fr); } }
 .kd-more { margin-left: auto; color: var(--text-3); font-size: 11px; }
 .kcard:hover .kd-more { color: var(--primary); }
 .home-kp {

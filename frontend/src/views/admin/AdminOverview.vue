@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, clusterColor } from '../../api'
+import { api, clusterColor, DEMO_GUIDE } from '../../api'
 
 const router = useRouter()
 const data = ref(null)
@@ -9,6 +9,16 @@ const err = ref('')
 const loading = ref(false)
 const lbTab = ref('points')
 const showReset = ref(false)
+
+// —— 评委演示引导（教师端首访卡）——
+const showGuide = ref(!localStorage.getItem('fl_guide_adm'))
+function dismissGuide() {
+  localStorage.setItem('fl_guide_adm', '1')
+  showGuide.value = false
+}
+function goGuide(g) {
+  router.push(g.to)
+}
 
 // —— 指标卡下钻 ——
 const expanded = ref('') // 'active' | 'questions' | ''
@@ -89,6 +99,28 @@ async function doReset() {
       <div style="margin-left: auto; display: flex; gap: 8px">
         <button class="btn sm ghost" @click="load">{{ loading ? '刷新中…' : '↻ 刷新' }}</button>
         <button class="btn sm danger-ghost" @click="showReset = true">演示数据重置</button>
+      </div>
+    </div>
+
+    <!-- 评委演示引导（教师端首访） -->
+    <div v-if="showGuide" class="guide-card">
+      <div class="gc-head">
+        <div>
+          <div class="gc-title">🎓 教师端演示路径 · 4 步</div>
+          <div class="gc-sub">布置 → 统计 → 错题分析 → AI 管理</div>
+        </div>
+        <button class="gc-close" @click="dismissGuide">不再显示</button>
+      </div>
+      <div class="gc-grid">
+        <div v-for="(g, i) in DEMO_GUIDE.teacher" :key="i" class="gc-step" @click="goGuide(g)">
+          <span class="gc-ic">{{ g.ic }}</span>
+          <span class="gc-num">{{ i + 1 }}</span>
+          <div class="gc-step-b">
+            <b>{{ g.t }}</b>
+            <span>{{ g.d }}</span>
+          </div>
+          <span class="gc-go">›</span>
+        </div>
       </div>
     </div>
 
@@ -272,6 +304,33 @@ async function doReset() {
 </template>
 
 <style scoped>
+/* —— 评委演示引导卡（教师端首访）—— */
+.guide-card {
+  background: linear-gradient(120deg, #fff5f5, #ffffff 55%);
+  border: 1px solid #fbd9d9; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+}
+.gc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.gc-title { font-size: 14.5px; font-weight: 700; color: #9f1239; }
+.gc-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.gc-close {
+  border: none; background: #fff; color: var(--text-2); font-size: 11.5px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+.gc-close:hover { border-color: var(--primary); color: var(--primary); }
+.gc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.gc-step {
+  display: flex; align-items: center; gap: 8px; background: #fff; min-width: 0;
+  border: 1px solid var(--line); border-radius: 11px; padding: 9px 11px; cursor: pointer; transition: all .12s;
+}
+.gc-step:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(228,57,60,.08); transform: translateY(-1px); }
+.gc-ic { font-size: 17px; }
+.gc-num { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
+.gc-step-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.gc-step-b b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-step-b span { font-size: 11px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-go { font-size: 16px; color: var(--text-3); }
+@media (max-width: 1100px) { .gc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .gc-grid { grid-template-columns: minmax(0, 1fr); } }
 /* 指标卡：可下钻 */
 .mcard.clickable { cursor: pointer; position: relative; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
 .mcard.clickable:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15, 23, 42, .10); border-color: #cbd5e1; }
