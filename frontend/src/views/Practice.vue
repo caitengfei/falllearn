@@ -130,6 +130,12 @@ function viewResult(t) {
       </div>
 
       <div>
+        <div class="pstat-row">
+          <div class="pstat"><div class="v mono">{{ summary.practice_count }}</div><div class="k">已完成组数</div></div>
+          <div class="pstat"><div class="v mono">{{ summary.last_score ?? '—' }}</div><div class="k">最近得分</div></div>
+          <div class="pstat"><div class="v mono">{{ summary.avg_score ?? '—' }}</div><div class="k">平均得分</div></div>
+          <div class="pstat warn" @click="menu = 'retrain'"><div class="v mono">{{ summary.wrong_active }}</div><div class="k">待复习错题 ›</div></div>
+        </div>
         <div class="pills">
           <span class="pill" :class="{ on: pill === 'all' }" @click="pill = 'all'">全部</span>
           <span class="pill" :class="{ on: pill === 'todo' }" @click="pill = 'todo'">未开始</span>
@@ -147,11 +153,8 @@ function viewResult(t) {
             <div style="margin-top: 7px">
               <span v-for="g in t.tag" :key="g" class="tag" :class="{ red: g.includes('针对性') || g.includes('限时'), gold: g.includes('对标') }">{{ g }}</span>
             </div>
-            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono" v-if="t.menu !== 'teacher'">
-              上次得分：{{ summary.last_score ?? '—' }} · 已完成 {{ summary.practice_count }} 组
-            </div>
-            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono" v-else>
-              教师已布置 · 完成后计入学习记录
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 7px" class="mono" v-if="t.menu === 'teacher'">
+              教师已布置 · 完成后计入学习记录与班级统计
             </div>
           </div>
           <button v-if="t.canStart" class="btn sm" :disabled="loading === t.id" @click="start(t)">
@@ -168,9 +171,17 @@ function viewResult(t) {
 
 <style scoped>
 .practice-grid { display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: start; }
+.pstat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.pstat { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.pstat .v { font-size: 19px; font-weight: 700; }
+.pstat .k { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.pstat.warn { cursor: pointer; transition: all .12s; }
+.pstat.warn .v { color: var(--primary); }
+.pstat.warn:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(228,57,60,.10); }
 @media (max-width: 640px) {
   .practice-grid { grid-template-columns: 1fr; }
   .menu-item { width: fit-content; }
+  .pstat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .menu-item {
   padding: 10px 14px; border-radius: 8px; font-size: 13.5px; color: var(--text-2);

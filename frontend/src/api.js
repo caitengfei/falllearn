@@ -185,14 +185,14 @@ quizWeak: () => request('/api/quiz/weak'),
   aiGrades: (attempt_id = 0) => request(`/api/admin/ai/grades?attempt_id=${attempt_id}`)
 }
 
-// 知识簇元信息（6 簇；general=护理通识仅用于题目展示映射）
+// 知识簇元信息（6 簇；general=护理通识仅用于题目展示映射）；short=知识地图卡封面缩写
 export const CLUSTERS = [
-  { id: 'morse', name: 'Morse评估', color: '#3B82F6' },
-  { id: 'env', name: '环境防控', color: '#22C55E' },
-  { id: 'five', name: '五步处置', color: '#E4393C' },
-  { id: 'fracture', name: '骨折识别', color: '#F5A623' },
-  { id: 'record', name: '记录上报', color: '#8B5CF6' },
-  { id: 'cpr', name: 'CPR启动', color: '#0EA5E9' }
+  { id: 'morse', name: 'Morse评估', short: '量表', color: '#3B82F6' },
+  { id: 'env', name: '环境防控', short: '环境', color: '#22C55E' },
+  { id: 'five', name: '五步处置', short: '五步', color: '#E4393C' },
+  { id: 'fracture', name: '骨折识别', short: '骨折', color: '#F5A623' },
+  { id: 'record', name: '记录上报', short: '记录', color: '#8B5CF6' },
+  { id: 'cpr', name: 'CPR启动', short: 'CPR', color: '#0EA5E9' }
 ]
 export const clusterColor = (id) => (CLUSTERS.find((c) => c.id === id) || {}).color || '#9CA3AF'
 export const clusterName = (id) => {

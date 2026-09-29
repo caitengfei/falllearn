@@ -68,7 +68,7 @@ async function doLogin() {
           <div class="dh-row">
             <button v-for="d in demos" :key="d.sno" class="dh-btn" @click="fill(d)">
               <span class="dh-tag" :class="{ t: d.tag === '教师' }">{{ d.tag }}</span>
-              {{ d.sno }}
+              {{ d.sno }}<span class="dh-name">{{ d.name }}</span>
             </button>
           </div>
         </div>
@@ -97,4 +97,5 @@ async function doLogin() {
   font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--primary-light); color: var(--primary);
 }
 .dh-tag.t { background: var(--gold-light); color: #b45309; }
+.dh-name { color: var(--text-3); font-size: 11.5px; margin-left: auto; white-space: nowrap; }
 </style>

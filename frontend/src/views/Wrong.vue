@@ -11,6 +11,13 @@ const picked = ref('')
 const reviewResult = ref(null)
 const busy = ref(false)
 
+// 首错日期：YYYY/MM/DD 零填充
+const pad = (n) => String(n).padStart(2, '0')
+function fmtDate(ts) {
+  const d = new Date(ts * 1000)
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
+}
+
 async function load() {
   loading.value = true
   try {
@@ -78,7 +85,7 @@ async function doReview() {
         <span v-if="x.due && pill === 'active'" class="tag red">今日到期</span>
         <span class="tag">{{ x.review_count }} 次复习</span>
         <span style="margin-left: auto; font-size: 12px; color: var(--text-3)" class="mono">
-          首错 {{ new Date(x.first_wrong_at * 1000).toLocaleDateString('zh-CN') }}
+          首错 {{ fmtDate(x.first_wrong_at) }}
         </span>
       </div>
       <div style="font-size: 14.5px; line-height: 1.75">{{ x.stem }}</div>

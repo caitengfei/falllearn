@@ -334,7 +334,7 @@ onBeforeUnmount(() => {
           <div class="kmap">
             <div v-for="c in kcards" :key="c.id" class="kcard" @click="openCluster = c.id">
               <span v-if="c.id === 'five' || c.id === 'fracture'" class="badge-corner">核心</span>
-              <div class="cover" :style="{ background: c.color }">{{ c.name.slice(0, 2) }}</div>
+              <div class="cover" :style="{ background: c.color }">{{ c.short || c.name.slice(0, 2) }}</div>
               <div class="kbody">
                 <div class="kname">{{ c.name }}</div>
                 <div class="kmeta"><span class="mono">{{ c.qcount }} 题</span><span>掌握 {{ c.level }}%</span></div>
