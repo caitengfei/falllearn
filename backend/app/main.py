@@ -122,6 +122,11 @@ async def spa(full_path: str):
             if full_path.startswith("assets/"):
                 return FileResponse(candidate, headers={"Cache-Control": "public, max-age=31536000, immutable"})
             return FileResponse(candidate)
+        # 安全收敛（2026-09-29 观测到 58.251.94.154 扫描 /dump.sql.lz、/backups.rar、
+        # /core/config/databases.yml、/pmd/index.php 等）：带文件扩展名的路径不可能是
+        # 前端客户端路由，一律 404，避免对扫描探测返回 200+index.html。
+        if "." in full_path.rsplit("/", 1)[-1]:
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
         idx = os.path.join(DIST, "index.html")
         if os.path.isfile(idx):
             return FileResponse(idx, headers={"Cache-Control": "no-cache"})

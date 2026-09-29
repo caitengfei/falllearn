@@ -143,9 +143,9 @@ with sync_playwright() as pw:
     check("/mine 无假学分", "90 天" not in p.inner_text("body"))
     p.screenshot(path=SHOT + "-mine.png", full_page=True)
 
-    # 404
+    # 404（wait_text 轮询：远程 RTT 高，goto 后 SPA 尚未渲染完，不能立刻断言）
     p.goto(BASE + "/nonexist-page", wait_until="domcontentloaded", timeout=30000)
-    check("404 页", "404" in p.inner_text("body") and "页面不存在" in p.inner_text("body"))
+    check("404 页", wait_text(p, "404 · 页面不存在"))
     p.screenshot(path=SHOT + "-404.png")
 
     # 学生访问 /admin 应被守卫弹回

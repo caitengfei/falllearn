@@ -110,7 +110,7 @@ function hi(s) {
     <div class="khead">
       <div>
         <div class="kt">知识库</div>
-        <div class="ks">26 份岗课赛证原始文档 · 全文检索 · 点击读原文</div>
+        <div class="ks">46 份岗课赛证原始文档 · 全文检索 · 点击读原文</div>
       </div>
       <input v-model="q" class="ksearch" placeholder="搜索文档内容，如：Morse 量表 / 制动 / 上报时限…" @input="onInput" @keyup.enter="search" />
     </div>

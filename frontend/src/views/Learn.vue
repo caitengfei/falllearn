@@ -263,7 +263,7 @@ onBeforeUnmount(() => {
     <div class="learn-grid">
       <!-- 左：对话 -->
       <div class="card chat-card">
-        <div class="card-title">🎓 AI 老师 <span class="more">答案均取材自 26 份知识库文档并标注来源</span></div>
+        <div class="card-title">🎓 AI 老师 <span class="more">答案均取材自 46 份知识库文档并标注来源</span></div>
         <div class="chat-flow">
           <div v-if="!flow.length" class="empty" style="padding: 70px 20px">
             <div style="font-size: 40px">👋</div>

@@ -88,7 +88,7 @@ else:
 
 # 20 知识库列表
 r = requests.get(BASE + "/api/admin/ai/kb", headers=H, timeout=10).json()
-check("知识库列表 26 文档", r["count"] >= 26, str(r["count"]))
+check("知识库列表 46 文档", r["count"] >= 46, str(r["count"]))
 
 # 21-26 教师布置闭环（教师建卷 → 学生开考/交卷 → 完成统计 → 重复开考拦截 → 删除清场）
 r = requests.post(BASE + "/api/admin/assignments", headers=H, json={"title": "回归测试·五步处置专项", "clusters": ["five"], "n": 5, "minutes": 10, "due_days": 7}, timeout=10).json()
@@ -116,7 +116,7 @@ check("流式端点鉴权", r.status_code == 401, str(r.status_code))
 
 # 28-31 知识库（学生端 /api/kb：目录/检索/原文/防穿越）
 r = requests.get(BASE + "/api/kb/search", headers=H, timeout=15).json()
-check("知识库目录 26 份", r.get("total") == 26, str(r.get("total")))
+check("知识库目录 46 份", r.get("total") == 46, str(r.get("total")))
 r = requests.get(BASE + "/api/kb/search", params={"q": "Morse 量表"}, headers=H, timeout=15).json()
 check("知识库检索", r.get("total", 0) >= 3, f'{r.get("total")} 条')
 r = requests.get(BASE + "/api/kb/doc", params={"path": "02-课/知识点梳理.md"}, headers=H, timeout=15)

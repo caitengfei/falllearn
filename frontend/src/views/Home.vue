@@ -46,7 +46,7 @@ const CTA_BY_LINK = { '/learn': '开始学习', '/practice': '去练习', '/prac
 const slides = ref([
   { tag: '世赛 × 省赛 GZ063 双对标', title: '老年人跌倒 · 预防与应急处置', sub: '岗课赛证融通 · 把技能学成肌肉记忆', cta: '开始学习', to: '/learn', grad: GRADS[0], ic: '🛡', image: '' },
   { tag: '限时 12 分钟 · 100 分', title: '12 分钟理论模拟考', sub: '按竞赛口径组卷 · 倒计时交卷 · 逐题解析入错题本', cta: '去模拟考', to: '/practice?menu=mock', grad: GRADS[1], ic: '⏱', image: '' },
-  { tag: '26 份真实文档', title: '比赛资料 · 官方规程与评分标准', sub: '世赛/省赛规程 · M8 六项评分 · 常见扣分点 · 三证考核标准', cta: '查看资料', to: '/competition', grad: GRADS[2], ic: '🏆', image: '' },
+  { tag: '46 份真实文档', title: '比赛资料 · 官方规程与评分标准', sub: '世赛/全国赛/省赛规程与正式赛题 · M8 评分 · 三证国标与题库', cta: '查看资料', to: '/competition', grad: GRADS[2], ic: '🏆', image: '' },
   { tag: '间隔复习 · 连对 2 次掌握', title: '错题本 · 次日到期 → 第 3 天', sub: '每道错题自动入本 · 重答 / 讲解双模式 · 掌握后自动归档', cta: '去复习', to: '/wrong', grad: GRADS[3], ic: '📕', image: '' }
 ])
 const notices = ref([])
