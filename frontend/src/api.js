@@ -148,6 +148,7 @@ quizWeak: () => request('/api/quiz/weak'),
   studentUpdate: (id, s) => request(`/api/admin/students/${id}`, { method: 'PUT', body: s }),
   accounts: () => request('/api/admin/accounts'),
   accountCreate: (a) => request('/api/admin/accounts', { method: 'POST', body: a }),
+  accountBatch: (a) => request('/api/admin/accounts/batch', { method: 'POST', body: a }),
   accountUpdate: (id, a) => request(`/api/admin/accounts/${id}`, { method: 'PUT', body: a }),
   accountDelete: (id) => request(`/api/admin/accounts/${id}`, { method: 'DELETE' }),
 

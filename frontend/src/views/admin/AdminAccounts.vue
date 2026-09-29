@@ -58,6 +58,24 @@ async function remove(a) {
     toast('已删除')
   } catch (e) { alert(e.message) }
 }
+
+// —— 批量发号（真实试用 / 班级批量建学生账号）——
+const batchOpen = ref(false)
+const batchBusy = ref(false)
+const batchForm = ref({ prefix: 'S20261', count: 10, password: '123456', name_tpl: '同学{seq}' })
+const batchRes = ref(null)
+async function doBatch() {
+  const f = batchForm.value
+  const n = Math.floor(Number(f.count))
+  if (!n || n < 1 || n > 100) return alert('数量填 1–100')
+  batchBusy.value = true
+  batchRes.value = null
+  try {
+    const r = await api.accountBatch({ prefix: f.prefix.trim(), count: n, password: f.password, name_tpl: f.name_tpl || '同学{seq}' })
+    batchRes.value = r
+    await load()
+  } catch (e) { alert(e.message) } finally { batchBusy.value = false }
+}
 </script>
 
 <template>
@@ -69,6 +87,28 @@ async function remove(a) {
     </div>
 
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
+
+    <div class="card" style="margin-bottom: 14px">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+        <b style="font-size: 14px">👥 批量发号</b>
+        <span style="font-size: 12px; color: var(--text-3)">真实试用 / 班级批量创建学生账号（单次 ≤100，已存在自动跳过）</span>
+        <button class="btn sm ghost" style="margin-left: auto" @click="batchOpen = !batchOpen">{{ batchOpen ? '收起 ▴' : '展开 ▾' }}</button>
+      </div>
+      <div v-if="batchOpen" style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: flex-end">
+        <div class="field" style="width: 150px"><label>学号前缀（+两位序号）</label><input v-model="batchForm.prefix" placeholder="S20261" /></div>
+        <div class="field" style="width: 90px"><label>数量</label><input v-model="batchForm.count" /></div>
+        <div class="field" style="width: 110px"><label>初始密码</label><input v-model="batchForm.password" /></div>
+        <div class="field" style="width: 150px"><label>姓名模板（{seq}=序号）</label><input v-model="batchForm.name_tpl" placeholder="同学{seq}" /></div>
+        <button class="btn sm" :disabled="batchBusy" @click="doBatch">{{ batchBusy ? '创建中…' : '批量创建' }}</button>
+      </div>
+      <div v-if="batchRes" style="margin-top: 12px; font-size: 12.5px; line-height: 1.9">
+        <span v-if="batchRes.created" style="color: #16a34a; font-weight: 600">✓ 已创建 {{ batchRes.created }} 个</span>
+        <span v-if="batchRes.skipped && batchRes.skipped.length" style="color: #b45309; margin-left: 8px">跳过（已存在）：{{ batchRes.skipped.join(' ') }}</span>
+        <div v-if="batchRes.items && batchRes.items.length" style="font-family: ui-monospace, monospace; color: var(--text-2); background: var(--bg); border-radius: 8px; padding: 8px 12px; margin-top: 6px; word-break: break-all">
+          {{ batchRes.items.join('　') }}
+        </div>
+      </div>
+    </div>
 
     <div class="card">
       <table class="atable">

@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import os
+import re
 import time
 import uuid
 
@@ -535,6 +536,38 @@ def accounts_create(a: AccountIn, u: dict = Depends(require_teacher)):
     d.commit()
     d.close()
     return {"ok": True, "id": cur.lastrowid, "student_no": sno}
+
+
+class AccountBatchIn(BaseModel):
+    count: int = 10
+    prefix: str = "S20261"       # 学号前缀，后接两位序号（如 S20261 01..30）
+    password: str = "123456"
+    name_tpl: str = "同学{seq}"  # 姓名模板，{seq}=序号（真实试用前请替换为真实姓名模板）
+
+
+@router.post("/accounts/batch")
+def accounts_batch(b: AccountBatchIn, u: dict = Depends(require_teacher)):
+    """批量创建学生账号（真实试用 / 教学批量发号）。已存在的学号跳过不报错。"""
+    import bcrypt
+    if not 1 <= b.count <= 100:
+        raise HTTPException(400, "单次批量 1–100 个")
+    if not re.match(r"^[A-Za-z0-9]{2,12}$", b.prefix):
+        raise HTTPException(400, "前缀仅支持字母/数字（2–12 位）")
+    h = bcrypt.hashpw(b.password.encode(), bcrypt.gensalt(10)).decode()
+    d = db.get_db()
+    made, skipped = [], []
+    for i in range(1, b.count + 1):
+        sno = f"{b.prefix}{i:02d}"
+        if d.execute("SELECT 1 FROM users WHERE student_no=?", (sno,)).fetchone():
+            skipped.append(sno)
+            continue
+        name = b.name_tpl.replace("{seq}", str(i))
+        d.execute("INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,1,?)",
+                  (sno, name, "student", h, int(time.time())))
+        made.append(sno)
+    d.commit()
+    d.close()
+    return {"ok": True, "created": len(made), "skipped": skipped, "items": made}
 
 
 @router.delete("/accounts/{uid}")
