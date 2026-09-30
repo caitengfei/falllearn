@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.datastructures import MutableHeaders
 
 from . import db
 from .auth import router as auth_router  # noqa: F401
@@ -83,6 +84,13 @@ async def security_headers(_: Request, call_next):
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")
     resp.headers.setdefault("Permissions-Policy",
                             "geolocation=(), camera=(), microphone=(self), payment=()")
+    # 不回显服务器/框架版本（deep_scan 发现原响应头为 `server: uvicorn`，属信息泄露最小化项）。
+    # 注意两点：① resp.headers 是只读视图（赋值会变成 "uvicorn, falllearn"），须用 MutableHeaders(raw=...) 替换；
+    # ② 中间件里任何异常都会让**所有**请求 500，故此处 try 兜底（改不掉头也不影响业务）。
+    try:
+        MutableHeaders(raw=resp.raw_headers)["server"] = "falllearn"
+    except Exception:  # noqa: BLE001（尽力而为的信息泄露最小化，失败不阻断响应）
+        pass
     return resp
 
 
@@ -176,7 +184,18 @@ async def spa(full_path: str):
             if full_path.startswith("assets/"):
                 return FileResponse(candidate, headers={"Cache-Control": "public, max-age=31536000, immutable"})
             return FileResponse(candidate)
-        # 安全收敛（2026-09-29 观测到 58.251.94.154 扫描 /dump.sql.lz、/backups.rar、
+        # 到这里说明 dist 下**没有**这个文件，才做安全判定（顺序很重要：
+        # 若把黑名单放在文件命中之前，/assets/ 之类目录名会把真实的 JS/CSS 一起屏蔽掉）。
+        # ① 敏感路径黑名单（deep_scan 发现原实现把这些也回退成 200+index.html，虽无真实泄露，
+        #    但会给扫描器/人工审计"该路径存在"的误读）：.git、jwt_secret、uploads/ 等一律 404。
+        _head = full_path.split("/")[0].lower()
+        if (_head.startswith(".")
+                or _head in ("backend", "app", "data", "logs", "uploads", "venv", "node_modules",
+                             "__pycache__", "static", "config", "dist", "tests", "tools", "assets")
+                or full_path.lower() in ("jwt_secret", "requirements.txt", "falllearn.db", ".env",
+                                         "wp-login.php", "config.php", "phpinfo.php")):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        # ② 安全收敛（2026-09-29 观测到 58.251.94.154 扫描 /dump.sql.lz、/backups.rar、
         # /core/config/databases.yml、/pmd/index.php 等）：带文件扩展名的路径不可能是
         # 前端客户端路由，一律 404，避免对扫描探测返回 200+index.html。
         if "." in full_path.rsplit("/", 1)[-1]:
