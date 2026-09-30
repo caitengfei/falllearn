@@ -41,10 +41,12 @@ sj = requests.post(BASE + "/api/auth/login",
                    json={"student_no": "S2026001", "password": "123456"}, timeout=15).json()
 SH = {"authorization": "Bearer " + sj["token"]}
 me = requests.get(BASE + "/api/auth/me", headers=SH, timeout=15).json()
-check("学生档案（v3 基线 219 分）", me.get("points") == 219, me.get("points"))
-check("完成练习数 = 2", me.get("practice_count") == 2, me.get("practice_count"))
+# 断言口径（2026-09-30 修正）：真实班级试用后数据会增长，故只校验「不低于演示基线 / 结构正确」，
+# 不锁死具体数值（原写法 =219 / =2 / =6 在试用开始后必然误报）
+check("学生档案可访问（积分 ≥ 演示基线 219）", (me.get("points") or 0) >= 219, me.get("points"))
+check("完成练习数 ≥ 2", (me.get("practice_count") or 0) >= 2, me.get("practice_count"))
 wl = requests.get(BASE + "/api/wrong?status=active", headers=SH, timeout=15).json()
-check("待复习错题 = 6", len(wl.get("items", [])) == 6, len(wl.get("items", [])))
+check("错题本接口可用（返回列表）", isinstance(wl.get("items"), list), len(wl.get("items", [])))
 kb = requests.get(BASE + "/api/kb/search", params={"q": ""}, headers=SH, timeout=20).json()
 check("知识库 46 份", kb.get("total") == 46, kb.get("total"))
 acc = requests.get(BASE + "/api/admin/accounts", headers=TH, timeout=15).json()
