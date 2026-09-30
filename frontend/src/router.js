@@ -4,6 +4,8 @@ import { auth } from './api'
 const T = { role: 'teacher' }
 const routes = [
   { path: '/login', component: () => import('./views/Login.vue'), meta: { public: true } },
+  // 邀请码自助注册（学生）：/register?code=FD-XXXXXX
+  { path: '/register', component: () => import('./views/Register.vue'), meta: { public: true } },
   { path: '/', component: () => import('./views/Home.vue') },
   { path: '/learn', component: () => import('./views/Learn.vue') },
   { path: '/kb', component: () => import('./views/Kb.vue') },

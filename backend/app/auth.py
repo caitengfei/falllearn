@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-"""登录鉴权：bcrypt + JWT（30 天），student/teacher 角色"""
+"""登录鉴权：bcrypt + JWT（30 天），student/teacher 角色；含邀请码自助注册。"""
 import os
 import secrets as _secrets
+import sqlite3
 import time
 
 import bcrypt
@@ -169,3 +170,105 @@ def me(u: dict = Depends(current_user)):
 @router.post("/logout")
 def logout(u: dict = Depends(current_user)):
     return {"ok": True}
+
+
+# ---------- 邀请码自助注册（学生批量加入 · 最小化隐私采集） ----------
+# 限流口径（重要）：**成功注册不计数、成功即清零**，只限制「失败尝试」。
+# 原因：学校机房/教室几十名学生常共用同一出口 IP，若按尝试次数限流会误伤整班注册；
+# 邀请码本身已有人数上限，爆破风险由「失败次数上限」覆盖。
+REG_FAIL_MAX = 20      # 同 IP 10 分钟内失败尝试上限（防脚本猜邀请码）
+REG_WINDOW = 600
+_REG_FAIL: dict = {}
+# 昵称禁用词：防止用「管理员 / 老师」等字样冒充身份（不做实名要求，鼓励使用昵称）
+_RESERVED_NAMES = ("管理员", "老师", "教师", "admin", "teacher", "系统", "官方")
+
+
+class RegisterIn(BaseModel):
+    code: str = Field(min_length=4, max_length=32)
+    name: str = Field(min_length=1, max_length=20)
+    password: str = Field(min_length=6, max_length=128)
+
+
+def _reg_fail_allow(ip: str, now: int) -> bool:
+    """失败尝试限流：记录一次尝试；连续失败达上限则拒绝（10 分钟窗口）。"""
+    hist = [t for t in _REG_FAIL.get(ip, []) if now - t < REG_WINDOW]
+    if len(hist) >= REG_FAIL_MAX:
+        _REG_FAIL[ip] = hist
+        return False
+    hist.append(now)
+    _REG_FAIL[ip] = hist
+    if len(_REG_FAIL) > 2000:  # 内存有界（防伪造源 IP 撑爆进程内存）
+        for k in [k for k, ts in _REG_FAIL.items() if not ts or now - ts[-1] > REG_WINDOW]:
+            _REG_FAIL.pop(k, None)
+    return True
+
+
+def _gen_student_no(d) -> str:
+    """生成平台内学号（S + 年份 + 3 位序号，如 S2026004）。
+
+    隐私设计：不要求学生填真实学号——平台内编号与学校学籍号解耦，教师通过线下名单对应即可。
+    """
+    prefix = "S" + time.strftime("%Y")
+    mx = 0
+    for r in d.execute("SELECT student_no FROM users WHERE student_no LIKE ?", (prefix + "%",)):
+        s = str(r["student_no"])[len(prefix):]
+        if s.isdigit():
+            mx = max(mx, int(s))
+    return f"{prefix}{mx + 1:03d}"
+
+
+@router.post("/register")
+def register(body: RegisterIn, request: Request):
+    """用邀请码自助注册（学生）：只需昵称 + 自设密码，注册成功即自动登录。
+
+    隐私：不采集手机号、邮箱、身份证、真实姓名；密码 bcrypt 哈希存储；数据仅存服务器本地。
+    """
+    ip = request.client.host if request.client else "?"
+    now = int(time.time())
+    if not _reg_fail_allow(ip, now):
+        raise HTTPException(429, "注册尝试过于频繁，请稍后再试")
+    code = body.code.strip().upper().replace(" ", "")
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "请填写昵称")
+    low = name.lower()
+    if any(w in low for w in _RESERVED_NAMES):
+        raise HTTPException(400, "昵称不能包含「管理员 / 老师」等字样")
+    d = db.get_db()
+    try:
+        inv = d.execute("SELECT * FROM invite_codes WHERE code=?", (code,)).fetchone()
+        if not inv or not inv["enabled"]:
+            raise HTTPException(400, "邀请码无效，请向老师确认")
+        if int(inv["expires_at"]) < now:
+            raise HTTPException(400, "邀请码已过期，请向老师索取新的邀请码")
+        if int(inv["used_count"]) >= int(inv["max_uses"]):
+            raise HTTPException(400, "邀请码使用人数已达上限，请向老师索取新的邀请码")
+        h = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt(10)).decode()
+        # 并发闸门①：条件更新占名额——多人同时注册时只有前 max_uses 个能成功（避免名额超发）
+        cur = d.execute("UPDATE invite_codes SET used_count=used_count+1 "
+                        "WHERE id=? AND used_count < max_uses", (inv["id"],))
+        if cur.rowcount == 0:
+            d.rollback()
+            raise HTTPException(400, "邀请码使用人数已达上限，请向老师索取新的邀请码")
+        # 并发闸门②：学号由「当前最大序号 +1」生成，两个并发请求可能算出同一号 → 唯一约束冲突自动换号重试
+        sno = ""
+        for _ in range(4):
+            sno = _gen_student_no(d)
+            try:
+                d.execute("INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,1,?)",
+                          (sno, name, "student", h, now))
+                break
+            except sqlite3.IntegrityError:
+                sno = ""
+        if not sno:
+            d.rollback()
+            raise HTTPException(503, "当前注册人数较多，请稍后重试")
+        uid = d.execute("SELECT id FROM users WHERE student_no=?", (sno,)).fetchone()["id"]
+        d.commit()
+        u = d.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    except HTTPException:
+        d.close()
+        raise
+    d.close()
+    _REG_FAIL.pop(ip, None)  # 注册成功即清零失败计数（共享出口 IP 下允许整班连续注册）
+    return {"token": _token(u), "user": _pub(u), "generated_student_no": sno}

@@ -18,7 +18,45 @@ async function load() {
     err.value = e.message // 页面级错误条 + 重试（表格空着时不能只弹 3 秒 toast）
   }
 }
-onMounted(load)
+onMounted(() => { load(); loadInvites() })
+
+// —— 邀请码（推荐方式：学生自助加入，教师不必逐个发号）——
+const invites = ref([])
+const invOpen = ref(false)
+const invBusy = ref(false)
+const invForm = ref({ note: '', max_uses: 60, days: 30 })
+const invNew = ref(null)
+async function loadInvites() {
+  try {
+    invites.value = (await api.invites()).items || []
+  } catch (e) { /* 邀请码加载失败不阻塞账号表 */ }
+}
+async function doCreateInvite() {
+  invBusy.value = true
+  invNew.value = null
+  try {
+    invNew.value = await api.inviteCreate({
+      note: (invForm.value.note || '').trim(),
+      max_uses: Math.floor(Number(invForm.value.max_uses)) || 60,
+      days: Math.floor(Number(invForm.value.days)) || 30,
+    })
+    await loadInvites()
+    toast('邀请码已生成')
+  } catch (e) { alert(e.message) } finally { invBusy.value = false }
+}
+async function toggleInvite(it) {
+  try { await api.inviteUpdate(it.id, it.enabled ? 0 : 1); await loadInvites() } catch (e) { alert(e.message) }
+}
+async function delInvite(it) {
+  if (!confirm(`删除邀请码 ${it.code}？（已注册的学生账号不受影响）`)) return
+  try { await api.inviteDelete(it.id); await loadInvites(); toast('已删除') } catch (e) { alert(e.message) }
+}
+function copyText(t) {
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板'), () => alert(t))
+  else alert(t)
+}
+const inviteLink = (p) => location.origin + p
+const fmtDay = (ts) => new Date(ts * 1000).toLocaleDateString('zh-CN')
 
 function fmt(t) { return t ? new Date(t * 1000).toLocaleDateString('zh-CN') : '' }
 
@@ -92,6 +130,61 @@ async function doBatch() {
 
     <div v-if="toastMsg" class="toast">{{ toastMsg }}</div>
     <div v-if="err" class="card" style="border-color: #fca5a5; color: #b91c1c; margin-bottom: 14px">加载失败：{{ err }} <button class="btn sm" style="margin-left: 12px" @click="load">重试</button></div>
+
+    <!-- 邀请码：学生自助注册（推荐；较逐个发号更省事，且隐私采集最小化） -->
+    <div class="card" style="margin-bottom: 14px; border-color: #bbf7d0; background: linear-gradient(120deg, #f0fdf4, #ffffff 60%)">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+        <b style="font-size: 14px">🎟 邀请码 · 学生自助加入</b>
+        <span style="font-size: 12px; color: var(--text-3)">
+          生成班级邀请码让学生自行注册：只需昵称 + 自设密码，不采集手机号/邮箱/身份证，学号由平台分配
+        </span>
+        <button class="btn sm ghost" style="margin-left: auto" @click="invOpen = !invOpen">{{ invOpen ? '收起 ▴' : '展开 ▾' }}</button>
+      </div>
+
+      <div v-if="invOpen" style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: flex-end">
+        <div class="field" style="width: 200px"><label>班级备注（仅教师可见）</label><input v-model="invForm.note" placeholder="如：2026 级养老 1 班" /></div>
+        <div class="field" style="width: 110px"><label>人数上限</label><input v-model="invForm.max_uses" /></div>
+        <div class="field" style="width: 110px"><label>有效期（天）</label><input v-model="invForm.days" /></div>
+        <button class="btn sm" :disabled="invBusy" @click="doCreateInvite">{{ invBusy ? '生成中…' : '生成邀请码' }}</button>
+      </div>
+
+      <div v-if="invNew" style="margin-top: 12px; font-size: 13px">
+        <div style="color: #15803d; font-weight: 700">✓ 邀请码：<span class="mono" style="font-size: 15px">{{ invNew.code }}</span></div>
+        <div style="margin-top: 6px; font-size: 12.5px; color: var(--text-2)">
+          学生注册链接：<span class="mono">{{ inviteLink(invNew.path) }}</span>
+          <button class="btn sm ghost" style="margin-left: 8px" @click="copyText(inviteLink(invNew.path))">复制链接</button>
+          <button class="btn sm ghost" style="margin-left: 6px" @click="copyText(invNew.code)">只复制码</button>
+        </div>
+        <div style="margin-top: 6px; font-size: 12px; color: var(--text-3)">
+          把链接或邀请码发到班级群即可（二维码可用任意工具对链接生成）
+        </div>
+      </div>
+
+      <div v-if="invites.length" style="margin-top: 12px; overflow-x: auto">
+        <table class="atable">
+          <thead><tr><th>邀请码</th><th>备注</th><th>已用 / 上限</th><th>有效期至</th><th>状态</th><th style="width: 190px">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="it in invites" :key="it.id">
+              <td class="num">{{ it.code }}</td>
+              <td>{{ it.note || '—' }}</td>
+              <td>{{ it.used_count }} / {{ it.max_uses }}</td>
+              <td style="font-size: 12px; color: var(--text-3)">{{ fmtDay(it.expires_at) }}</td>
+              <td>
+                <span v-if="!it.enabled" class="tag">已停用</span>
+                <span v-else-if="it.expired" class="tag">已过期</span>
+                <span v-else-if="it.full" class="tag">已满</span>
+                <span v-else class="tag green">可用</span>
+              </td>
+              <td><div class="op">
+                <button @click="copyText(inviteLink(it.path))">复制链接</button>
+                <button v-if="it.mine" @click="toggleInvite(it)">{{ it.enabled ? '停用' : '启用' }}</button>
+                <button v-if="it.mine" class="danger" @click="delInvite(it)">删除</button>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <div class="card" style="margin-bottom: 14px">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">

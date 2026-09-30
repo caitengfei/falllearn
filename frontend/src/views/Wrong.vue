@@ -42,8 +42,75 @@ function openRedo(q) {
   picked.value = ''
   reviewResult.value = null
 }
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+/** 生成独立可打印 HTML（错题复习清单）。 */
+function buildPrintHtml() {
+  const rows = list.value.map((x, idx) => `
+    <div class="q">
+      <div class="meta">
+        <span class="tag">${idx + 1}. ${escapeHtml(clusterName(x.cluster))}</span>
+        <span>${escapeHtml(x.type || '单选')}</span>
+        ${x.status === 'mastered' ? '<span class="ok">已掌握 ✓</span>' : ''}
+        <span>${x.review_count} 次复习</span>
+        <span class="date">首错 ${fmtDate(x.first_wrong_at)}</span>
+      </div>
+      <div class="stem">${escapeHtml(x.stem)}</div>
+      <div class="opts">${(x.options || []).map((o, i) => `<div>${'ABCD'[i]}. ${escapeHtml(o)}</div>`).join('')}</div>
+      <div class="src">来源：${escapeHtml(shortSource(x.source_doc))}${x.answer ? `　正确答案：<b>${escapeHtml(x.answer)}</b>` : ''}</div>
+    </div>`).join('')
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>错题复习清单 · 防跌学堂</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;margin:28px;color:#1f2430;line-height:1.7}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:#5f6875;font-size:12px;margin-bottom:18px}
+  .q{border:1px solid #e6e8ec;border-radius:8px;padding:12px 14px;margin-bottom:12px;page-break-inside:avoid}
+  .meta{font-size:11.5px;color:#5f6875;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .tag{background:#fdeaea;color:#c62828;border-radius:4px;padding:1px 6px}
+  .ok{color:#15803d;font-weight:700}
+  .date{margin-left:auto}
+  .stem{font-size:14px}
+  .opts{font-size:13px;color:#3f4652;margin-top:6px}
+  .src{font-size:11.5px;color:#5f6875;margin-top:8px}
+  .src b{color:#15803d}
+  @media print{body{margin:12mm}.q{border-color:#ddd}}
+</style></head><body>
+<h1>错题复习清单${pill.value === 'active' ? '（待复习）' : '（已掌握）'}</h1>
+<div class="sub">共 ${list.value.length} 题 · 导出时间 ${new Date().toLocaleString('zh-CN')} · 防跌学堂</div>
+${rows || '<div class="q">暂无错题</div>'}
+</body></html>`
+}
+
+/**
+ * 打印 / 导出 PDF。
+ * 原实现直接 window.print()：在浏览器「应用窗口」（Chrome/Edge 的 PWA 应用模式）下会提示
+ * "此应用不支持打印预览"（同事审核建议 5）。现改为在新窗口渲染独立可打印文档再打印；
+ * 弹窗被拦截时降级为下载 HTML 文件（双击打开后可打印或另存 PDF）。
+ */
 function printPage() {
-  window.print() // 打印样式已隐藏导航/按钮，输出即复习清单（可直接另存 PDF）
+  const html = buildPrintHtml()
+  let w = null
+  try { w = window.open('', '_blank') } catch (e) { w = null }
+  if (w && w.document) {
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => { try { w.print() } catch (e) { /* 打印被拦截时用户可手动 Ctrl+P */ } }, 400)
+    return
+  }
+  const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = `错题复习清单_${new Date().toISOString().slice(0, 10)}.html`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+  window.alert('打印窗口被浏览器拦截，已下载「错题复习清单.html」：双击打开后可打印或另存为 PDF。')
 }
 function shortSource(s) {
   if (!s) return ''

@@ -1008,3 +1008,93 @@ def stats_wrong(u: dict = Depends(require_teacher)):
         wrong_by_cluster.sort(key=lambda x: -(x["active"] + x["mastered"]))
     d.close()
     return {"top_wrong": top_wrong, "correct_rate": correct_rate, "wrong_by_cluster": wrong_by_cluster}
+
+
+# ---------- 邀请码（学生自助批量加入 · 替代逐个建号） ----------
+class InviteIn(BaseModel):
+    note: str = ""          # 备注（如「2026 级养老 1 班」）
+    max_uses: int = 60      # 人数上限
+    days: int = 30          # 有效期（天）
+
+
+@router.post("/invites")
+def invites_create(b: InviteIn, u: dict = Depends(require_teacher)):
+    """生成邀请码：学生凭「邀请码 + 昵称 + 自设密码」自助注册，教师无需逐个建号。"""
+    import secrets
+    if not 1 <= b.max_uses <= 500:
+        raise HTTPException(400, "人数上限 1–500")
+    if not 1 <= b.days <= 365:
+        raise HTTPException(400, "有效期 1–365 天")
+    note = (b.note or "").strip()[:40]
+    d = db.get_db()
+    now = int(time.time())
+    # 去掉易混字符（0/O、1/I/L）的 6 位码：FD-XXXXXX
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    code = ""
+    for _ in range(8):
+        code = "FD-" + "".join(secrets.choice(alphabet) for _ in range(6))
+        if not d.execute("SELECT 1 FROM invite_codes WHERE code=?", (code,)).fetchone():
+            break
+    exp = now + b.days * 86400
+    d.execute("INSERT INTO invite_codes(code,note,created_by,max_uses,used_count,expires_at,enabled,created_at) "
+              "VALUES(?,?,?,?,0,?,1,?)", (code, note, u["id"], b.max_uses, exp, now))
+    d.commit()
+    d.close()
+    return {"ok": True, "code": code, "note": note, "max_uses": b.max_uses,
+            "expires_at": exp, "path": f"/register?code={code}"}
+
+
+@router.get("/invites")
+def invites_list(u: dict = Depends(require_teacher)):
+    d = db.get_db()
+    rows = d.execute("SELECT * FROM invite_codes ORDER BY id DESC LIMIT 50").fetchall()
+    d.close()
+    now = int(time.time())
+    items = []
+    for r in rows:
+        items.append({
+            "id": r["id"], "code": r["code"], "note": r["note"], "created_by": r["created_by"],
+            "max_uses": r["max_uses"], "used_count": r["used_count"],
+            "expires_at": r["expires_at"], "enabled": bool(r["enabled"]),
+            "expired": int(r["expires_at"]) < now,
+            "full": int(r["used_count"]) >= int(r["max_uses"]),
+            "mine": int(r["created_by"] or 0) == int(u["id"]),
+            "path": f"/register?code={r['code']}",
+        })
+    return {"items": items}
+
+
+class InvitePatch(BaseModel):
+    enabled: int
+
+
+@router.put("/invites/{iid}")
+def invites_update(iid: int, b: InvitePatch, u: dict = Depends(require_teacher)):
+    d = db.get_db()
+    row = d.execute("SELECT * FROM invite_codes WHERE id=?", (iid,)).fetchone()
+    if not row:
+        d.close()
+        raise HTTPException(404, "邀请码不存在")
+    if int(row["created_by"] or 0) != int(u["id"]):
+        d.close()
+        raise HTTPException(403, "只能操作自己生成的邀请码")  # 横向越权防护
+    d.execute("UPDATE invite_codes SET enabled=? WHERE id=?", (1 if b.enabled else 0, iid))
+    d.commit()
+    d.close()
+    return {"ok": True}
+
+
+@router.delete("/invites/{iid}")
+def invites_delete(iid: int, u: dict = Depends(require_teacher)):
+    d = db.get_db()
+    row = d.execute("SELECT * FROM invite_codes WHERE id=?", (iid,)).fetchone()
+    if not row:
+        d.close()
+        raise HTTPException(404, "邀请码不存在")
+    if int(row["created_by"] or 0) != int(u["id"]):
+        d.close()
+        raise HTTPException(403, "只能删除自己生成的邀请码")
+    d.execute("DELETE FROM invite_codes WHERE id=?", (iid,))
+    d.commit()
+    d.close()
+    return {"ok": True}

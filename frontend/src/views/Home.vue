@@ -84,7 +84,9 @@ function startSlides() {
 function stopSlides() { if (slideTimer) { clearInterval(slideTimer); slideTimer = null } }
 function goSlide(i) { slideIdx.value = i; startSlides() }
 
-// ---------- 九宫格 ----------
+// ---------- 功能入口（7 项）----------
+// 说明：原为 9 宫格，其中「学习日历」「排行榜」两项点击只是滚动到下方已展示的同一内容
+// （同事审核建议 2：入口与其指向内容重复），已删除这两个入口为界面减负。
 const icons = [
   { ic: '🗣', bg: '#3b82f6', lbl: 'AI 问答', to: '/learn' },
   { ic: '🗺', bg: '#8b5cf6', lbl: '知识地图', to: '/learn' },
@@ -92,14 +94,10 @@ const icons = [
   { ic: '⏱', bg: '#f5a623', lbl: '12 分钟模拟考', to: '/practice?menu=mock' },
   { ic: '🏆', bg: '#0ea5e9', lbl: '比赛资料', to: '/competition' },
   { ic: '📕', bg: '#ef4444', lbl: '错题本', to: '/wrong' },
-  { ic: '📅', bg: '#22c55e', lbl: '学习日历', act: 'cal' },
-  { ic: '🏅', bg: '#f5a623', lbl: '排行榜', act: 'rank' },
   { ic: '📊', bg: '#64748b', lbl: '掌握度报告', to: '/mine' }
 ]
 function iconGo(it) {
-  if (it.act === 'cal') document.getElementById('cal-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  else if (it.act === 'rank') document.getElementById('rank-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  else router.push(it.to)
+  router.push(it.to)
 }
 
 // ---------- 知识卡片（6 簇 · 真实题量 + 掌握度进度条 + 点击原地详解） ----------

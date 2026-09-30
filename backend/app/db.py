@@ -203,6 +203,19 @@ def _migrate(db):
                    "SELECT MAX(id) FROM attempts WHERE status='open' GROUP BY student_id, exam_id)")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_attempts_open_uq "
                    "ON attempts(student_id, exam_id) WHERE status='open'")
+    # 邀请码（学生自助批量加入）：只需昵称 + 自设密码，学号由平台生成（不采集手机/邮箱/身份证/真实姓名）
+    db.execute("""CREATE TABLE IF NOT EXISTS invite_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        note TEXT DEFAULT '',
+        created_by INTEGER,
+        max_uses INTEGER NOT NULL DEFAULT 60,
+        used_count INTEGER NOT NULL DEFAULT 0,
+        expires_at INTEGER NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_invite_code ON invite_codes(code)")
     db.commit()
 
 

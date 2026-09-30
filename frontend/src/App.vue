@@ -125,7 +125,8 @@ function goGuide(g) {
     <template v-if="isAdmin">
       <div class="admin-wrap">
         <aside class="admin-side">
-          <div class="side-head"><span class="logo-mark">跌</span> 管理后台</div>
+          <!-- 侧栏标题：品牌与角色已在顶栏呈现（"防跌学堂 / 教师管理后台"），此处不再重复 logo 与"管理后台"字样 -->
+          <div class="side-head">教学管理</div>
           <template v-for="g in sideNav" :key="g.group">
             <div class="side-group">{{ g.group }}</div>
             <router-link v-for="it in g.items" :key="it.to" :to="it.to">

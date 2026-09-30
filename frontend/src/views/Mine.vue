@@ -7,8 +7,10 @@ const pointsLog = ref([])
 const badges = ref([])
 
 function radarPoints() {
+  // 画布 320×300（原 260×260）：原布局下右侧「环境防控 99」等标签超出画布被裁切（同事审核建议 3），
+  // 现加大画布并把标签改为「名称 / 分值」两行居中，六簇标签全部完整可见。
   const n = CLUSTERS.length
-  const cx = 130, cy = 130, R = 95
+  const cx = 160, cy = 146, R = 88, LR = R + 18
   const rings = []
   for (const f of [1, 0.66, 0.33]) {
     const pts = []
@@ -26,7 +28,7 @@ function radarPoints() {
     const lv = (me.value.mastery || {})[CLUSTERS[i].id] ?? 0
     data.push(`${cx + Math.cos(a) * R * (lv / 100)},${cy + Math.sin(a) * R * (lv / 100)}`)
     axes.push(`${cx},${cy} ${cx + Math.cos(a) * R},${cy + Math.sin(a) * R}`)
-    labels.push({ x: cx + Math.cos(a) * (R + 22), y: cy + Math.sin(a) * (R + 22), name: CLUSTERS[i].name, lv: Math.round(lv) })
+    labels.push({ x: cx + Math.cos(a) * LR, y: cy + Math.sin(a) * LR, name: CLUSTERS[i].name, lv: Math.round(lv) })
   }
   return { rings, data: data.join(' '), axes, labels }
 }
@@ -58,12 +60,13 @@ onMounted(load)
         <div class="card">
           <div class="card-title">📊 掌握度雷达（六簇 · 练习/复习/AI 问答共同驱动）</div>
           <div class="radar-box">
-            <svg width="260" height="260" viewBox="0 0 260 260">
+            <svg width="320" height="300" viewBox="0 0 320 300" class="radar-svg">
               <polygon v-for="(r, i) in radar.rings" :key="i" :points="r" fill="none" stroke="#eceef1" />
               <line v-for="(a, i) in radar.axes" :key="'a' + i" :x1="a.split(' ')[0].split(',')[0]" :y1="a.split(' ')[0].split(',')[1]" :x2="a.split(' ')[1].split(',')[0]" :y2="a.split(' ')[1].split(',')[1]" stroke="#eceef1" />
               <polygon :points="radar.data" fill="rgba(228,57,60,.18)" stroke="#e4393c" stroke-width="2" />
               <text v-for="(l, i) in radar.labels" :key="'l' + i" :x="l.x" :y="l.y" text-anchor="middle" font-size="11" fill="#6b7280">
-                {{ l.name }} {{ l.lv }}
+                <tspan :x="l.x" dy="0">{{ l.name }}</tspan>
+                <tspan :x="l.x" dy="13" font-size="11.5" font-weight="700" fill="#c62828">{{ l.lv }}</tspan>
               </text>
             </svg>
           </div>
@@ -119,6 +122,9 @@ onMounted(load)
 
 <style scoped>
 .mine-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+/* 雷达画布 320×300：窄屏（360px）自适应缩放，避免 2px 横向溢出 */
+.radar-box { display: flex; justify-content: center; }
+.radar-svg { max-width: 100%; height: auto; }
 @media (max-width: 900px) { .mine-grid { grid-template-columns: 1fr; } }
 .badge-cell {
   border: 1px solid var(--line); border-radius: 10px; padding: 14px 8px; text-align: center;

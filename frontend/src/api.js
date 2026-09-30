@@ -74,6 +74,9 @@ async function request(path, { method = 'GET', body, headers = {}, timeout = 300
 export const api = {
   login: (student_no, password) =>
     request('/api/auth/login', { method: 'POST', body: { student_no, password } }),
+  // 邀请码自助注册（学生）：只需邀请码 + 昵称 + 自设密码，成功即自动登录
+  register: (code, name, password) =>
+    request('/api/auth/register', { method: 'POST', body: { code, name, password } }),
   me: () => request('/api/auth/me'),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
 
@@ -151,6 +154,12 @@ quizWeak: () => request('/api/quiz/weak'),
   accountBatch: (a) => request('/api/admin/accounts/batch', { method: 'POST', body: a }),
   accountUpdate: (id, a) => request(`/api/admin/accounts/${id}`, { method: 'PUT', body: a }),
   accountDelete: (id) => request(`/api/admin/accounts/${id}`, { method: 'DELETE' }),
+
+  // 邀请码（学生自助批量加入：教师生成码 → 学生自行注册）
+  invites: () => request('/api/admin/invites'),
+  inviteCreate: (b) => request('/api/admin/invites', { method: 'POST', body: b }),
+  inviteUpdate: (id, enabled) => request(`/api/admin/invites/${id}`, { method: 'PUT', body: { enabled } }),
+  inviteDelete: (id) => request(`/api/admin/invites/${id}`, { method: 'DELETE' }),
 
   trainings: () => request('/api/admin/trainings'),
   trainingCreate: (t) => request('/api/admin/trainings', { method: 'POST', body: t }),

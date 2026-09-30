@@ -67,6 +67,10 @@ async function doLogin() {
         </button>
         <div v-if="err" class="err">{{ err }}</div>
 
+        <div class="reg-entry">
+          老师发了邀请码？<router-link to="/register">用邀请码加入 →</router-link>
+        </div>
+
         <div class="demo-hint">
           <div class="dh-title">一键体验（密码 123456）</div>
           <div class="dh-row">
@@ -102,4 +106,6 @@ async function doLogin() {
 }
 .dh-tag.t { background: var(--gold-light); color: #b45309; }
 .dh-name { color: var(--text-3); font-size: 11.5px; margin-left: auto; white-space: nowrap; }
+.reg-entry { margin-top: 12px; font-size: 12.5px; color: var(--text-2); text-align: center; }
+.reg-entry a { color: var(--primary-text); font-weight: 600; }
 </style>
