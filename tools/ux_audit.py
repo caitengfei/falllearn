@@ -32,7 +32,7 @@ def login(p, no="S2026001"):
 
 
 VIEWPORTS = [(360, 780), (390, 844), (768, 1024), (1024, 768), (1440, 950), (1920, 1080)]
-STUDENT_PAGES = ["/", "/learn", "/kb", "/practice", "/wrong", "/report", "/competition", "/mine"]
+STUDENT_PAGES = ["/", "/learn", "/map", "/kb", "/practice", "/wrong", "/report", "/competition", "/mine"]
 
 with sync_playwright() as pw:
     b = pw.chromium.launch(channel="msedge", headless=True)

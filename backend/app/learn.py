@@ -322,8 +322,10 @@ async def status(session_id: str, log_id: int, u: dict = Depends(current_user)):
             d.close()
             return {"status": "question", "log_id": log_id, "question": q}
     text = _assistant_text(events)
-    if text and "【岗】" in text and "【证】" in text:
-        touched = db.clusters_touched(text[:400])
+    # 完成判定（2026-10-03 调整，与直连通道口径一致）：答案已改为「直接作答」形态，
+    # 不再要求四栏标记【岗】【证】；有实质文本即落库。
+    if text and len(text.strip()) >= 20:
+        touched = db.clusters_touched(text[:600])
         d.execute("UPDATE chat_logs SET answer=?, clusters_touched=? WHERE id=? AND student_id=?",
                   (text, ",".join(touched), log_id, u["id"]))
         for c in touched:
@@ -335,11 +337,11 @@ async def status(session_id: str, log_id: int, u: dict = Depends(current_user)):
         d.commit()
         d.close()
         return {"status": "done", "log_id": log_id, "answer": text, "clusters": touched}
-    # 超时兜底：模型漏掉【岗】【证】标记时，150s 内已有文本则强制落库，避免前端无限轮询
+    # 超时兜底：150s 内已有文本则强制落库，避免前端无限轮询
     if elapsed > 150:
         if text:
             d.execute("UPDATE chat_logs SET answer=?, clusters_touched=? WHERE id=? AND student_id=?",
-                      (text + "\n\n（注：本次回答未识别出完整四栏结构，已按现有内容落库。）", "", log_id, u["id"]))
+                      (text, "", log_id, u["id"]))
             db.ensure_badge(d, u["id"], "b_first_q")
             db.add_study(d, u["id"], "ai_quiz", (int(time.time()) - (log["created_at"] if log else int(time.time()))) / 60,
                          str(log_id))
@@ -386,7 +388,9 @@ async def stream(session_id: str, log_id: int, u: dict = Depends(current_user)):
         st = s.get("state")
         if st == "done":
             ev = {"type": "done", "answer": s.get("answer", ""),
-                  "clusters": s.get("answer_clusters") or []}
+                  "clusters": s.get("answer_clusters") or [],
+                  # 参考来源由后端检索结果给出（非模型生成），前端据此展示来源区与「通用知识」提示
+                  "sources": s.get("sources") or [], "grounded": s.get("grounded", True)}
         elif st == "question" and s.get("clarify"):
             ev = {"type": "question", "question": s["clarify"]}
         else:

@@ -8,6 +8,8 @@ const routes = [
   { path: '/register', component: () => import('./views/Register.vue'), meta: { public: true } },
   { path: '/', component: () => import('./views/Home.vue') },
   { path: '/learn', component: () => import('./views/Learn.vue') },
+  // 知识地图独立页（原与 AI 问答同屏；同事反馈：点 AI 问答时不应同时出现知识地图）
+  { path: '/map', component: () => import('./views/Map.vue') },
   { path: '/kb', component: () => import('./views/Kb.vue') },
   { path: '/competition', component: () => import('./views/Competition.vue') },
   { path: '/practice', component: () => import('./views/Practice.vue') },

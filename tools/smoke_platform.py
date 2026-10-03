@@ -81,23 +81,28 @@ with sync_playwright() as pw:
     check("banner 4 dots", p.locator(".banner-dots i").count() == 4)
     check("轮播第2张可点", (p.locator(".banner-dots i").nth(1).click(), time.sleep(1), p.inner_text(".banner h2"))[2] != "")
 
-    # 学习中心（种子历史 1 条 → 白屏回归关键用例）
+    # 学习中心（白屏回归关键用例；2026-10-03 起为「单答案」形态，不再依赖四栏标记）
     p.goto(BASE + "/learn", wait_until="domcontentloaded", timeout=30000)
     t0 = time.time()
     ok = False
     while time.time() - t0 < 20:
         body = p.inner_text("body")
-        if "【岗】" in body:
+        if "AI 老师" in body and p.locator(".chat-flow").count():
             ok = True
             break
         time.sleep(1)
-    check("/learn 历史回放（白屏回归）", ok)
+    check("/learn 渲染（白屏回归）", ok)
     check("/learn 水平溢出=0", overflow(p) <= 0, f"(overflow={overflow(p)})")
+    check("/learn 不再同屏出现知识地图", p.locator("text=知识地图").count() == 0)
     p.screenshot(path=SHOT + "-learn.png", full_page=True)
-    # 簇抽屉
-    p.locator(".kmap .kcard").first.click()
-    check("簇抽屉打开", "知识点详解" in p.inner_text("body"))
-    p.screenshot(path=SHOT + "-learn-drawer.png")
+    # 知识地图独立页（原在 /learn 右侧）
+    p.goto(BASE + "/map", wait_until="domcontentloaded", timeout=30000)
+    time.sleep(2)
+    check("/map 六簇卡片", p.locator(".kcard").count() == 6, f"({p.locator('.kcard').count()})")
+    p.locator(".kcard").first.click()
+    time.sleep(2)
+    check("簇详情展开（知识点+关联文档）", "核心知识点" in p.inner_text("body"))
+    p.screenshot(path=SHOT + "-map.png")
 
     # 比赛资料
     p.goto(BASE + "/competition", wait_until="domcontentloaded", timeout=30000)

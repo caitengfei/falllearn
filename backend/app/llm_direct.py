@@ -26,40 +26,25 @@ _log = logging.getLogger("falllearn")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 项目根
 KB_DIR = os.environ.get("FALLLEARN_KB") or os.path.join(BASE_DIR, "knowledge")
 
-PERSONA = """你是"智慧健康养老·岗课赛证融通智能体"，专门帮助智慧健康养老服务与管理专业的学生理解"老年人跌倒的预防与应急处置"这一技能点在岗、课、赛、证四个维度的要求。
+PERSONA = """你是"防跌学堂"的学习助手，面向智慧健康养老服务与管理专业的学生，围绕"老年人跌倒的预防与应急处置"这一技能点答疑。
 
-你的知识库包含四个维度（材料附在本提示词之后）：
-【岗】养老护理员国家职业技能标准、临床处置流程、安全提示
-【课】课程标准、教案、实训任务单、知识点梳理
-【赛】赛项规程、评分标准、获奖项目训练记录、常见扣分点
-【证】职业技能等级证书（养老护理员/健康照护师/老年人能力评估师）考核标准、实操试题、理论题库、模拟真题
+可参考的四维材料（岗/课/赛/证）是**素材来源**，不是答案模板：
+- 岗：国家职业技能标准、临床处置流程与安全提示
+- 课：课程标准、教案、实训任务单、知识点梳理
+- 赛：赛项规程、评分标准、常见扣分点、训练记录
+- 证：养老护理员/健康照护师/老年人能力评估师三证考核标准、实操试题、理论题库
 
-工作方式：
-1. 收到与"老年人跌倒"相关的问题后，先基于下方知识库材料从岗、课、赛、证四个维度分别取材。
-2. 然后按以下固定四栏结构输出：
-
-【岗】...
-【课】...
-【赛】...
-【证】...
-
-要求：
-1. 全程使用简体中文。
-2. 每个维度必须基于知识库材料中的真实内容，不得编造。
-3. 每栏先写一句结论（该维度要求什么/该怎么做），再用 ①②③ 编号展开细节。
-4. 每栏末尾以"（来源：文档名（相对路径））"标注出处，路径用材料中给出的 knowledge/ 相对路径（如 knowledge/01-岗/安全提示要点.md）。
-5. 某一维度检索无内容时，输出"该维度材料待补充（详见 05-元数据/更新日志 待补清单）"，不得编造。
-6. 语言简洁、条理清晰，适合学生阅读。
-7. 如用户追问某一维度，只展开该维度，其他维度简要带过。
-8. 若用户表述模糊（如只输入"跌倒"二字），先输出澄清卡，固定四个选项：跌倒应急处置／跌倒预防／两者都要完整讲解（推荐）／比赛或考证备查；学生跳过澄清时默认按完整四维度输出。
-9. 若问题超出"老年人跌倒的预防与应急处置"技能点（如噎食、失智照护、报考流程等），友好说明本智能体当前只覆盖跌倒技能点，用一句话概括四栏结构作为引子，并建议问任课老师或查教材；引用占位/模板文档时须注明"模板待填"。
-10. 对寒暄或"你能做什么"类提问，固定自我介绍："我是养老跌倒技能点的岗课赛证融通智能体，可以帮你把一个问题拆成岗、课、赛、证四个维度来答。你可以这样问：'老人摔倒了怎么办''大赛跌倒环节怎么扣分''考证考不考跌倒'"。
-11. 每个会话的首次四栏回答末尾附一行提醒："本回答仅供学习备考；若你正面对真实跌倒的老人，请立即联系现场医务人员或拨打 120。"
-12. 需要输出澄清卡时，只输出如下 marker 块（不要输出任何其他字符）：
-[[CLARIFY]]
-问题：<一句话澄清问题>
-选项：<选项1>|<选项2>|<选项3>|<选项4>
-13. 学生回复选择后（提问中带"学生已选择"字样），必须立即按该选择直接输出完整四栏答案，保持四栏结构；禁止再次输出澄清卡或提出任何新问题——选择"两者都要完整讲解"时按完整四维度输出，选择单一方向时按对应侧重输出。"""
+作答要求（必须遵守）：
+1. **直接回答**：用连贯的段落或编号要点把问题讲清楚。**不要**按"岗/课/赛/证"分成四栏罗列，正文里也不要出现【岗】【课】【赛】【证】这类栏目标记——四维材料只是你取材的地方。
+2. **材料优先**：优先使用下方「知识库材料」中的内容；材料里有的具体要求（标准条款、评分点、扣分点、考核方式）要写清楚。
+3. **有据可依时标注依据**：若答案主要来自知识库材料，可在结尾用一行"依据：《文档名》"列出（只允许引用材料中真实出现的文件名），**不得编造任何文献、指南编号或链接**。
+4. **材料不足时**：先用一句话明确说明"本平台知识库暂未收录该内容"，再基于通用医学/照护知识作答，结尾提醒"以上为通用知识，未经本平台资料核验，请以教材与带教老师为准"。
+5. **不要反问确认意图**：即使问题很短（如只输入"跌倒"）也按最可能的理解直接作答；若确实存在多种理解，先按最可能的回答，再用一句话补"如果你想问的是 XX，直接说即可"。
+6. 语言简洁、条理清晰、面向学生；专业术语首次出现时用一句话解释。
+7. 若问题明显超出本技能点（如噎食、失智照护、报考流程），简要说明本平台聚焦跌倒技能点，然后用通用知识给出有帮助的回答（同样按第 4 条标注）。
+8. 对寒暄或"你能做什么"类提问，用两三句话说明能力并给出 2–3 个示例问题（如"老人摔倒了怎么办""大赛跌倒环节怎么扣分""考证考不考跌倒"）。
+9. 涉及真实急救场景时，提示"若正面对真实跌倒的老人，请立即联系现场医务人员或拨打 120"。
+10. 全程使用简体中文。"""
 
 CLARIFY_RE = re.compile(r"\[\[CLARIFY\]\]\s*\n?\s*问题[:：]\s*(.+?)\s*\n?\s*选项[:：]\s*(.+)", re.S)
 
@@ -110,7 +95,28 @@ def kb_fresh(max_age=300):
     return _kb_cache["files"] or []
 
 
-_WORD_RE = re.compile(r"[\u4e00-\u9fff]{2,}|[A-Za-z0-9]{2,}")
+# 关键词切分（2026-10-03 修正）：原正则 `[\u4e00-\u9fff]{2,}` 会把**整句中文**当成一个 token
+# （如"老年人为什么容易发生跌倒"），导致 `_score_files` 全库零命中、sources 恒为空。
+# 现改为「英文/数字词 + 中文 2-gram + 短词整体」，并过滤疑问/常用停用词——不依赖第三方分词库，部署零依赖。
+_WORD_RE = re.compile(r"[A-Za-z0-9]{2,}")
+_HAN_RE = re.compile(r"[\u4e00-\u9fff]+")
+_STOP_2 = {"什么", "为什", "么样", "怎么", "如何", "是否", "可以", "能否", "我们", "你们", "他们",
+           "这个", "那个", "一下", "一个", "以及", "还有", "因为", "所以", "如果", "但是", "就是",
+           "哪些", "哪个", "多少", "时候", "地方", "问题", "请问", "老师", "麻烦", "帮我", "告诉"}
+
+
+def _words(text: str):
+    """把问题切成检索关键词：英文数字词 + 中文 2-gram（过滤停用词）+ 短词整体。"""
+    t = (text or "").lower()
+    out = list(_WORD_RE.findall(t))
+    for seg in _HAN_RE.findall(t):
+        if len(seg) <= 4:
+            out.append(seg)
+        for i in range(len(seg) - 1):
+            g = seg[i:i + 2]
+            if g not in _STOP_2:
+                out.append(g)
+    return list(dict.fromkeys(out))  # 去重保序
 
 
 def _score_files(words):
@@ -132,19 +138,40 @@ def _score_files(words):
     return scored
 
 
+def kb_pick(question="", k=6, per_cap=12000, total_cap=110000):
+    """按关键词选出材料：返回 (材料文本, 命中文档名列表)。
+
+    命中文档名列表用于前端「参考来源」与「是否命中知识库」提示——由**后端检索结果**决定，
+    不依赖模型输出，因此模型无法编造来源。
+    """
+    words = _words(question)
+    scored = _score_files(words)
+    top = [(s, r, t) for s, r, t in scored[:k] if s > 0]
+    # 「是否命中知识库」用**更严阈值**（≥8 ≈ 文件名命中一次以上或头部多处命中）：
+    # 否则无关问题（如"奖学金怎么申请"）仅因个别通用词出现在正文里就被判为"有据可依"，
+    # 前端就不会显示「通用知识」提示条，与同事反馈的要求不符。
+    hits = [r for s, r, _t in scored[:k] if s >= 8]
+    if not top:  # 零命中：按目录顺序取 3 篇作背景，但标记为「未命中」（前端据此提示通用知识）
+        top = [(s, r, t) for s, r, t in scored[:3]]
+        hits = []
+    parts, total = [], 0
+    for _s, rel, text in top:
+        if len(text) > per_cap:
+            text = text[:per_cap] + "\n（…本文档较长已截断）"
+        part = f"===== 文件：knowledge/{rel} =====\n{text.strip()}"
+        if total + len(part) > total_cap:
+            break
+        parts.append(part)
+        total += len(part)
+    return ("\n\n".join(parts) if parts else "（知识库为空）"), hits
+
+
 def kb_material(question="", k=6, all_docs=False, per_cap=12000, total_cap=110000):
     """学生提问：关键词路由 top-k；管理端任务：all_docs=True 全量（截断保护）。"""
-    if all_docs:
-        picked = list(kb_fresh())  # [(rel, text)]
-    else:
-        words = [w.lower() for w in _WORD_RE.findall(question or "")]
-        scored = _score_files(words)
-        top = [(r, t) for s, r, t in scored[:k] if s > 0]
-        if not top:  # 零命中兜底：按目录顺序取 3 篇
-            top = [(r, t) for _s, r, t in scored[:3]]
-        picked = top
+    if not all_docs:
+        return kb_pick(question, k, per_cap, total_cap)[0]
     parts, total = [], 0
-    for rel, text in picked:
+    for rel, text in kb_fresh():
         if len(text) > per_cap:
             text = text[:per_cap] + "\n（…本文档较长已截断）"
         part = f"===== 文件：knowledge/{rel} =====\n{text.strip()}"
@@ -156,7 +183,9 @@ def kb_material(question="", k=6, all_docs=False, per_cap=12000, total_cap=11000
 
 
 def build_system(question=""):
-    return PERSONA + "\n\n# 知识库材料（取材与来源标注仅限以下内容）\n" + kb_material(question)
+    """返回 (system 提示词, 命中文档名列表)。"""
+    material, hits = kb_pick(question)
+    return PERSONA + "\n\n# 知识库材料（取材仅限以下内容，可引用其中真实文件名）\n" + material, hits
 
 
 def _parse_clarify(text):
@@ -277,25 +306,22 @@ async def _direct_finish(s, user_text):
             queue.put_nowait(item)
 
     try:
-        messages = [{"role": "system", "content": build_system(s["last_q"])}]
+        system_text, hits = build_system(s["last_q"])
+        messages = [{"role": "system", "content": system_text}]
         messages += [m for m in s["messages"]][-6:]
         messages.append({"role": "user", "content": user_text})
         text = ""
         async for delta in complete_stream(cfg, messages, max_tokens=2500):
             text += delta
             _push(delta)
-        if text.lstrip().startswith("[[CLARIFY]]"):
-            c = _parse_clarify(text)
-            if c:
-                s.update(state="question", clarify=c, t=time.time())
-                _push(None)
-                return
-        if "【岗】" in text and "【证】" in text:
-            touched = db.clusters_touched(text[:400])
-            answer = text
-        else:
-            touched = []
-            answer = text + "\n\n（注：本次回答未识别出完整四栏结构，已按现有内容落库。）"
+        # 完成判定（2026-10-03 调整）：不再要求四栏标记【岗】【证】——答案已改为「直接作答」形态，
+        # 只要模型给出了实质内容即视为完成（原判定会让新形态答案落到"未识别结构"分支）。
+        if len(text.strip()) < 20:
+            s.update(state="failed", error="AI 返回内容为空，请再问一次", t=time.time())
+            _push(None)
+            return
+        touched = db.clusters_touched(text[:600]) if text else []
+        answer = text.strip()
         log = d.execute("SELECT created_at FROM chat_logs WHERE id=?", (s["log_id"],)).fetchone()
         created = log["created_at"] if log else int(time.time())
         d.execute("UPDATE chat_logs SET answer=?, clusters_touched=? WHERE id=? AND student_id=?",
@@ -308,7 +334,8 @@ async def _direct_finish(s, user_text):
         d.commit()
         s["messages"] = (s["messages"] + [{"role": "user", "content": user_text},
                                           {"role": "assistant", "content": text}])[-8:]
-        s.update(state="done", answer=answer, answer_clusters=touched, t=time.time())
+        s.update(state="done", answer=answer, answer_clusters=touched,
+                 sources=hits, grounded=bool(hits), t=time.time())
         _push(None)
     except Exception as e:
         # 细节仅进服务端日志；对外统一文案（防上游响应原文/内网地址外泄给学生）
@@ -352,7 +379,9 @@ def direct_status(sid, log_id):
         return {"status": "question", "log_id": log_id, "question": s["clarify"]}
     if s["state"] == "done":
         return {"status": "done", "log_id": log_id, "answer": s.get("answer", ""),
-                "clusters": s.get("answer_clusters") or []}
+                "clusters": s.get("answer_clusters") or [],
+                # 参考来源（后端检索命中的知识库文档，不由模型生成）与「是否命中知识库」
+                "sources": s.get("sources") or [], "grounded": s.get("grounded", True)}
     if s["state"] == "failed":
         return {"status": "failed", "log_id": log_id, "error": s.get("error") or "AI 直连调用失败，请再问一次"}
     return {"status": "running", "log_id": log_id}

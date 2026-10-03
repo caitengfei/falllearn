@@ -72,7 +72,7 @@ with sync_playwright() as pw:
         check("学生登录跳转", False, p.url)
     time.sleep(2)
 
-    for path, needle in (("/", "学习日历"), ("/learn", "AI 老师"), ("/kb", "知识库"),
+    for path, needle in (("/", "学习日历"), ("/learn", "AI 老师"), ("/map", "知识地图"), ("/kb", "知识库"),
                          ("/practice", "练习"), ("/wrong", "错题本"),
                          ("/report", "学习报告"), ("/competition", "岗课赛证"),
                          ("/mine", "掌握度")):

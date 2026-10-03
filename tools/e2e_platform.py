@@ -81,48 +81,36 @@ with sync_playwright() as pw:
     log(f"step2 首页+签到 OK（轮播 dots={n_dots}）")
     p.screenshot(path=SHOT.replace(".png", "-home.png"))
 
-    # ---------- 学习：提问→（澄清卡→）四栏 ----------
+    # ---------- 学习：提问 → 单答案（2026-10-03 起不再四栏、不再澄清卡）----------
     p.locator(".navtabs a", has_text="学习中心").click()
     p.wait_for_selector(".chat-input textarea", timeout=10000)
-    p.locator(".chat-input textarea").fill("老年人跌倒")
+    p.locator(".chat-input textarea").fill("老年人为什么容易发生跌倒")
     p.locator(".chat-input .btn").click()
-    log("step3 学习提问已发送，等待澄清卡或直答…")
+    log("step3 学习提问已发送，等待单答案…")
 
-    def has_fourcol():
-        body = p.inner_text("body")
-        return "【岗】" in body and "【证】" in body
-
-    asked = False
-    t0 = time.time()
-    while time.time() - t0 < 120:
-        if p.locator(".qcard").count() > 0:
-            q = p.locator(".qcard .qtitle").inner_text()
-            p.locator(".qopt").first.click()
-            asked = True
-            log(f"step3 澄清卡已应答：{q[:30]}")
-            break
-        if has_fourcol():
-            log("step3 模型直答（无澄清卡）")
-            break
-        time.sleep(3)
-    if not asked and not has_fourcol():
-        raise AssertionError("120s 内既无澄清卡也无四栏")
+    def has_answer():
+        try:
+            last = p.locator(".bubble").last.inner_text()
+        except Exception:
+            return False
+        return bool(last) and "▍" not in last and len(last) > 80
 
     t1 = time.time()
     ok = False
     while time.time() - t1 < 600:
-        if has_fourcol() and "来源：" in p.inner_text("body"):
+        if p.locator(".qcard").count() > 0:
+            log("step3 出现澄清卡（新形态不应再出现，记录为异常）")
+        if has_answer():
             ok = True
             break
         time.sleep(4)
-    assert ok, "四栏答案超时"
-    log(f"step3 学习四栏 OK（收到于 +{int(time.time() - t1)}s）")
+    assert ok, "单答案超时（600s）"
+    log(f"step3 学习单答案 OK（收到于 +{int(time.time() - t1)}s）")
     p.screenshot(path=SHOT.replace(".png", "-learn.png"))
 
     # ---------- 【回归】刷新 /learn：历史必须回放（白屏 bug 回归） ----------
     p.goto(BASE + "/learn", wait_until="domcontentloaded", timeout=30000)
-    assert wait_text(p, "老年人跌倒", 20), "刷新 /learn 后历史未回放（学习中心白屏回归失败）"
-    assert wait_text(p, "【岗】", 20), "刷新 /learn 后四栏历史未渲染"
+    assert wait_text(p, "老年人为什么容易发生跌倒", 20), "刷新 /learn 后历史未回放（学习中心白屏回归失败）"
     log("step3.5 刷新 /learn 历史回放 OK（白屏回归通过）")
 
     # ---------- 比赛资料页 ----------

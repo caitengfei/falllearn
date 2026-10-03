@@ -128,6 +128,8 @@ async function startStream(sid, logIdV) {
           nextTick(scrollBottom)
         } else if (msg.type === 'done') {
           live.text = msg.answer || live.text
+          live.sources = msg.sources || []       // 后端检索命中的知识库文档（非模型生成）
+          live.grounded = msg.grounded !== false // false = 知识库未命中，答案属通用知识
           live.streaming = false
           busy.value = false
         } else if (msg.type === 'question') {
@@ -173,7 +175,7 @@ async function poll() {
     }
     if (s.status === 'done') {
       flow.value = flow.value.filter((m) => m.role !== 'typing' && !m.streaming)
-      push({ role: 'ai', text: s.answer })
+      push({ role: 'ai', text: s.answer, sources: s.sources || [], grounded: s.grounded !== false })
       busy.value = false
       stopPoll()
     }
@@ -202,9 +204,60 @@ async function pickOption(log_id, idx) {
   }
 }
 
-// 四栏渲染（剥 markdown 加粗标记）
+// ---------- 答案渲染（2026-10-03 改为单答案 + 轻量 Markdown）----------
+// 同事反馈：不要按【岗】【课】【赛】【证】四栏罗列，直接给一个连贯答案即可；
+// 四维材料只作为取材来源，答案末尾统一展示「参考来源」。
 function clean(s) {
   return s.replace(/\*\*/g, '').trim()
+}
+
+/** HTML 转义（先转义再处理 Markdown 语法，防止知识库/模型文本注入页面）。 */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+/** 轻量 Markdown 渲染：标题行 / 无序有序列表 / 加粗 / 段落（输出已转义，可安全 v-html）。 */
+function renderMd(text) {
+  const out = []
+  let inList = false
+  for (const raw of esc(text).split('\n')) {
+    const line = raw.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').trimEnd()
+    const t = line.trim()
+    if (!t) {
+      if (inList) { out.push('</ul>'); inList = false }
+      continue
+    }
+    const li = t.match(/^(?:[-*•]|\d+[.、)])\s*(.+)$/)
+    if (li) {
+      if (!inList) { out.push('<ul>'); inList = true }
+      out.push('<li>' + li[1] + '</li>')
+      continue
+    }
+    if (inList) { out.push('</ul>'); inList = false }
+    if (/^#{1,4}\s/.test(t)) {
+      out.push('<p class="md-h">' + t.replace(/^#{1,4}\s*/, '') + '</p>')
+    } else {
+      out.push('<p>' + line + '</p>')
+    }
+  }
+  if (inList) out.push('</ul>')
+  return out.join('')
+}
+
+/** 来源展示名：取文件名、去 .md 后缀。 */
+function srcLabel(s) {
+  return String(s || '').split('/').pop().replace(/\.md$/, '')
+}
+
+/** 来源列表：优先用后端检索结果（权威），回退解析答案里的「（来源：…）」旧格式。 */
+function srcList(m) {
+  if (Array.isArray(m?.sources) && m.sources.length) return m.sources.map(srcLabel)
+  return sources(m.text || '')
+}
+
+/** 历史消息兼容：早期答案含四栏标记时仍按四栏展示。 */
+function hasFourCols(text) {
+  return !!text && text.includes('【岗】') && text.includes('【证】')
 }
 function cols(text) {
   const m = text.match(/(【岗】[\s\S]*?)(?=【课】|$)/)
@@ -256,10 +309,10 @@ const allWeakEmpty = computed(() => onlyWeak.value && kcards.value.length === 0)
 
 // 怎么问 AI（05-元数据/学生使用指南.md 摘编）
 const ASK_TIPS = [
-  { q: '老人摔倒了怎么办', d: '直接问技能点' },
-  { q: '考证考不考跌倒？实操怎么考？', d: '备考（证书）' },
-  { q: '大赛跌倒环节怎么扣分？', d: '备赛（大赛）' },
-  { q: '展开【赛】', d: '追问技巧：只讲深某一栏' }
+  { q: '老人摔倒了怎么办', d: '应急处置' },
+  { q: '老年人为什么容易发生跌倒？', d: '原因分析' },
+  { q: '大赛跌倒环节怎么扣分？', d: '备赛对比' },
+  { q: '考证考不考跌倒？实操怎么考？', d: '备考（证书）' }
 ]
 
 async function load() {
@@ -327,7 +380,11 @@ onBeforeUnmount(() => {
           </div>
           <div v-if="!flow.length" class="empty" style="padding: 70px 20px">
             <div style="font-size: 40px">👋</div>
-            <div style="margin-top: 10px; font-size: 14px; color: var(--text-2)">我是你的 AI 老师，只答「老年人跌倒」一个技能点，<br>但会按【岗】【课】【赛】【证】四栏讲透，每栏标来源。</div>
+            <div style="margin-top: 10px; font-size: 14px; color: var(--text-2)">
+              我是你的 AI 老师，聚焦「老年人跌倒」技能点：<br>
+              直接回答你的问题，答案优先取自 46 份岗位/课程/竞赛/证书文档，<br>
+              并在下方标注参考来源；知识库没有的内容会用通用知识作答并明确提示。
+            </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px">
               <button v-for="t in ASK_TIPS" :key="t.q" class="chip-ask" @click="send(t.q)">
                 {{ t.q }} <span style="opacity: .6">{{ t.d }}</span>
@@ -349,7 +406,8 @@ onBeforeUnmount(() => {
               <div class="mava">{{ m.role === 'me' ? '我' : 'AI' }}</div>
               <div class="bubble" :class="m.role">
                 <template v-if="m.role === 'typing'"><span class="typing"><i></i><i></i><i></i></span></template>
-                <template v-else-if="m.role === 'ai' && cols(m.text)">
+                <!-- 历史消息兼容：早期答案含【岗】【证】四栏标记时仍按四栏展示 -->
+                <template v-else-if="m.role === 'ai' && !m.streaming && hasFourCols(m.text)">
                   <div v-if="cols(m.text).pre" class="pre">{{ cols(m.text).pre }}</div>
                   <div class="fourcol">
                     <div v-for="c in cols(m.text).items" :key="c.name" class="col">
@@ -359,11 +417,17 @@ onBeforeUnmount(() => {
                   </div>
                 </template>
                 <template v-else-if="m.role === 'ai'">
-                  <div class="plain">{{ m.text }}<span v-if="m.streaming" class="caret">▍</span></div>
+                  <div v-if="m.grounded === false" class="gen-note">
+                    ⚠️ 本平台知识库暂未收录该内容 —— 以下为 AI 通用知识（未经平台资料核验），请以教材与带教老师为准。
+                  </div>
+                  <!-- 流式期间用纯文本（避免逐块重排 Markdown 造成卡顿），完成后渲染排版 -->
+                  <div v-if="m.streaming" class="plain">{{ m.text }}</div>
+                  <div v-else class="plain markdown" v-html="renderMd(m.text)"></div>
+                  <span v-if="m.streaming" class="caret">▍</span>
                 </template>
                 <template v-else>{{ m.text }}</template>
-                <div v-if="m.role === 'ai' && sources(m.text).length" class="src">
-                  来源：{{ sources(m.text).join('；') }}
+                <div v-if="m.role === 'ai' && srcList(m).length" class="src">
+                  📚 参考来源：{{ srcList(m).join('；') }}
                 </div>
                 <div v-if="m.role === 'ai' && !m.streaming && m.text" class="msg-ops">
                   <button v-if="isVoiceReady()" class="op" :aria-label="speakingIdx === i ? '停止朗读' : '朗读这条答案'"
@@ -385,56 +449,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- 右：知识地图 -->
-      <div>
-        <div class="card">
-          <div class="card-title">🗺 知识地图 <span class="more" style="font-weight: 400">点击一簇看知识点</span></div>
-          <div class="chips">
-            <span class="chip" :class="{ on: kfilter === 'all' }" @click="kfilter = 'all'">全部</span>
-            <span v-for="c in CLUSTERS" :key="c.id" class="chip" :class="{ on: kfilter === c.id }" @click="kfilter = c.id">{{ c.name }}</span>
-          </div>
-          <label class="onlyweak">
-            <input type="checkbox" v-model="onlyWeak" /> 仅看薄弱（&lt;60）
-          </label>
-          <div v-if="allWeakEmpty" style="font-size: 12px; color: var(--text-3); padding: 8px 2px">没有低于 60% 的薄弱簇（全部达标）—— 取消筛选查看全部 6 簇</div>
-          <div class="kmap">
-            <div v-for="c in kcards" :key="c.id" class="kcard" @click="openCluster = c.id">
-              <span v-if="c.id === 'five' || c.id === 'fracture'" class="badge-corner">核心</span>
-              <div class="cover" :style="{ background: c.color }">{{ c.short || c.name.slice(0, 2) }}</div>
-              <div class="kbody">
-                <div class="kname">{{ c.name }}</div>
-                <div class="kmeta"><span class="mono">{{ c.qcount }} 题</span><span>掌握 {{ c.level }}%</span></div>
-                <div class="kbar"><i :style="{ width: c.level + '%', background: c.color }"></i></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 簇详解抽屉 -->
-        <div v-if="openCluster" id="cluster-drawer" class="card mt16">
-          <div class="card-title">
-            {{ clusterName(openCluster) }} · 知识点详解
-            <span class="more" @click="openCluster = null">关闭 ✕</span>
-          </div>
-          <ul class="cluster-kp">
-            <li v-for="(kp, i) in (CLUSTER_KNOWLEDGE[openCluster] || [])" :key="i">{{ kp }}</li>
-          </ul>
-          <div style="font-size: 12px; color: var(--text-3); margin-top: 10px">
-            题库 {{ qcounts[openCluster] ?? 0 }} 题 · 你的错题 {{ wrongByCluster[openCluster] || 0 }} 题
-          </div>
-          <button class="btn sm mt16" style="width: 100%" @click="askCluster()">帮我讲这一簇（AI 四栏详解）</button>
-          <div style="font-size: 12px; color: var(--text-3); margin-top: 10px; line-height: 1.8">
-            💡 追问技巧：回答出来后，可以接着问「展开【赛】」「第 3 条扣分点具体是什么操作？」
-          </div>
-        </div>
-      </div>
+      <!-- 知识地图已拆为独立页面 /map（同事反馈：点 AI 问答时不应同时出现知识地图） -->
     </div>
   </div>
 </template>
 
 <style scoped>
-.learn-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .learn-grid { grid-template-columns: 1fr; } }
+/* 知识地图已拆到独立页 /map：问答区改为整幅宽度（同事反馈：问答时不应同时显示知识地图） */
+.learn-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.learn-grid .chat-card { max-width: 980px; margin: 0 auto; width: 100%; }
 .bubble.ai { background: var(--bg); }
 .msg.ai .mava { background: #e4393c; }
 .msg.me .mava { background: #64748b; }
@@ -477,6 +500,18 @@ onBeforeUnmount(() => {
   white-space: pre-wrap; line-height: 1.75;
 }
 .plain { white-space: pre-wrap; line-height: 1.8; }
+/* 单答案 Markdown 排版（renderMd 输出：段落/列表/小标题/加粗） */
+.plain.markdown { white-space: normal; }
+.plain.markdown p { margin: 0 0 8px; }
+.plain.markdown p.md-h { font-weight: 700; color: var(--text); margin: 12px 0 6px; }
+.plain.markdown ul { margin: 4px 0 10px; padding-left: 20px; }
+.plain.markdown li { margin-bottom: 3px; }
+.plain.markdown b { color: var(--text); }
+/* 知识库未命中提示条（同事意见：用通用知识作答时必须明显标注） */
+.gen-note {
+  background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+  border-radius: 8px; padding: 7px 10px; font-size: 12px; line-height: 1.6; margin-bottom: 8px;
+}
 .caret { display: inline-block; margin-left: 1px; color: var(--primary-text); animation: caretblink 1s steps(1) infinite; }
 @keyframes caretblink { 50% { opacity: 0; } }
 .qtitle { font-size: 13px; font-weight: 700; margin-bottom: 4px; }

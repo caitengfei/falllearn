@@ -89,7 +89,7 @@ function goSlide(i) { slideIdx.value = i; startSlides() }
 // （同事审核建议 2：入口与其指向内容重复），已删除这两个入口为界面减负。
 const icons = [
   { ic: '🗣', bg: '#3b82f6', lbl: 'AI 问答', to: '/learn' },
-  { ic: '🗺', bg: '#8b5cf6', lbl: '知识地图', to: '/learn' },
+  { ic: '🗺', bg: '#8b5cf6', lbl: '知识地图', to: '/map' },
   { ic: '✏', bg: '#e4393c', lbl: '日常练习', to: '/practice' },
   { ic: '⏱', bg: '#f5a623', lbl: '12 分钟模拟考', to: '/practice?menu=mock' },
   { ic: '🏆', bg: '#0ea5e9', lbl: '比赛资料', to: '/competition' },
@@ -119,10 +119,10 @@ function askCluster() {
   openK.value = null
   router.push({ path: '/learn', query: { ask: q } })  // /learn?ask= 自动发送提问
 }
-function openClusterMap() {
+function openClusterMap() {  // 知识地图已独立成页：跳 /map?cluster=xxx 并展开该簇
   const id = openK.value
   openK.value = null
-  router.push({ path: '/learn', query: { cluster: id } })
+  router.push({ path: '/map', query: { cluster: id } })
 }
 
 async function load() {
@@ -327,7 +327,7 @@ onBeforeUnmount(stopSlides)
     </div>
 
     <div class="card mt16">
-      <div class="card-title">知识卡片 · 六簇 × 岗课赛证 <span style="font-size: 11px; color: var(--text-3); font-weight: 400">点一张卡看知识点</span><span class="more" @click="router.push('/learn')">全部 ›</span></div>
+      <div class="card-title">知识卡片 · 六簇 × 岗课赛证 <span style="font-size: 11px; color: var(--text-3); font-weight: 400">点一张卡看知识点</span><span class="more" @click="router.push('/map')">全部 ›</span></div>
       <div class="kgrid">
         <div v-for="c in kcards" :key="c.id" class="kcard" @click="openK = c.id">
           <span v-if="c.core" class="badge-corner">核心</span>
