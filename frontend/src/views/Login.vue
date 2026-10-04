@@ -48,7 +48,7 @@ async function doLogin() {
         <div class="lh-logo">康</div>
         <h1>康养智行</h1>
         <p>智慧养老“岗课赛证”融通智能体</p>
-        <div style="font-size: 12px; color: #b45309; letter-spacing: 3px; margin: 8px 0 2px">智护银龄，行稳致远</div>
+        <div style="font-size: 12.5px; color: rgba(255,255,255,.95); letter-spacing: 3px; margin: 8px 0 2px">智护银龄，行稳致远</div>
         <div class="login-chips">
           <span>🎯 首发场景：跌倒预防与应急处置</span>
           <span>📚 四维编目：岗 · 课 · 赛 · 证</span>
@@ -100,10 +100,10 @@ async function doLogin() {
 .lh-tags span {
   font-size: 10.5px; background: rgba(255,255,255,.16); padding: 2px 9px; border-radius: 9px;
 }
-.login-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+.login-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 12px 0 12px; }
 .login-chips span {
-  font-size: 10.5px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
-  color: #fff; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+  color: #fff; padding: 4px 12px; border-radius: 999px; white-space: nowrap; text-align: left;
 }
 .dh-title { font-size: 11px; color: var(--text-3); margin-bottom: 8px; letter-spacing: 1px; }
 .dh-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
