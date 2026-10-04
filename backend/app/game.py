@@ -92,11 +92,11 @@ def leaderboard(u: dict = Depends(current_user)):
     pts = d.execute(
         "SELECT u.id, u.name, u.student_no, COALESCE(p.points,0) points "
         "FROM users u LEFT JOIN points_cache p ON p.student_id=u.id "
-        "WHERE u.role='student' ORDER BY points DESC, u.id LIMIT 50").fetchall()
+        "WHERE u.role='student' AND u.enabled=1 ORDER BY points DESC, u.id LIMIT 50").fetchall()
     my_rank = next((i + 1 for i, r in enumerate(pts) if r["id"] == u["id"]), None)
     mast = d.execute(
         "SELECT u.id, u.name, COALESCE(SUM(m.level),0) total FROM users u LEFT JOIN mastery m ON m.student_id=u.id "
-        "WHERE u.role='student' GROUP BY u.id, u.name ORDER BY total DESC, u.id LIMIT 50").fetchall()
+        "WHERE u.role='student' AND u.enabled=1 GROUP BY u.id, u.name ORDER BY total DESC, u.id LIMIT 50").fetchall()
     my_rank_m = next((i + 1 for i, r in enumerate(mast) if r["id"] == u["id"]), None)
     return {
         "points": [{"rank": i + 1, "name": r["name"], "points": r["points"], "me": r["id"] == u["id"]}
