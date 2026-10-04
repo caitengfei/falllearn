@@ -102,13 +102,7 @@ function goGuide(g) {
         </div>
         <div class="topbar-right" style="margin-left: auto">
           <router-link v-if="isTeacher" to="/" class="back-student">{{ isAdmin ? '回学生端' : '进管理后台' }}</router-link>
-          <div class="bell" title="错题本" role="button" tabindex="0" :aria-label="`错题本，${dueCount || 0} 题待复习`"
-            @click="router.push('/wrong')" @keyup.enter="router.push('/wrong')" v-if="!isAdmin">
-            🔔
-            <span v-if="dueCount" class="dot">{{ dueCount }}</span>
-          </div>
-          <div class="bell" title="演示体验路径" role="button" tabindex="0" aria-label="演示体验路径"
-            @click="guideOpen = true" @keyup.enter="guideOpen = true" v-if="!isAdmin">？</div>
+          <!-- 顶栏铃铛/问号已按教师反馈移除（2026-10-05）：错题提醒在练习页概览条，演示引导首访自动弹出 -->
           <div class="userchip" role="button" tabindex="0" aria-label="个人中心"
             @click="router.push(isTeacher ? '/admin' : '/mine')"
             @keyup.enter="router.push(isTeacher ? '/admin' : '/mine')">

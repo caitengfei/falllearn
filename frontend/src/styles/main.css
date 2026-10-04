@@ -133,7 +133,7 @@ input, textarea, select { font-family: inherit; font-size: 14px; }
   transition: background .5s;
 }
 .banner > div { transition: opacity .25s; }
-.banner h2 { font-size: 26px; letter-spacing: 1px; margin-bottom: 10px; font-weight: 800; }
+.banner h2 { font-size: clamp(15px, 1.9vw, 24px); letter-spacing: 1px; margin-bottom: 10px; font-weight: 800; white-space: nowrap; }
 .banner p { font-size: 13.5px; opacity: .88; }
 .banner-dots { position: absolute; bottom: 14px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 2; }
 .banner-dots i {
@@ -376,13 +376,13 @@ input, textarea, select { font-family: inherit; font-size: 14px; }
   }
   .page { padding: 14px 14px 40px; }
   .banner { padding: 0 24px; }
-  .banner h2 { font-size: 21px; }
+  .banner h2 { font-size: 19px; white-space: nowrap; }
   .userchip-text { display: none; }
   .kgrid { grid-template-columns: repeat(3, 1fr) !important; }
 }
 @media (max-width: 640px) {
   .banner { height: 210px; padding: 0 18px; }
-  .banner h2 { font-size: 18px; }
+  .banner h2 { font-size: 16px; white-space: nowrap; }
   .banner-deco { display: none; }
   .icon-grid { grid-template-columns: repeat(3, 1fr); gap: 10px 4px; }
   .icon-item .ic { width: 40px; height: 40px; font-size: 18px; }
