@@ -87,7 +87,7 @@ export const api = {
     request(`/api/learn/status?session_id=${session_id}&log_id=${log_id}`),
   learnHistory: () => request('/api/learn/history'),
 
-  quizStart: (kind = 'daily', exam_id = 0) => request('/api/quiz/start', { method: 'POST', body: { kind, exam_id } }),
+  quizStart: (kind = 'daily', exam_id = 0, cluster = '') => request('/api/quiz/start', { method: 'POST', body: { kind, exam_id, cluster } }),
 quizWeak: () => request('/api/quiz/weak'),
   quizSubmit: (attempt_id, answers) =>
     request('/api/quiz/submit', { method: 'POST', body: { attempt_id, answers } }),

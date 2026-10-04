@@ -18,8 +18,9 @@ router = APIRouter(prefix="/api", tags=["quiz"])
 CLUSTER_CN = db.CLUSTER_NAMES
 
 
-def _pick_questions(d, student_id, count, weak_clusters):
-    """薄弱簇优先 60% + 未测 20% + 随机 20%；7 天去重；难度按近期正确率自适应。"""
+def _pick_questions(d, student_id, count, weak_clusters, only_cluster=None):
+    """薄弱簇优先 60% + 未测 20% + 随机 20%；7 天去重；难度按近期正确率自适应。
+    only_cluster 指定时：题目全部取自该簇（簇专项练习）。"""
     answered_7d = {r[0] for r in d.execute(
         "SELECT a.question_id FROM answers a JOIN attempts t ON t.id=a.attempt_id "
         "WHERE t.student_id=? AND a.answered_at > ?", (student_id, int(time.time()) - 7 * 86400))}
@@ -69,6 +70,15 @@ def _pick_questions(d, student_id, count, weak_clusters):
                 break
         return got
 
+    if only_cluster:                      # 簇专项：全部取该簇；难度自适应 + 7 天去重，题量不足时放宽去重
+        take(pool([only_cluster], diff, answered_7d), count)
+        if len(picked) < count:
+            take(pool([only_cluster], None, answered_7d), count - len(picked))
+        if len(picked) < count:
+            take(pool([only_cluster], None), count - len(picked))
+        random.shuffle(picked)
+        return picked[:count]
+
     n_weak = max(1, int(count * 0.6))
     n_untested = max(1, int(count * 0.2))
     n_rand = count - n_weak - n_untested
@@ -94,8 +104,9 @@ def weak_info(u: dict = Depends(current_user)):
 
 
 class StartIn(BaseModel):
-    kind: str = "daily"  # daily 日常练习 | mock 12 分钟限时理论模拟考
+    kind: str = "daily"  # daily 综合练习(20题) | mock 12分钟模拟考(10题) | cluster 簇专项(20题)
     exam_id: int = 0  # >0：按教师布置卷开卷（忽略 kind）
+    cluster: str = ""  # kind=cluster 时的知识点簇（morse/env/five/fracture/record/cpr）
 
 
 def _exam_items_payload(d, exam_id):
@@ -163,18 +174,26 @@ def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
         d.close()
         return {"attempt_id": attempt_id, "items": items, "count": len(items),
                 "kind": "teacher", "time_limit": cfg.get("minutes", 0) * 60, "title": ex["title"]}
-    kind = body.kind if body.kind in ("daily", "mock") else "daily"
+    kind = body.kind if body.kind in ("daily", "mock", "cluster") else "daily"
     rows = d.execute("SELECT cluster_id, level FROM mastery WHERE student_id=?", (u["id"],)).fetchall()
     lv = {r["cluster_id"]: r["level"] for r in rows}
     weak = [c for c in CLUSTER_CN if lv.get(c, 0) < 60] or list(CLUSTER_CN.keys())
-    qids = _pick_questions(d, u["id"], 10, weak)
-    title = "理论模拟考·跌倒风险与急救" if kind == "mock" else f"日常练习·{now % 100000}"
+    if kind == "cluster" and body.cluster in CLUSTER_CN:
+        qids = _pick_questions(d, u["id"], 20, [body.cluster], only_cluster=body.cluster)
+        title = f"专项练习·{CLUSTER_CN[body.cluster]}"
+    elif kind == "mock":
+        qids = _pick_questions(d, u["id"], 10, weak)
+        title = "理论模拟考·跌倒风险与急救"
+    else:
+        qids = _pick_questions(d, u["id"], 20, weak)
+        title = "综合练习 · 按薄弱点组卷"
     exam_id = d.execute(
         "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
         (title, kind, json.dumps({"weak": weak}), u["id"], now)).lastrowid
+    per_score = 10 if len(qids) <= 10 else max(1, round(100 / len(qids)))  # 统一百分制
     for i, qid in enumerate(qids):
         d.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)",
-                  (exam_id, qid, i + 1, 10))
+                  (exam_id, qid, i + 1, per_score))
     attempt_id = d.execute(
         "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
         (u["id"], exam_id, now, "open")).lastrowid
@@ -183,7 +202,7 @@ def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
     items = _exam_items_payload(d, exam_id)
     d.close()
     return {"attempt_id": attempt_id, "items": items, "count": len(items),
-            "kind": kind, "time_limit": 720 if kind == "mock" else 0}
+            "kind": kind, "title": title, "time_limit": 720 if kind == "mock" else 0}
 
 
 @router.get("/quiz/assignments")

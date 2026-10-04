@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, auth, clusterName, clusterColor } from '../api'
+import { api, auth, clusterName, clusterColor, CLUSTERS } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,9 +11,10 @@ const tasks = ref([])
 const assignments = ref([])
 const loading = ref(null)
 const summary = ref({ practice_count: 0, last_score: null, wrong_active: 0 })
+const clusterQ = ref({})   // 各簇题库题量（来自 /api/meta/clusters，实时）
 
 const menuItems = [
-  { id: 'daily', label: '日常练习', ic: '✏' },
+  { id: 'daily', label: '练习与专项', ic: '✏' },
   { id: 'mock', label: '12 分钟模拟考', ic: '⏱' },
   { id: 'teacher', label: '教师布置', ic: '📋' },
   { id: 'retrain', label: '错题重答', ic: '📕' }
@@ -23,12 +24,20 @@ function buildTasks() {
   const s = summary.value
   return [
     {
-      id: 'daily-1', menu: 'daily', title: '今日练习 · 按薄弱点组卷（10 题）',
-      tag: ['针对性·薄弱簇优先', '难度自适应', '不限时'], color: '#e4393c', ic: '✏',
+      id: 'daily-1', menu: 'daily', kind: 'daily', title: '综合练习 · 按薄弱点组卷（20 题）',
+      tag: ['六簇全覆盖', '薄弱簇优先', '难度自适应', '不限时'], color: '#e4393c', ic: '✏',
       status: 'ongoing', badge: s.practice_count ? '已完成 ' + s.practice_count + ' 组' : '未开始', canStart: true
     },
+    // 六簇专项练习：每簇一张卡，显示该簇题库题量（数据来自 /api/meta/clusters）
+    ...CLUSTERS.map((c) => ({
+      id: 'cl-' + c.id, menu: 'daily', kind: 'cluster', cluster: c.id,
+      title: `${c.name}专项 · 20 题`,
+      tag: [`题库 ${clusterQ.value[c.id] ?? c.qcount ?? 0} 题`, '专项突破', '难度自适应'],
+      color: c.color, ic: '🎯', status: 'todo',
+      badge: '可练 ' + (clusterQ.value[c.id] ?? c.qcount ?? 0) + ' 题', canStart: true
+    })),
     {
-      id: 'mock-1', menu: 'mock', title: '12 分钟理论模拟考 · 跌倒风险与急救',
+      id: 'mock-1', menu: 'mock', kind: 'mock', title: '12 分钟理论模拟考 · 跌倒风险与急救',
       tag: ['限时 12 分钟', '10 题 100 分', '对标竞赛题型'], color: '#f5a623', ic: '⏱',
       status: 'todo', badge: '未参加', canStart: true, isMock: true
     }
@@ -74,8 +83,9 @@ async function load() {
   tasks.value = buildTasks()
   err.value = ''
   try {
-    const [s] = await Promise.all([api.quizSummary()])
+    const [s, meta] = await Promise.all([api.quizSummary(), api.metaClusters().catch(() => null)])
     summary.value = s
+    if (meta?.items?.length) clusterQ.value = Object.fromEntries(meta.items.map((x) => [x.id, x.qcount]))
     tasks.value = buildTasks()
   } catch (e) {
     err.value = e.message // 原为静默：统计恒为 0 且无提示
@@ -100,7 +110,9 @@ async function start(t) {
   }
   loading.value = t.id
   try {
-    const r = await api.quizStart(t.isMock ? 'mock' : 'daily', t.exam_id || 0)
+    const r = t.kind === 'cluster'
+      ? await api.quizStart('cluster', 0, t.cluster)
+      : await api.quizStart(t.isMock ? 'mock' : 'daily', t.exam_id || 0)
     sessionStorage.setItem('exam_items', JSON.stringify(r.items))
     sessionStorage.setItem('exam_kind', r.kind || 'daily')
     sessionStorage.setItem('exam_title', r.title || '')

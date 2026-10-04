@@ -51,6 +51,19 @@ with sync_playwright() as pw:
     # 2) 学习中心：答案朗读 / 复制按钮（多模态 + 可用性）
     p.goto(BASE + "/learn", wait_until="domcontentloaded", timeout=30000)
     time.sleep(2.5)
+    # 问答历史可能已按演示需要清空：无历史答案时现场提一个问题并等答案完成（操作条出现即完成）
+    if p.locator(".msg-ops .op").count() < 2:
+        chip = p.locator(".chip-ask").first
+        if chip.count():
+            chip.click()
+        else:
+            p.fill("input, textarea", "老年人跌倒了怎么办")
+            p.keyboard.press("Enter")
+        try:
+            p.wait_for_selector(".msg-ops .op", timeout=30000)
+        except Exception:
+            pass
+        time.sleep(1)
     ops = p.locator(".msg-ops .op")
     n_ops = ops.count()
     check("AI 答案带操作条（朗读/复制）", n_ops >= 2, f"{n_ops} 个按钮")
