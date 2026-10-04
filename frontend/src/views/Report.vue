@@ -157,6 +157,9 @@ function fmtAt(ts) {
 
     <div class="card" style="margin-top: 14px">
       <div class="card-title">错题知识点分布</div>
+      <div style="font-size: 12px; color: var(--text-3); margin-bottom: 8px">
+        这里统计的是<b>错题本当前状态</b>（含历史错题）：重答连对 2 次才移入「已掌握」，与下方「各知识点正确率」（全部作答的正确比例）口径不同
+      </div>
       <div v-if="data.wrong_by_cluster.length">
         <div v-for="w in data.wrong_by_cluster" :key="w.cluster" class="wrow">
           <span class="wtag" :style="{ background: clusterColor(w.cluster) + '14', color: clusterColor(w.cluster) }">{{ clusterName(w.cluster) }}</span>
