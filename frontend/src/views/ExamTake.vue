@@ -142,6 +142,60 @@ function weakAgain() {
     .map(([k]) => k)
   router.push(ws.length ? { path: '/learn', query: { cluster: ws[0] } } : '/practice')
 }
+
+/* —— 成绩页：逐题对错与讲解 —— */
+const openQ = ref({})
+const onlyWrong = ref(false)
+function toggleQ(i) { openQ.value[i] = !openQ.value[i] }
+function toggleAll() {
+  const ids = filteredDetail.value.map((_, i) => i)
+  const anyClosed = ids.some((i) => !openQ.value[i])
+  ids.forEach((i) => { openQ.value[i] = anyClosed })
+}
+const filteredDetail = computed(() =>
+  (result.value?.detail || []).filter((q) => (onlyWrong.value ? !q.correct : true)))
+const wrongCount = computed(() => (result.value?.detail || []).filter((q) => !q.correct).length)
+function ansText(q) {
+  const out = []
+  for (const ch of (q.student_answer || '')) {
+    const i = ord(ch)
+    if (i >= 0 && i < (q.options || []).length) out.push(q.options[i])
+  }
+  return out.join('；') || '（未作答）'
+}
+function correctText(q) {
+  const out = []
+  for (const ch of (q.answer || '')) {
+    const i = ord(ch)
+    if (i >= 0 && i < (q.options || []).length) out.push(q.options[i])
+  }
+  return out.join('；')
+}
+function ord(ch) { return 'ABCD'.indexOf(ch) }
+
+/* —— 再练一组：直接重开同类型新卷（后端每次重新组卷，7 天内不重复出题） —— */
+const restarting = ref(false)
+async function restart() {
+  if (restarting.value) return
+  restarting.value = true
+  try {
+    const k = kind.value === 'teacher' ? 'daily' : kind.value
+    const cluster = sessionStorage.getItem('exam_cluster') || ''
+    const r = (k === 'cluster' && cluster)
+      ? await api.quizStart('cluster', 0, cluster)
+      : await api.quizStart(k === 'mock' ? 'mock' : 'daily')
+    sessionStorage.setItem('exam_items', JSON.stringify(r.items))
+    sessionStorage.setItem('exam_kind', r.kind || 'daily')
+    sessionStorage.setItem('exam_title', r.title || '')
+    sessionStorage.setItem('exam_time_limit', String(r.time_limit || 0))
+    sessionStorage.removeItem('exam_cluster')
+    router.push('/exam/' + r.attempt_id)
+  } catch (e) {
+    alert('开卷失败：' + e.message)
+  } finally {
+    restarting.value = false
+  }
+}
 </script>
 
 <template>
@@ -173,10 +227,48 @@ function weakAgain() {
           <div class="mono" style="font-weight: 700">{{ v.correct * 10 }} / {{ v.total * 10 }}</div>
         </div>
       </div>
+
+      <!-- 逐题对错与讲解 -->
+      <div class="mt16">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
+          <div class="card-title" style="margin: 0">逐题对错与讲解（{{ result.detail.length }} 题 / 错 {{ wrongCount }} 题）</div>
+          <button class="btn sm ghost" style="margin-left: auto" @click="onlyWrong = !onlyWrong">{{ onlyWrong ? '查看全部' : '只看错题' }}</button>
+          <button class="btn sm ghost" @click="toggleAll">全部展开 / 收起</button>
+        </div>
+        <div v-for="(q, i) in filteredDetail" :key="q.question_id" class="qrow" :class="{ bad: !q.correct }">
+          <div style="display: flex; gap: 10px; align-items: center; cursor: pointer" @click="toggleQ(i)">
+            <span class="qbadge" :class="q.correct ? 'ok' : 'no'">{{ q.correct ? '✓ 对' : '✗ 错' }}</span>
+            <span class="tag">{{ clusterName(q.cluster) }}</span>
+            <span class="tag blue">{{ q.type }}</span>
+            <span style="font-size: 13px; flex: 1; min-width: 0" class="qstem">{{ q.stem }}</span>
+            <span class="mono" style="font-size: 11px; color: var(--text-3)">{{ openQ[i] ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="openQ[i]" style="margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px">
+            <div style="font-size: 13.5px; line-height: 1.8">{{ q.stem }}</div>
+            <div style="font-size: 13px; color: var(--text-2); margin-top: 8px; line-height: 1.9">
+              <div v-for="(o, oi) in q.options" :key="oi"
+                :style="{ color: (q.answer || '').includes('ABCD'[oi]) ? 'var(--success)' : (q.student_answer || '').includes('ABCD'[oi]) && !q.correct ? 'var(--primary-text)' : 'inherit', fontWeight: (q.answer || '').includes('ABCD'[oi]) ? 700 : 400 }">
+                {{ 'ABCD'[oi] }}. {{ o }}{{ (q.answer || '').includes('ABCD'[oi]) ? '　✓ 正确答案' : '' }}{{ !(q.correct) && (q.student_answer || '').includes('ABCD'[oi]) ? '　← 你的作答' : '' }}
+              </div>
+            </div>
+            <div style="font-size: 12.5px; margin-top: 8px">
+              你的作答：<b class="mono" :style="{ color: q.correct ? 'var(--success)' : 'var(--primary-text)' }">{{ ansText(q) }}</b>
+              <span v-if="!q.correct" style="margin-left: 14px">正确：<b class="mono" style="color: var(--success)">{{ q.answer }}（{{ correctText(q) }}）</b></span>
+            </div>
+            <div v-if="q.explanation" class="explain">
+              <b>📖 讲解：</b>{{ q.explanation }}
+            </div>
+            <div v-else class="explain">📖 讲解：<span style="color: var(--text-3)">本题依据以下材料</span></div>
+            <div style="font-size: 12px; color: var(--text-3); margin-top: 6px">出处：<span class="mono">{{ q.source_doc }}</span></div>
+          </div>
+        </div>
+      </div>
+
       <div class="mt16" style="display: flex; gap: 10px; flex-wrap: wrap">
-        <button class="btn sm" @click="router.push('/practice')">再练一组</button>
-        <button class="btn sm ghost" @click="weakAgain()">再练一组薄弱题</button>
+        <button class="btn sm" :disabled="restarting" @click="restart()">{{ restarting ? '开卷中…' : '再练一组（重新组卷）' }}</button>
+        <button class="btn sm ghost" @click="weakAgain()">去学薄弱簇</button>
         <button class="btn sm ghost" @click="router.push('/wrong')">查看错题本</button>
+        <button class="btn sm ghost" @click="router.push('/practice')">练习与专项</button>
         <button class="btn sm ghost" @click="router.push('/')">回首页</button>
       </div>
     </div>
@@ -227,6 +319,14 @@ function weakAgain() {
 </template>
 
 <style scoped>
+.qrow { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; background: #fff; }
+.qrow.bad { border-color: #f3c1c1; background: #fffafa; }
+.qbadge { border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.qbadge.ok { background: var(--success-light); color: var(--success); }
+.qbadge.no { background: #fdeaea; color: var(--primary-text); }
+.qstem { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.explain { font-size: 13px; line-height: 1.8; margin-top: 10px; background: var(--bg); border-radius: 8px; padding: 10px 12px; color: var(--text-2); }
+@media (max-width: 640px) { .qstem { white-space: normal; } }
 .opt-list { display: grid; gap: 10px; margin-top: 18px; }
 .opt {
   border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px;

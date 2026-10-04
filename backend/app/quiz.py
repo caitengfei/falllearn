@@ -280,6 +280,48 @@ def my_result(attempt_id: int, u: dict = Depends(current_user)):
     return res
 
 
+@router.get("/quiz/history")
+def quiz_history(limit: int = 12, u: dict = Depends(current_user)):
+    """学生作答历史（全部已交卷）：练习页「作答历史」与学习报告统一展示共用。
+
+    返回最近 limit 组：attempt_id / 标题 / 类型 / 得分 / 正确率 / 交卷时间。"""
+    d = db.get_db()
+    limit = max(1, min(int(limit), 50))
+    rows = d.execute(
+        "SELECT a.id, a.score, a.submitted_at, e.kind, e.title FROM attempts a "
+        "LEFT JOIN exams e ON e.id=a.exam_id WHERE a.student_id=? AND a.status='done' "
+        "ORDER BY a.submitted_at DESC, a.id DESC LIMIT ?", (u["id"], limit)).fetchall()
+    items = []
+    for r in rows:
+        n = d.execute("SELECT COUNT(*) c, COALESCE(SUM(correct),0) ok FROM answers WHERE attempt_id=?",
+                      (r["id"],)).fetchone()
+        title = r["title"] or ""
+        if not title:
+            title = {"mock": "12 分钟模拟考", "daily": "综合练习"}.get(r["kind"] or "", "练习")
+        items.append({
+            "attempt_id": r["id"], "title": title, "kind": r["kind"] or "daily",
+            "score": r["score"],
+            "rate": round(n["ok"] * 100 / n["c"]) if n["c"] else None,
+            "n": n["c"], "submitted_at": r["submitted_at"],
+        })
+    d.close()
+    return {"items": items}
+
+
+@router.get("/quiz/cluster/{cluster}/points")
+def cluster_points(cluster: str, u: dict = Depends(current_user)):
+    """簇知识点列表（错题本「学这一簇」/ 簇知识点抽屉）：内容与知识库文档同口径。"""
+    if cluster not in CLUSTER_CN:
+        raise HTTPException(404, "未知知识簇")
+    d = db.get_db()
+    rows = d.execute(
+        "SELECT id, seq, title, content FROM knowledge_points WHERE cluster_id=? ORDER BY seq",
+        (cluster,)).fetchall()
+    d.close()
+    items = [{"id": r["id"], "seq": r["seq"], "title": r["title"], "content": r["content"]} for r in rows]
+    return {"cluster": cluster, "name": CLUSTER_CN[cluster], "items": items}
+
+
 @router.get("/quiz/summary")
 def quiz_summary(u: dict = Depends(current_user)):
     """练习概览：完成组数 / 最近得分 / 平均分 / 待复习错题数。"""
@@ -497,7 +539,7 @@ def _attempt_result_payload(d, att):
     per_cluster = {}
     detail = []
     for r in d.execute(
-            "SELECT a.correct, a.feedback, a.student_answer, q.id, q.stem, q.qtype, q.options, q.answer, q.source_doc, q.cluster_id "
+            "SELECT a.correct, a.feedback, a.student_answer, q.id, q.stem, q.qtype, q.options, q.answer, q.source_doc, q.cluster_id, q.explanation "
             "FROM answers a JOIN questions q ON q.id=a.question_id WHERE a.attempt_id=? ORDER BY q.id",
             (att["id"],)):
         pc = per_cluster.setdefault(r["cluster_id"], [0, 0])
@@ -511,6 +553,7 @@ def _attempt_result_payload(d, att):
              "options": opts, "answer": r["answer"],
              "student_answer": r["student_answer"] or "",
              "correct": r["correct"], "feedback": r["feedback"], "source_doc": r["source_doc"],
+             "explanation": r["explanation"] or "",
              "cluster": r["cluster_id"]})
     minutes = 0
     mx = 100

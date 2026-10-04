@@ -115,6 +115,10 @@ CREATE TABLE IF NOT EXISTS settings(
 CREATE TABLE IF NOT EXISTS login_audit(
   id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, sno TEXT, ip TEXT, ua TEXT, ok INTEGER, at INTEGER
 );
+CREATE TABLE IF NOT EXISTS knowledge_points(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, cluster_id TEXT, seq INTEGER,
+  title TEXT, content TEXT
+);
 """
 
 CLUSTER_KEY_MAP = {
@@ -146,6 +150,21 @@ def _migrate(db):
     if "tag" not in cols4:
         db.execute("ALTER TABLE banners ADD COLUMN tag TEXT DEFAULT ''")
         db.execute("ALTER TABLE banners ADD COLUMN sub TEXT DEFAULT ''")
+    # 题目讲解（错题本「看讲解」/成绩页逐题解析）：旧行为空，由 tools/gen_explanations.py 批量填充
+    cols_q = {r[1] for r in db.execute("PRAGMA table_info(questions)")}
+    if "explanation" not in cols_q:
+        db.execute("ALTER TABLE questions ADD COLUMN explanation TEXT DEFAULT ''")
+    # 六簇知识点种子（幂等：按 cluster+seq 去重补齐）
+    try:
+        from .knowledge_seed import KNOWLEDGE_POINTS
+        have = {(r[0], r[1]) for r in db.execute("SELECT cluster_id, seq FROM knowledge_points")}
+        for cid, pts in KNOWLEDGE_POINTS.items():
+            for i, (title, content) in enumerate(pts, 1):
+                if (cid, i) not in have:
+                    db.execute("INSERT INTO knowledge_points(cluster_id,seq,title,content) VALUES(?,?,?,?)",
+                               (cid, i, title, content))
+    except Exception:
+        pass
     for idx in (
         "CREATE INDEX IF NOT EXISTS idx_questions_cluster ON questions(cluster_id)",
         "CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id)",

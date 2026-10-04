@@ -87,6 +87,7 @@ async function load() {
     summary.value = s
     if (meta?.items?.length) clusterQ.value = Object.fromEntries(meta.items.map((x) => [x.id, x.qcount]))
     tasks.value = buildTasks()
+    loadHistory()
   } catch (e) {
     err.value = e.message // 原为静默：统计恒为 0 且无提示
   }
@@ -117,6 +118,8 @@ async function start(t) {
     sessionStorage.setItem('exam_kind', r.kind || 'daily')
     sessionStorage.setItem('exam_title', r.title || '')
     sessionStorage.setItem('exam_time_limit', String(r.time_limit || 0))
+    if (t.kind === 'cluster') sessionStorage.setItem('exam_cluster', t.cluster)
+    else sessionStorage.removeItem('exam_cluster')
     router.push('/exam/' + r.attempt_id)
   } catch (e) {
     alert('开卷失败：' + e.message)
@@ -128,6 +131,27 @@ async function start(t) {
 function viewResult(t) {
   sessionStorage.setItem('exam_review', String(t.attempt_id))
   router.push('/exam/' + t.attempt_id)
+}
+
+/* —— 作答历史：所有已交卷组统一展示（练习页 + 学习报告同源） —— */
+const history = ref([])
+const showHistory = ref(false)
+async function loadHistory() {
+  try {
+    const r = await api.quizHistory(8)
+    history.value = r.items || []
+  } catch (e) {
+    history.value = []
+  }
+}
+function viewAttempt(id) {
+  sessionStorage.setItem('exam_review', String(id))
+  router.push('/exam/' + id)
+}
+function fmtTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts * 1000)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 </script>
 
@@ -184,6 +208,27 @@ function viewResult(t) {
           <button v-else-if="t.canReview" class="btn sm ghost" @click="viewResult(t)">查看成绩</button>
         </div>
         <div v-if="!visible.length" class="card empty">{{ menu === 'teacher' ? '老师还没有布置练习 · 先去「日常练习」练一组吧' : '该分类下暂无任务' }}</div>
+
+        <!-- 作答历史（已完成组，可回看成绩与逐题讲解） -->
+        <div class="card" style="padding: 14px 20px; margin-top: 14px" v-if="menu === 'daily'">
+          <div style="display: flex; align-items: center; gap: 10px; cursor: pointer" @click="showHistory = !showHistory">
+            <b style="font-size: 14px">📝 作答历史（已完成 {{ history.length }} 组）</b>
+            <span style="font-size: 12px; color: var(--text-3)">每组作答结果在此回看：得分 / 正确率 / 逐题讲解</span>
+            <span style="margin-left: auto" class="mono">{{ showHistory ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="showHistory" style="margin-top: 10px">
+            <div v-for="h in history" :key="h.attempt_id" class="row-item">
+              <div style="width: 24px" class="dot" :style="{ background: h.rate >= 80 ? 'var(--success)' : h.rate >= 60 ? '#f5a623' : 'var(--primary)' }"></div>
+              <div class="rmain">
+                <div class="rtitle" style="font-size: 13px">{{ h.title }}</div>
+                <div style="font-size: 11.5px; color: var(--text-3)" class="mono">{{ fmtTime(h.submitted_at) }} · {{ h.n }} 题</div>
+              </div>
+              <div class="mono" style="font-weight: 700; margin-right: 12px">{{ h.score }} 分 <span style="font-weight: 400; color: var(--text-3)">/ {{ h.rate }}%</span></div>
+              <button class="btn sm ghost" @click="viewAttempt(h.attempt_id)">查看回顾</button>
+            </div>
+            <div v-if="!history.length" style="font-size: 12.5px; color: var(--text-3); padding: 8px 0">还没有已完成的练习——完成一组后这里会显示成绩与讲解</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

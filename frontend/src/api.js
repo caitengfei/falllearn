@@ -97,6 +97,8 @@ quizWeak: () => request('/api/quiz/weak'),
   quizAssignments: () => request('/api/quiz/assignments'),
   myTrainings: () => request('/api/trainings/my'),
   quizResult: (attempt_id) => request(`/api/quiz/result/${attempt_id}`),
+  quizHistory: (limit = 12) => request(`/api/quiz/history?limit=${limit}`),
+  clusterPoints: (cluster) => request(`/api/quiz/cluster/${cluster}/points`),
 
   wrongList: (status = 'active') => request(`/api/wrong?status=${status}`),
   wrongReview: (question_id, answer) =>

@@ -1,10 +1,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { api, CLUSTERS, clusterName, clusterColor } from '../api'
+import { router } from '../router'
 
 const data = ref(null)
 const err = ref('')
 const ai = ref({ text: '', loading: false, error: '' })
+const history = ref([])
 
 async function load() {
   err.value = ''
@@ -13,8 +15,23 @@ async function load() {
   } catch (e) {
     err.value = e.message
   }
+  try {
+    history.value = (await api.quizHistory(8)).items || []
+  } catch (e) {
+    history.value = []
+  }
 }
 onMounted(load)
+
+function viewAttempt(id) {
+  sessionStorage.setItem('exam_review', String(id))
+  router.push('/exam/' + id)
+}
+function fmtTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts * 1000)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 async function runAi() {
   if (ai.value.loading) return
@@ -124,6 +141,18 @@ function fmtAt(ts) {
       <p v-if="ai.text" class="aitext">{{ ai.text }}</p>
       <p v-else-if="ai.error" class="aierr">生成失败：{{ ai.error }} <button class="btn sm ghost" @click="runAi">重试</button></p>
       <p v-else class="aisub">让 AI 导师基于你的练习得分、错题分布与知识点正确率，生成一段个性化诊断与学习建议（约 10 秒）。</p>
+    </div>
+
+    <div class="card" style="margin-top: 14px">
+      <div class="card-title">作答历史（最近 {{ history.length }} 组）</div>
+      <div style="font-size: 12px; color: var(--text-3); margin-bottom: 8px">全部练习 / 模拟考 / 教师布置的作答结果统一展示，点「回看」查看得分、逐题对错与讲解</div>
+      <div v-for="h in history" :key="h.attempt_id" class="wrow">
+        <span class="wtag" :style="{ background: h.rate >= 80 ? 'rgba(21,128,61,.12)' : h.rate >= 60 ? 'rgba(245,166,35,.14)' : 'rgba(207,42,42,.10)', color: h.rate >= 80 ? 'var(--success)' : h.rate >= 60 ? '#b45309' : 'var(--primary-text)' }">{{ h.score }} 分 · {{ h.rate }}%</span>
+        <span style="flex: 1; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ h.title }}</span>
+        <span class="mono" style="font-size: 11.5px; color: var(--text-3)">{{ fmtTime(h.submitted_at) }}</span>
+        <button class="btn sm ghost" style="padding: 3px 10px" @click="viewAttempt(h.attempt_id)">回看</button>
+      </div>
+      <div v-if="!history.length" class="empty">还没有作答记录——去「练习考试」完成一组练习吧</div>
     </div>
 
     <div class="card" style="margin-top: 14px">

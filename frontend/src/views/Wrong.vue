@@ -127,7 +127,7 @@ async function doReview() {
     const r = await api.wrongReview(m.q.id, picked.value)
     reviewResult.value = r
     // 只有「已到期且答对」才推进流程（未到期的提前练习不改状态、不计分）
-    if (r.correct && r.due !== false) setTimeout(() => { modal.value = null; load() }, 2200)
+    if (r.correct && r.due !== false) setTimeout(() => { modal.value = null; load() }, 2400)
   } catch (e) {
     // 已掌握/不在待复习（后端 404）：关闭弹层、刷新列表，不让评委看到 alert 弹窗
     if (/不在待复习|不存在/.test(e.message)) {
@@ -138,6 +138,20 @@ async function doReview() {
     }
   }
   busy.value = false
+}
+
+/* —— 簇知识点抽屉（「学这一簇」）：错题所属簇的完整知识点与讲解 —— */
+const kp = ref(null)      // { cluster, name, items, loading, err }
+async function openPoints(cluster) {
+  kp.value = { cluster, name: clusterName(cluster), items: [], loading: true, err: '' }
+  try {
+    const r = await api.clusterPoints(cluster)
+    kp.value.items = r.items || []
+    kp.value.loading = false
+  } catch (e) {
+    kp.value.err = e.message
+    kp.value.loading = false
+  }
 }
 </script>
 
@@ -186,13 +200,13 @@ async function doReview() {
       <div style="display: flex; gap: 10px; margin-top: 14px">
         <button class="btn sm" @click="openRedo(x)">重答这道题</button>
         <button class="btn sm ghost" @click="openExplain(x)">看讲解</button>
-        <button v-if="x.cluster" class="btn sm ghost" @click="router.push({ path: '/learn', query: { cluster: x.cluster } })">学这一簇</button>
+        <button v-if="x.cluster" class="btn sm ghost" @click="openPoints(x.cluster)">学这一簇</button>
       </div>
     </div>
 
     <!-- 讲解 -->
     <div v-if="modal && modal.mode === 'explain'" class="mask" @click.self="modal = null">
-      <div class="modal" style="max-width: 560px">
+      <div class="modal" style="max-width: 620px; max-height: 82vh; overflow-y: auto">
         <div class="modal-h">📖 讲解 <span class="more" @click="modal = null">✕</span></div>
         <div style="font-size: 14.5px; line-height: 1.75">{{ modal.q.stem }}</div>
         <div style="margin-top: 14px; font-size: 14px">
@@ -203,14 +217,42 @@ async function doReview() {
             </b>{{ o }}
           </div>
         </div>
+        <div v-if="modal.q.explanation" class="kp-explain">
+          <b>📖 详细讲解：</b><br>{{ modal.q.explanation }}
+        </div>
         <div style="font-size: 13px; color: var(--text-2); margin-top: 12px; line-height: 1.8">
           正确答案：<b style="color: var(--success)">{{ modal.q.answer }}</b><br>
           出处：<span class="mono" style="font-size: 12px">{{ shortSource(modal.q.source_doc) }}</span>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end">
+          <button v-if="modal.q.cluster" class="btn sm ghost" @click="openPoints(modal.q.cluster)">学这一簇的知识点</button>
           <button class="btn sm ghost" @click="modal = null">关闭</button>
           <button class="btn sm" @click="openRedo(modal.q)">重答这道题</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 簇知识点抽屉（学这一簇） -->
+    <div v-if="kp" class="mask" @click.self="kp = null">
+      <div class="modal" style="max-width: 640px; max-height: 84vh; overflow-y: auto">
+        <div class="modal-h">🎯 {{ kp.name }} · 本簇知识点 <span class="more" @click="kp = null">✕</span></div>
+        <div v-if="kp.loading" style="padding: 24px 0; text-align: center; color: var(--text-3)">加载中…</div>
+        <div v-else-if="kp.err" style="padding: 16px 0; color: var(--primary-text)">加载失败：{{ kp.err }}</div>
+        <template v-else>
+          <div style="font-size: 12.5px; color: var(--text-3); margin-bottom: 10px">
+            共 {{ kp.items.length }} 个知识点 · 内容与知识库文档同口径 · 掌握这些知识点即可覆盖本簇题目
+          </div>
+          <div v-for="(p, i) in kp.items" :key="p.id" class="kp-card">
+            <div style="display: flex; gap: 8px; align-items: baseline">
+              <b style="color: var(--primary-text)">{{ i + 1 }}. {{ p.title }}</b>
+            </div>
+            <div style="font-size: 13px; line-height: 1.85; margin-top: 6px; color: var(--text-2)">{{ p.content }}</div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end">
+            <button class="btn sm ghost" @click="kp = null">关闭</button>
+            <button class="btn sm" @click="router.push({ path: '/learn', query: { cluster: kp.cluster } })">去知识库读原文</button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -271,4 +313,6 @@ async function doReview() {
 .opt:hover { border-color: var(--primary); }
 .opt.sel { border-color: var(--primary); background: var(--primary-light); font-weight: 600; }
 .opt b { color: var(--primary-text); min-width: 18px; }
+.kp-explain { font-size: 13px; line-height: 1.9; margin-top: 14px; background: var(--bg); border-radius: 10px; padding: 12px 14px; color: var(--text-2); }
+.kp-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; background: #fff; }
 </style>

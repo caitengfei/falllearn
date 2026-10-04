@@ -18,7 +18,8 @@ def list_wrong(status: str = "active", u: dict = Depends(current_user)):
     d = db.get_db()
     now = int(time.time())
     rows = d.execute(
-        "SELECT w.id, w.first_wrong_at, w.review_count, w.last_review_at, w.due_at, w.status, q.id qid, q.stem, q.qtype, q.options, q.answer, q.cluster_id, q.source_doc "
+        "SELECT w.id, w.first_wrong_at, w.review_count, w.last_review_at, w.due_at, w.status, "
+        "q.id qid, q.stem, q.qtype, q.options, q.answer, q.cluster_id, q.source_doc, q.explanation "
         "FROM wrong_records w JOIN questions q ON q.id=w.question_id "
         "WHERE w.student_id=? AND w.status=? ORDER BY (w.due_at<=?) DESC, w.due_at",
         (u["id"], status, now)).fetchall()
@@ -29,6 +30,7 @@ def list_wrong(status: str = "active", u: dict = Depends(current_user)):
             "id": r["qid"], "stem": r["stem"], "type": r["qtype"],
             "options": opts if r["qtype"] != "判断" else ["对（A）", "错（B）"],
             "answer": r["answer"], "cluster": r["cluster_id"], "source_doc": r["source_doc"],
+            "explanation": r["explanation"] or "",
             "review_count": r["review_count"], "first_wrong_at": r["first_wrong_at"],
             "due_at": r["due_at"], "due": r["due_at"] <= now,
             "last_review_at": r["last_review_at"],
@@ -74,9 +76,10 @@ def review(body: ReviewIn, u: dict = Depends(current_user)):
     # 间隔复习调度（与 UI 文案一致）：首错次日到期 → 答对后第 3 天 → 连对 2 次标记掌握；答错回到次日
     if correct:
         db.add_points(d, u["id"], 10, "错题复习答对", f"q:{q['id']}")
+        # 间隔复习（按教师确认口径）：首错次日到期 → 答对后第 3 天 → 连对 2 次标记掌握；答错回到次日
         streak = w["correct_streak"] + 1
         if streak >= 2:
-            d.execute("UPDATE wrong_records SET status='mastered', last_review_at=?, correct_streak=? WHERE id=?",
+            d.execute("UPDATE wrong_records SET status='mastered', last_review_at=?, review_count=review_count+1, correct_streak=? WHERE id=?",
                       (now, streak, w["id"]))
             status = "mastered"
         else:
