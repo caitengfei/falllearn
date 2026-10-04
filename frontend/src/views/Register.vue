@@ -40,9 +40,9 @@ async function submit() {
   <div class="reg-wrap">
     <div class="reg-card">
       <div class="reg-head">
-        <span class="logo-mark">跌</span>
+        <span class="logo-mark">康</span>
         <div>
-          <div class="t1">加入防跌学堂</div>
+          <div class="t1">加入康养智行</div>
           <div class="t2">用老师发的邀请码注册 · 30 秒完成</div>
         </div>
       </div>

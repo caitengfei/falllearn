@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 防跌学堂 · Linux 服务器一键部署（Ubuntu 20.04+ / Debian 11+ / CentOS 7+）
+# 康养智行 · Linux 服务器一键部署（Ubuntu 20.04+ / Debian 11+ / CentOS 7+）
 # 用法：把 FallLearn 目录放到服务器任意位置，然后：
 #   cd FallLearn && bash deploy/deploy.sh [端口，默认 8010]
 # 完成后浏览器访问 http://服务器公网IP:端口
@@ -29,7 +29,7 @@ echo "==> [3/5] 初始化数据库（首次自动建库：题库 + 演示账号�
 echo "==> [4/5] 写入 systemd 服务（开机自启 + 崩溃自动拉起）..."
 cat > /etc/systemd/system/falllearn.service <<EOF
 [Unit]
-Description=FallLearn - 防跌学堂平台
+Description=FallLearn - 康养智行平台
 After=network.target
 
 [Service]

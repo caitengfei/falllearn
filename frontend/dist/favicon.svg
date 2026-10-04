@@ -1,5 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#e4393c"/>
-  <text x="32" y="45" font-size="36" font-weight="700" fill="#ffffff" text-anchor="middle"
-        font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">跌</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="康养智行">
+  <defs>
+    <linearGradient id="kg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#cf2a2a"/>
+      <stop offset="1" stop-color="#9f1239"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#kg)"/>
+  <text x="32" y="46" font-size="38" font-weight="700" fill="#ffffff" text-anchor="middle"
+        font-family="'Microsoft YaHei','PingFang SC','Heiti SC',sans-serif">康</text>
 </svg>

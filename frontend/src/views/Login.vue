@@ -45,9 +45,10 @@ async function doLogin() {
   <div class="login-page">
     <div class="login-card">
       <div class="login-head">
-        <div class="lh-logo">跌</div>
-        <h1>防跌学堂</h1>
-        <p>老年人跌倒预防与应急处置 · 岗课赛证融通</p>
+        <div class="lh-logo">康</div>
+        <h1>康养智行</h1>
+        <p>智慧养老“岗课赛证”融通智能体</p>
+        <div style="font-size: 12px; color: #b45309; letter-spacing: 3px; margin-top: 6px">智护银龄，行稳致远</div>
         <div class="lh-tags">
           <span>世赛对标</span><span>省赛 GZ063</span><span>三证贯通</span>
         </div>

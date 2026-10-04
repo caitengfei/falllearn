@@ -91,10 +91,10 @@ function goGuide(g) {
         <div class="logo" role="button" tabindex="0" aria-label="返回首页"
           @click="router.push(isTeacher ? '/admin' : '/')"
           @keyup.enter="router.push(isTeacher ? '/admin' : '/')">
-          <span class="logo-mark">跌</span>
-          <span>防跌学堂</span>
+          <span class="logo-mark">康</span>
+          <span>康养智行</span>
         </div>
-        <span class="slogan hide-md" v-if="!isAdmin">老年人跌倒预防与应急处置 · 岗课赛证融通</span>
+        <span class="slogan hide-md" v-if="!isAdmin">智慧养老“岗课赛证”融通智能体</span>
         <span class="slogan hide-md" v-else style="color: var(--primary-text); font-weight: 600">教师管理后台</span>
         <div class="searchbox hide-sm" v-if="!isAdmin">
           🔍
@@ -125,7 +125,7 @@ function goGuide(g) {
     <template v-if="isAdmin">
       <div class="admin-wrap">
         <aside class="admin-side">
-          <!-- 侧栏标题：品牌与角色已在顶栏呈现（"防跌学堂 / 教师管理后台"），此处不再重复 logo 与"管理后台"字样 -->
+          <!-- 侧栏标题：品牌与角色已在顶栏呈现（"康养智行 / 教师管理后台"），此处不再重复 logo 与"管理后台"字样 -->
           <div class="side-head">教学管理</div>
           <template v-for="g in sideNav" :key="g.group">
             <div class="side-group">{{ g.group }}</div>

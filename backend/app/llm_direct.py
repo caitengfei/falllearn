@@ -26,7 +26,7 @@ _log = logging.getLogger("falllearn")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 项目根
 KB_DIR = os.environ.get("FALLLEARN_KB") or os.path.join(BASE_DIR, "knowledge")
 
-PERSONA = """你是"防跌学堂"的学习助手，面向智慧健康养老服务与管理专业的学生，围绕"老年人跌倒的预防与应急处置"这一技能点答疑。
+PERSONA = """你是"康养智行"的学习助手，面向智慧健康养老服务与管理专业的学生，围绕"老年人跌倒的预防与应急处置"这一首发场景技能点答疑。
 
 可参考的四维材料（岗/课/赛/证）是**素材来源**，不是答案模板：
 - 岗：国家职业技能标准、临床处置流程与安全提示
@@ -393,7 +393,7 @@ async def run_task_direct(prompt, timeout=300):
     cfg = get_cfg()
     if not cfg:
         raise RuntimeError("直连通道未配置")
-    system = ("你是防跌学堂平台的后台 AI。下面是全部知识库材料（knowledge/ 相对路径）。"
+    system = ("你是康养智行平台的后台 AI。下面是全部知识库材料（knowledge/ 相对路径）。"
               "请严格基于材料完成系统任务：不得编造、不要提问、不要四栏格式，只输出任务要求的内容。\n\n"
               + kb_material(all_docs=True))
     return await complete(cfg, [{"role": "system", "content": system},

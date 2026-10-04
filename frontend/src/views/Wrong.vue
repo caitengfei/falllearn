@@ -62,7 +62,7 @@ function buildPrintHtml() {
       <div class="src">来源：${escapeHtml(shortSource(x.source_doc))}${x.answer ? `　正确答案：<b>${escapeHtml(x.answer)}</b>` : ''}</div>
     </div>`).join('')
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>错题复习清单 · 防跌学堂</title>
+<title>错题复习清单 · 康养智行</title>
 <style>
   body{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;margin:28px;color:#1f2430;line-height:1.7}
   h1{font-size:19px;margin:0 0 4px}
@@ -79,7 +79,7 @@ function buildPrintHtml() {
   @media print{body{margin:12mm}.q{border-color:#ddd}}
 </style></head><body>
 <h1>错题复习清单${pill.value === 'active' ? '（待复习）' : '（已掌握）'}</h1>
-<div class="sub">共 ${list.value.length} 题 · 导出时间 ${new Date().toLocaleString('zh-CN')} · 防跌学堂</div>
+<div class="sub">共 ${list.value.length} 题 · 导出时间 ${new Date().toLocaleString('zh-CN')} · 康养智行</div>
 ${rows || '<div class="q">暂无错题</div>'}
 </body></html>`
 }

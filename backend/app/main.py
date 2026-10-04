@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""防跌学堂后端入口：FastAPI + SQLite + DSH 转发"""
+"""康养智行后端入口：FastAPI + SQLite + DSH 转发"""
 import logging
 import os
 import time
@@ -25,7 +25,7 @@ from .kb import router as kb_router
 # 生产关闭交互式 API 文档（/docs、/redoc、/openapi.json 会向匿名访问者暴露全部端点与模型）。
 # 本地开发需要时置环境变量 FALLLEARN_ENABLE_DOCS=1。
 _ENABLE_DOCS = os.environ.get("FALLLEARN_ENABLE_DOCS") == "1"
-app = FastAPI(title="防跌学堂", version="1.3.0",
+app = FastAPI(title="康养智行", version="1.3.0",
               docs_url="/docs" if _ENABLE_DOCS else None,
               redoc_url="/redoc" if _ENABLE_DOCS else None,
               openapi_url="/openapi.json" if _ENABLE_DOCS else None)

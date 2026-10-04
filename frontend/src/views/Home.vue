@@ -179,6 +179,11 @@ onBeforeUnmount(stopSlides)
 
 <template>
   <div class="page">
+    <!-- 品牌条：正式名称 + Slogan（常驻，低调） -->
+    <div class="brand-strip">
+      <span class="bs-brand">康养智行 · 智慧养老“岗课赛证”融通智能体</span>
+      <span class="bs-slogan">智护银龄，行稳致远</span>
+    </div>
     <!-- 评委演示引导（首访展示，可不再显示；顶栏 ? 重开） -->
     <div v-if="showGuide" class="guide-card">
       <div class="gc-head">
@@ -328,6 +333,11 @@ onBeforeUnmount(stopSlides)
 
     <div class="card mt16">
       <div class="card-title">知识卡片 · 六簇 × 岗课赛证 <span style="font-size: 11px; color: var(--text-3); font-weight: 400">点一张卡看知识点</span><span class="more" @click="router.push('/map')">全部 ›</span></div>
+      <div class="ext-chips">
+        <span>🎯 首发场景：跌倒预防与应急处置</span>
+        <span>📚 四维编目：岗 · 课 · 赛 · 证</span>
+        <span>🚀 架构支持向全技能照护赛训扩展</span>
+      </div>
       <div class="kgrid">
         <div v-for="c in kcards" :key="c.id" class="kcard" @click="openK = c.id">
           <span v-if="c.core" class="badge-corner">核心</span>
@@ -391,6 +401,21 @@ onBeforeUnmount(stopSlides)
 </template>
 
 <style scoped>
+/* —— 品牌条（正式名称 + Slogan，常驻）—— */
+.brand-strip {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  background: linear-gradient(90deg, #fff5f5, #ffffff 65%);
+  border: 1px solid #fbd9d9; border-radius: 12px;
+  padding: 9px 14px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.bs-brand { font-size: 12.5px; font-weight: 700; color: #9f1239; }
+.bs-slogan { font-size: 12px; color: #b45309; letter-spacing: 2px; }
+/* —— 可扩展三 chip（知识卡片区：首发场景 / 四维编目 / 扩展能力）—— */
+.ext-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.ext-chips span {
+  font-size: 11.5px; color: var(--text-2); background: #f8fafc;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px;
+}
 /* —— 评委演示引导卡（首访）—— */
 .guide-card {
   background: linear-gradient(120deg, #fff5f5, #ffffff 55%);

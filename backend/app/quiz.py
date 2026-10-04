@@ -331,7 +331,7 @@ async def quiz_report_ai(u: dict = Depends(current_user)):
         "各知识点正确率": [{"知识点": CLUSTER_CN.get(x["cluster"], x["cluster"]),
                           "正确率%": x["rate"], "作答数": x["n"]} for x in rep["correct_rate"]],
     }
-    sysp = ("你是防跌学堂的学业导师。根据学生近两周学习报告数据（JSON），用简体中文输出一段简洁的「AI 学习分析」，"
+    sysp = ("你是康养智行的学业导师。根据学生近两周学习报告数据（JSON），用简体中文输出一段简洁的「AI 学习分析」，"
             "不超过 160 字：先一句总体表现（结合平均分与趋势走向），再点出最薄弱的 1-2 个知识点（结合正确率与错题分布），"
             "最后给一条具体可执行的建议。语气鼓励但诚实。不要 emoji、不要 markdown、不要分点编号。")
     try:

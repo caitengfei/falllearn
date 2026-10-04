@@ -13,6 +13,7 @@ from playwright.sync_api import sync_playwright
 sys.stdout.reconfigure(encoding="utf-8")
 BASE = "http://127.0.0.1:8010"
 fails = []
+total = 0
 
 
 def log(m):
@@ -20,6 +21,8 @@ def log(m):
 
 
 def check(name, cond, extra=""):
+    global total
+    total += 1
     if cond:
         log(f"  \u2713 {name} {extra}")
     else:
@@ -87,6 +90,6 @@ with sync_playwright() as pw:
     check("全程无 JS 异常", not js_errors, str(js_errors[:3]))
     b.close()
 
-print("\n===== 界面优化验收: %d 项检查，失败 %d =====" % (0, len(fails)))
+print("\n===== 界面优化验收: %d 项检查，失败 %d =====" % (total, len(fails)))
 print("FAILS:", fails if fails else "无")
 sys.exit(1 if fails else 0)
