@@ -112,6 +112,7 @@ const kcards = computed(() =>
     core: c.id === 'five' || c.id === 'fracture'
   }))
 )
+const totalQ = computed(() => kcards.value.reduce((s, c) => s + (c.qcount || 0), 0))  // 六簇题量合计
 const openK = ref(null) // 当前展开详解的簇
 const kdetail = computed(() => kcards.value.find((x) => x.id === openK.value) || null)
 function askCluster() {
@@ -332,7 +333,7 @@ onBeforeUnmount(stopSlides)
     </div>
 
     <div class="card mt16">
-      <div class="card-title">知识卡片 · 六簇 × 岗课赛证 <span style="font-size: 11px; color: var(--text-3); font-weight: 400">点一张卡看知识点</span><span class="more" @click="router.push('/map')">全部 ›</span></div>
+      <div class="card-title">知识卡片 · 六簇 × 岗课赛证 <span style="font-size: 11px; color: var(--text-3); font-weight: 400">六簇共 {{ totalQ }} 题 · 点一张卡看知识点</span><span class="more" @click="router.push('/map')">全部 ›</span></div>
       <div class="ext-chips">
         <span>🎯 首发场景：跌倒预防与应急处置</span>
         <span>📚 四维编目：岗 · 课 · 赛 · 证</span>
