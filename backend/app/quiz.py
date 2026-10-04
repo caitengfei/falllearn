@@ -234,6 +234,38 @@ def my_assignments(u: dict = Depends(current_user)):
     return {"items": out}
 
 
+@router.get("/trainings/my")
+def my_trainings(u: dict = Depends(current_user)):
+    """学生端「我的培训」：本人已报名的培训期次（名称/批次/起止/状态/带训教师）。
+
+    与教师端「培训管理」构成闭环：教师建期次并勾选报名 → 学生端首页可见进度与状态；
+    完成状态由教师标记，学生侧实时同步（同一份数据，无需额外维护）。
+    """
+    d = db.get_db()
+    today = time.strftime("%Y-%m-%d")
+    rows = d.execute(
+        "SELECT t.id, t.title, t.batch, t.start_date, t.end_date, t.note, e.status, "
+        "u2.name AS teacher_name FROM training_enrolls e JOIN trainings t ON t.id=e.training_id "
+        "LEFT JOIN users u2 ON u2.id=t.teacher_id WHERE e.student_id=? "
+        "ORDER BY t.id DESC LIMIT 20", (u["id"],)).fetchall()
+    d.close()
+    items = []
+    for r in rows:
+        start, end = r["start_date"] or "", r["end_date"] or ""
+        if r["status"] == "done":
+            label = "已完成"
+        elif end and end < today:
+            label = "已结束"
+        elif start and start > today:
+            label = "未开始"
+        else:
+            label = "进行中"
+        items.append({"id": r["id"], "title": r["title"], "batch": r["batch"] or "",
+                      "start_date": start, "end_date": end, "note": r["note"] or "",
+                      "status": r["status"], "label": label, "teacher": r["teacher_name"] or ""})
+    return {"items": items, "count": len(items)}
+
+
 @router.get("/quiz/result/{attempt_id}")
 def my_result(attempt_id: int, u: dict = Depends(current_user)):
     """本人已交卷结果回顾（「教师布置·查看成绩」复用）。"""

@@ -12,6 +12,7 @@ const timeline = ref([])
 const lb = ref({ points: [], mastery: [], my_rank_points: null, my_rank_mastery: null })
 const lbTab = ref('points')
 const wrongByCluster = ref({})
+const myTrainings = ref([])
 const toast = ref(null)
 const loadErr = ref('')
 
@@ -130,11 +131,13 @@ async function load() {
   loadContent() // 轮播/公告独立加载，不阻塞主体
   loadErr.value = ''
   try {
-    const [m, t, l, wl, wh, lh] = await Promise.all([
+    const [m, t, l, wl, wh, lh, mt] = await Promise.all([
       api.me(), api.today(), api.leaderboard(), api.wrongList('active'),
       api.quizWeak(),
-      api.learnHistory()
+      api.learnHistory(),
+      api.myTrainings().catch(() => ({ items: [] }))  // 培训接口失败不拖垮首页其余数据
     ])
+    myTrainings.value = mt.items || []
     me.value = m
     points.value = m.points || 0
     checkedIn.value = t.checked_in
@@ -356,6 +359,28 @@ onBeforeUnmount(stopSlides)
       </div>
     </div>
 
+    <!-- 我的培训（教师端「培训管理」报名后可见；与教师端培训统计构成闭环） -->
+    <div v-if="myTrainings.length" class="card mt16">
+      <div class="card-title">
+        🎫 我的培训
+        <span style="font-size: 11px; color: var(--text-3); font-weight: 400">教师端报名 · 完成状态实时同步</span>
+      </div>
+      <div class="trows">
+        <div v-for="t in myTrainings" :key="t.id" class="trow-i">
+          <div class="trow-main">
+            <b>{{ t.title }}</b>
+            <span v-if="t.batch" class="tag blue">{{ t.batch }}</span>
+          </div>
+          <div class="trow-sub">
+            {{ t.start_date || '—' }} ~ {{ t.end_date || '—' }}
+            <span v-if="t.teacher"> · 带训教师 {{ t.teacher }}</span>
+            <span v-if="t.note"> · {{ t.note }}</span>
+          </div>
+          <span class="tag" :class="{ green: t.label === '已完成', red: t.label === '进行中' }">{{ t.label }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 簇详解弹窗（点知识卡原地打开） -->
     <div v-if="kdetail" class="mask" @click.self="openK = null">
       <div class="modal" style="max-width: 540px">
@@ -411,6 +436,14 @@ onBeforeUnmount(stopSlides)
 }
 .bs-brand { font-size: 12.5px; font-weight: 700; color: #9f1239; }
 .bs-slogan { font-size: 12px; color: #b45309; letter-spacing: 2px; }
+/* —— 我的培训（学生端可见：教师端报名的期次与状态）—— */
+.trows { display: flex; flex-direction: column; gap: 8px; }
+.trow-i {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
+}
+.trow-main { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.trow-sub { font-size: 11.5px; color: var(--text-3); flex: 1; min-width: 180px; }
 /* —— 可扩展三 chip（知识卡片区：首发场景 / 四维编目 / 扩展能力）—— */
 .ext-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .ext-chips span {

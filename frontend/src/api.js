@@ -95,6 +95,7 @@ quizWeak: () => request('/api/quiz/weak'),
   quizReport: () => request('/api/quiz/report'),
   quizReportAi: () => request('/api/quiz/report/ai', { method: 'POST', timeout: 90000 }),
   quizAssignments: () => request('/api/quiz/assignments'),
+  myTrainings: () => request('/api/trainings/my'),
   quizResult: (attempt_id) => request(`/api/quiz/result/${attempt_id}`),
 
   wrongList: (status = 'active') => request(`/api/wrong?status=${status}`),

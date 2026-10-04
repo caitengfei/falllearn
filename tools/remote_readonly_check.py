@@ -50,7 +50,12 @@ check("错题本接口可用（返回列表）", isinstance(wl.get("items"), lis
 kb = requests.get(BASE + "/api/kb/search", params={"q": ""}, headers=SH, timeout=20).json()
 check("知识库 46 份", kb.get("total") == 46, kb.get("total"))
 acc = requests.get(BASE + "/api/admin/accounts", headers=TH, timeout=15).json()
-check("账号 4 个（3 生 1 师）", len(acc.get("items", [])) == 4, len(acc.get("items", [])))
+# 真实试用（邀请码注册/批量发号）后账号会增加，故校验「≥ 演示基线且演示师生齐备」，与上方口径一致
+accs = acc.get("items", [])
+acc_nos = {x.get("student_no") for x in accs}
+check("账号数 ≥ 4（演示基线 3 生 1 师；试用后会增长）", len(accs) >= 4, len(accs))
+check("演示师生齐备（T2026 + S2026001~3）",
+      {"T2026", "S2026001", "S2026002", "S2026003"} <= acc_nos, sorted(acc_nos))
 
 print("=== B. 浏览器只读走查（不点写操作按钮） ===", flush=True)
 with sync_playwright() as pw:
