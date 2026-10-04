@@ -158,11 +158,11 @@ function weakAgain() {
     <div v-else-if="result" class="card" style="padding: 30px">
       <div class="score-ring">
         <div class="v mono" style="font-size: 34px">{{ result.score }}</div>
-        <div class="k">总分（100）</div>
+        <div class="k">总分（{{ result.max }}）</div>
       </div>
       <div class="grid-3 mt16">
         <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ result.max }}</div><div class="k">满分</div></div>
-        <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ Math.round(result.score) }}%</div><div class="k">正确率</div></div>
+        <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ result.max ? Math.round(result.score / result.max * 100) : 0 }}%</div><div class="k">正确率</div></div>
         <div class="card" style="text-align: center; margin: 0"><div class="v mono">{{ kind === 'mock' ? '12:00' : ((result && result.minutes) ? result.minutes + ' 分钟' : '不限时') }}</div><div class="k">限时</div></div>
       </div>
       <div class="mt16">

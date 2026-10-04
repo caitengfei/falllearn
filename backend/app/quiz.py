@@ -513,11 +513,19 @@ def _attempt_result_payload(d, att):
              "correct": r["correct"], "feedback": r["feedback"], "source_doc": r["source_doc"],
              "cluster": r["cluster_id"]})
     minutes = 0
-    ex = d.execute("SELECT config FROM exams WHERE id=?", (att["exam_id"],)).fetchone()
+    mx = 100
+    ex = d.execute("SELECT kind, config FROM exams WHERE id=?", (att["exam_id"],)).fetchone()
     if ex:
         try:
             minutes = int(json.loads(ex["config"] or "{}").get("minutes", 0) or 0)
         except (ValueError, TypeError):
             minutes = 0
-    return {"score": total, "max": 100, "detail": detail, "minutes": minutes,
+        # 满分口径：教师布置卷 = 该卷配分总和（题数 × 10）；日常练习/模拟考 = 100
+        # （此前硬编码 100：5 题卷全对显示「50 分 / 100 满分 / 正确率 50%」自相矛盾）
+        if ex["kind"] == "teacher":
+            srow = d.execute("SELECT COALESCE(SUM(score),0) s FROM exam_items WHERE exam_id=?",
+                             (att["exam_id"],)).fetchone()
+            if srow and int(srow["s"] or 0) > 0:
+                mx = int(srow["s"])
+    return {"score": total, "max": mx, "detail": detail, "minutes": minutes,
             "per_cluster": {k: {"correct": v[0], "total": v[1]} for k, v in per_cluster.items()}}
