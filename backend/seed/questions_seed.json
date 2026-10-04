@@ -551,7 +551,7 @@
   ],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -911,7 +911,7 @@
   ],
   "answer": "C",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "CPR启动",
   "difficulty": 1
  },
  {
@@ -3671,7 +3671,7 @@
   ],
   "answer": "C",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "CPR启动",
   "difficulty": 2
  },
  {
@@ -4511,7 +4511,7 @@
   ],
   "answer": "C",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -4526,7 +4526,7 @@
   ],
   "answer": "D",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -5516,7 +5516,7 @@
   ],
   "answer": "D",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -8606,7 +8606,7 @@
   ],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 2
  },
  {
@@ -11126,7 +11126,7 @@
   ],
   "answer": "BCD",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "CPR启动",
   "difficulty": 2
  },
  {
@@ -11426,7 +11426,7 @@
   ],
   "answer": "ABCD",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 2
  },
  {
@@ -11636,7 +11636,7 @@
   ],
   "answer": "BCD",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "CPR启动",
   "difficulty": 2
  },
  {
@@ -11816,7 +11816,7 @@
   ],
   "answer": "ABC",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 2
  },
  {
@@ -14101,7 +14101,7 @@
   "options": [],
   "answer": "A",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -14141,7 +14141,7 @@
   "options": [],
   "answer": "A",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "CPR启动",
   "difficulty": 1
  },
  {
@@ -14881,7 +14881,7 @@
   "options": [],
   "answer": "A",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "环境防控",
   "difficulty": 1
  },
  {
@@ -15431,7 +15431,7 @@
   "options": [],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -15811,7 +15811,7 @@
   "options": [],
   "answer": "A",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "环境防控",
   "difficulty": 1
  },
  {
@@ -15821,7 +15821,7 @@
   "options": [],
   "answer": "A",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "环境防控",
   "difficulty": 1
  },
  {
@@ -15971,7 +15971,7 @@
   "options": [],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -17101,7 +17101,7 @@
   "options": [],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "记录上报",
   "difficulty": 1
  },
  {
@@ -17221,7 +17221,7 @@
   "options": [],
   "answer": "B",
   "source_doc": "江苏2023养老护理职业技能竞赛理论题库",
-  "cluster": "通用",
+  "cluster": "Morse评估",
   "difficulty": 1
  },
  {
@@ -17841,7 +17841,7 @@
   ],
   "answer": "B",
   "source_doc": "04-证/模拟真题（跌倒专项）.md（来源：GB 38600-2019 7.1.1 官方原文，01-岗/临床标准处置流程.md）",
-  "cluster": "通用",
+  "cluster": "记录上报",
   "difficulty": 2
  },
  {
@@ -17916,7 +17916,7 @@
   ],
   "answer": "B",
   "source_doc": "04-证/模拟真题（跌倒专项）.md（来源：01-岗/安全提示要点.md，国际指南 1A 级推荐）",
-  "cluster": "通用",
+  "cluster": "环境防控",
   "difficulty": 2
  },
  {
@@ -18171,7 +18171,7 @@
   "options": [],
   "answer": "B",
   "source_doc": "04-证/模拟真题（跌倒专项）.md（来源：Morse 官方\"ask a second nurse to help lift the patient\"——应呼叫第二人协助）",
-  "cluster": "通用",
+  "cluster": "五步处置",
   "difficulty": 1
  },
  {

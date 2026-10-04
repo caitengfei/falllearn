@@ -112,6 +112,9 @@ CREATE TABLE IF NOT EXISTS ai_grades(
 CREATE TABLE IF NOT EXISTS settings(
   key TEXT PRIMARY KEY, value TEXT
 );
+CREATE TABLE IF NOT EXISTS login_audit(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, sno TEXT, ip TEXT, ua TEXT, ok INTEGER, at INTEGER
+);
 """
 
 CLUSTER_KEY_MAP = {
@@ -157,6 +160,8 @@ def _migrate(db):
         # 性能专家补 7 个热列索引（消除 7 类全表扫描：7 日趋势/排行榜/判卷幂等等）
         "CREATE INDEX IF NOT EXISTS idx_pointslog_time ON points_log(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_chat_time ON chat_logs(created_at)",
+        # 登录审计（安全专家意见）：便于公网演示账号（弱口令）场景下的追溯
+        "CREATE INDEX IF NOT EXISTS idx_login_audit_at ON login_audit(at)",
         "CREATE INDEX IF NOT EXISTS idx_attempts_status ON attempts(status)",
         "CREATE INDEX IF NOT EXISTS idx_mastery_cluster ON mastery(cluster_id)",
         "CREATE INDEX IF NOT EXISTS idx_answers_q ON answers(question_id)",
@@ -402,7 +407,8 @@ def add_points(db, student_id, delta, reason, ref=""):
 
 
 def update_mastery(db, student_id, cluster_id, score_rate, n=1):
-    """score_rate 0-1；指数滑动 0.7/0.3；提问触达传 rate=None 只 +2 封顶。"""
+    """score_rate 0-1。首答直接取本次表现（避免 EMA 冷启动低估）；其后按 0.7/0.3 指数滑动；
+    提问触达（rate=None）计入"接触度"但**封顶 60**——掌握判定以答题表现为准。"""
     if cluster_id not in CLUSTER_IDS or cluster_id == "general":
         return
     row = db.execute("SELECT level,n_correct,n_total FROM mastery WHERE student_id=? AND cluster_id=?",
@@ -414,7 +420,13 @@ def update_mastery(db, student_id, cluster_id, score_rate, n=1):
     else:
         lv, nc, nt = row["level"], row["n_correct"], row["n_total"]
     if score_rate is None:
-        lv = min(100.0, lv + 2.0)
+        # 提问触达：计入接触度，封顶 60（避免"只提问、不答题"被判定为已掌握）
+        lv = min(60.0, lv + 2.0)
+    elif nt == 0:
+        # 首次答题：直接取本次表现（EMA 冷启动会把"首答全对"低估为 30 分）
+        lv = score_rate * 100
+        nc += int(score_rate >= 0.5)
+        nt += n
     else:
         lv = 0.7 * lv + 0.3 * (score_rate * 100)
         nc += int(score_rate >= 0.5)

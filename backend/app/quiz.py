@@ -190,10 +190,14 @@ def start_practice(body: StartIn = StartIn(), u: dict = Depends(current_user)):
     exam_id = d.execute(
         "INSERT INTO exams(title,kind,config,created_by,created_at) VALUES(?,?,?,?,?)",
         (title, kind, json.dumps({"weak": weak}), u["id"], now)).lastrowid
-    per_score = 10 if len(qids) <= 10 else max(1, round(100 / len(qids)))  # 统一百分制
+    n_q = max(1, len(qids))
+    per_score = 10 if n_q <= 10 else max(1, 100 // n_q)   # 统一百分制（整数分）
+    scores = [per_score] * len(qids)
+    if scores:
+        scores[-1] = max(1, 100 - per_score * (len(qids) - 1))   # 末题补差：满分恰为 100
     for i, qid in enumerate(qids):
         d.execute("INSERT INTO exam_items(exam_id,question_id,seq,score) VALUES(?,?,?,?)",
-                  (exam_id, qid, i + 1, per_score))
+                  (exam_id, qid, i + 1, scores[i]))
     attempt_id = d.execute(
         "INSERT INTO attempts(student_id,exam_id,started_at,status) VALUES(?,?,?,?)",
         (u["id"], exam_id, now, "open")).lastrowid

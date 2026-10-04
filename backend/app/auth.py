@@ -71,9 +71,21 @@ def _pub(user):
     return {"id": user["id"], "student_no": user["student_no"], "name": user["name"], "role": user["role"]}
 
 
+def _audit(d, sno, user_id, ip, ua, ok):
+    """登录审计（安全专家意见）：记录成功/失败的登录尝试，便于公网演示账号场景下的安全追溯。
+    审计写入失败不阻断登录主流程。"""
+    try:
+        d.execute("INSERT INTO login_audit(user_id,sno,ip,ua,ok,at) VALUES(?,?,?,?,?,?)",
+                  (user_id, (sno or "")[:64], ip, ua, ok, int(time.time())))
+        d.commit()
+    except Exception:
+        pass
+
+
 @router.post("/login")
 def login(body: LoginIn, request: Request):
     ip = request.client.host if request.client else "?"
+    ua = (request.headers.get("user-agent") or "")[:160]
     now = int(time.time())
     locked_until = _LOCKED.get(ip, 0)
     if locked_until > now:
@@ -81,17 +93,21 @@ def login(body: LoginIn, request: Request):
     d = db.get_db()
     u = d.execute("SELECT * FROM users WHERE student_no=?", (body.student_no.strip(),)).fetchone()
     if not u:
+        _audit(d, body.student_no, None, ip, ua, 0)
         d.close()
         _login_fail(ip, now)
         raise HTTPException(401, "账号不存在（学号/工号）")
     if not bcrypt.checkpw(body.password.encode(), u["pwd_hash"].encode()):
+        _audit(d, body.student_no, u["id"], ip, ua, 0)
         d.close()
         _login_fail(ip, now)
         raise HTTPException(401, "密码错误")
     # 停用账号在登录入口即拦截（否则拿到 token 后处处 403，用户卡死；不计入失败计数）
     if not u["enabled"]:
+        _audit(d, body.student_no, u["id"], ip, ua, 0)
         d.close()
         raise HTTPException(403, "账号已停用，请联系管理员")
+    _audit(d, u["student_no"], u["id"], ip, ua, 1)
     d.close()
     _FAIL_LOGINS.pop(ip, None)
     return {"token": _token(u), "user": _pub(u)}
