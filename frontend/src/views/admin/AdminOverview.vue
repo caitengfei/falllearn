@@ -308,11 +308,13 @@ async function doReset() {
 
       <!-- 学时统计 -->
       <div class="card" ref="hoursRef">
-        <div class="card-title">学时统计（按学生）<span style="font-size: 11px; color: var(--text-3); font-weight: 400; margin-left: 8px">AI 问答按实际耗时 · 练习按交卷时长 · 复习按次</span></div>
+        <div class="card-title">学时统计（TOP 3）<span style="font-size: 11px; color: var(--text-3); font-weight: 400; margin-left: 8px">AI 问答按实际耗时 · 练习按交卷时长 · 复习按次</span>
+          <router-link to="/admin/students" style="float: right; font-size: 12px; color: var(--primary-text); font-weight: 400">全部学生明细 ↗</router-link>
+        </div>
         <table class="atable">
           <thead><tr><th style="width: 50px">#</th><th>学生</th><th>学号</th><th style="width: 110px; text-align: right">学时</th></tr></thead>
           <tbody>
-            <tr v-for="(h, i) in data.hours" :key="h.student_no">
+            <tr v-for="(h, i) in data.hours.slice(0, 3)" :key="h.student_no">
               <td>{{ i + 1 }}</td>
               <td>{{ h.name }}</td>
               <td style="color: var(--text-3)">{{ h.student_no }}</td>
