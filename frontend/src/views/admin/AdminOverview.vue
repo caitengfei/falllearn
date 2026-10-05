@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, clusterColor, DEMO_GUIDE } from '../../api'
+import { api, clusterColor, clusterName, DEMO_GUIDE } from '../../api'
 
 const router = useRouter()
 const data = ref(null)
@@ -21,8 +21,9 @@ function goGuide(g) {
 }
 
 // —— 指标卡下钻 ——
-const expanded = ref('') // 'active' | 'questions' | ''
+const expanded = ref('') // 'active' | 'questions' | 'asks' | ''
 const clusterQs = ref(null)
+const asks = ref(null) // null=未加载，[]=已加载无记录
 const hoursRef = ref(null)
 let flashTimer = null
 
@@ -34,15 +35,27 @@ async function ensureClusterQs() {
     } catch (e) { clusterQs.value = [] }
   }
 }
+async function ensureAsks() {
+  if (!asks.value) {
+    try {
+      const r = await api.asksRecent(20)
+      asks.value = r.items || []
+    } catch (e) { asks.value = [] }
+  }
+}
+function fmtAskTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts * 1000)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 async function onCardClick(kind) {
-  if (kind === 'active' || kind === 'questions') {
+  if (kind === 'active' || kind === 'questions' || kind === 'asks') {
     if (expanded.value === kind) { expanded.value = ''; return }
     if (kind === 'questions') await ensureClusterQs()
+    if (kind === 'asks') await ensureAsks()
     expanded.value = kind
   } else if (kind === 'students') {
     router.push('/admin/students')
-  } else if (kind === 'asks') {
-    router.push('/admin/stats?tab=students')
   } else if (kind === 'practices') {
     router.push('/admin/exams')
   } else if (kind === 'hours') {
@@ -144,8 +157,8 @@ async function doReset() {
           <span class="hint">{{ expanded === 'questions' ? '收起 ▴' : '分簇 ▾' }}</span>
           <div class="mk">题库规模</div><div class="mv">{{ data.cards.questions }}</div><div class="ms">含 AI 生成</div>
         </div>
-        <div class="mcard clickable" @click="onCardClick('asks')">
-          <span class="hint">画像 ↗</span>
+        <div class="mcard clickable" :class="{ on: expanded === 'asks' }" @click="onCardClick('asks')">
+          <span class="hint">{{ expanded === 'asks' ? '收起 ▴' : '明细 ▾' }}</span>
           <div class="mk">AI 问答总量</div><div class="mv">{{ data.cards.asks }}</div><div class="ms">可溯源问答</div>
         </div>
         <div class="mcard clickable" @click="onCardClick('practices')">
@@ -196,6 +209,30 @@ async function doReset() {
           </div>
         </div>
         <div v-else style="color: var(--text-3); font-size: 13px; padding: 10px 0">加载簇分布中…</div>
+      </div>
+
+      <!-- 下钻面板：AI 问答明细（谁在问什么，供教学参考） -->
+      <div v-if="expanded === 'asks'" class="card drill">
+        <div class="card-title">AI 问答 · 最近记录<span class="more" style="cursor: pointer" @click="expanded = ''">收起 ✕</span></div>
+        <div v-if="asks === null" style="color: var(--text-3); font-size: 13px; padding: 6px 0">加载中…</div>
+        <div v-else-if="!asks.length" style="color: var(--text-3); font-size: 13px; padding: 6px 0">暂无问答记录</div>
+        <div v-else>
+          <div v-for="(a, i) in asks" :key="i" class="drill-item" style="display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--line)">
+            <div style="flex-shrink: 0; width: 150px">
+              <span class="di-name">{{ a.name }}</span>
+              <span class="di-no">{{ a.student_no }}</span>
+              <div style="font-size: 11.5px; color: var(--text-3); margin-top: 2px">{{ fmtAskTime(a.created_at) }}</div>
+            </div>
+            <div style="flex: 1; min-width: 0">
+              <div style="font-size: 13px; line-height: 1.7">❓ {{ a.question }}<span v-if="(a.question || '').length >= 120">…</span></div>
+              <div style="font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.6">💬 {{ a.answer_excerpt }}<span v-if="(a.answer_excerpt || '').length >= 100">…</span></div>
+            </div>
+            <span v-if="a.clusters" style="flex-shrink: 0">
+              <span v-for="c in a.clusters.split(',')" :key="c" class="tag" style="margin-left: 4px">{{ clusterName(c) }}</span>
+            </span>
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--text-3); margin-top: 10px">问题文本为学生原话（截断展示）；标签 = 本次回答主要涉及的知识簇。最多显示最近 20 条。</div>
       </div>
 
       <div class="mgrid c2" style="margin-bottom: 14px">

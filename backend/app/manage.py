@@ -938,6 +938,26 @@ def stats_overview(u: dict = Depends(require_teacher)):
     }
 
 
+@router.get("/asks/recent")
+def asks_recent(limit: int = 20, u: dict = Depends(require_teacher)):
+    """最近 AI 问答明细（数据总览「AI 问答总量」卡下钻用）。
+
+    只读：问题原文截断 + 答案摘录 + 触达簇；教师端展示昵称与学号。"""
+    d = db.get_db()
+    limit = max(1, min(int(limit), 50))
+    rows = d.execute(
+        "SELECT c.question, c.answer, c.clusters_touched, c.created_at, u.student_no, u.name "
+        "FROM chat_logs c JOIN users u ON u.id=c.student_id "
+        "WHERE c.answer!='' ORDER BY c.created_at DESC, c.id DESC LIMIT ?", (limit,)).fetchall()
+    d.close()
+    return {"items": [
+        {"student_no": r["student_no"], "name": r["name"], "created_at": r["created_at"],
+         "question": (r["question"] or "")[:120],
+         "answer_excerpt": (r["answer"] or "")[:100],
+         "clusters": r["clusters_touched"] or ""}
+        for r in rows]}
+
+
 @router.get("/stats/trainings")
 def stats_trainings(u: dict = Depends(require_teacher)):
     """培训情况统计：各培训完成度 + 学生培训画像 + 教师带训情况。"""

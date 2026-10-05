@@ -176,6 +176,7 @@ quizWeak: () => request('/api/quiz/weak'),
   statsOverview: () => request('/api/admin/stats/overview'),
   statsTrainings: () => request('/api/admin/stats/trainings'),
   statsWrong: () => request('/api/admin/stats/wrong'),
+  asksRecent: (limit = 20) => request(`/api/admin/asks/recent?limit=${limit}`),
 
   kbSearch: (q, dim) => request(`/api/kb/search?q=${encodeURIComponent(q || '')}${dim ? `&dim=${encodeURIComponent(dim)}` : ''}`),
   kbDoc: (path) => request(`/api/kb/doc?path=${encodeURIComponent(path)}`),
