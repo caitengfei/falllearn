@@ -101,7 +101,7 @@ function goGuide(g) {
           <input v-model="search" placeholder="搜一题 / 一个知识点，回车问 AI 老师" @keyup.enter="doSearch" />
         </div>
         <div class="topbar-right" style="margin-left: auto">
-          <router-link v-if="isTeacher" to="/" class="back-student">{{ isAdmin ? '回学生端' : '进管理后台' }}</router-link>
+          <router-link v-if="isTeacher" :to="isAdmin ? '/' : '/admin'" class="back-student">{{ isAdmin ? '回学生端' : '进管理后台' }}</router-link>
           <!-- 顶栏铃铛/问号已按教师反馈移除（2026-10-05）：错题提醒在练习页概览条，演示引导首访自动弹出 -->
           <div class="userchip" role="button" tabindex="0" aria-label="个人中心"
             @click="router.push(isTeacher ? '/admin' : '/mine')"
