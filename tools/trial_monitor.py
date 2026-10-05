@@ -13,6 +13,7 @@
 """
 import csv
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -37,6 +38,19 @@ CLUSTER_NAMES = {
     "fracture": "骨折识别", "record": "记录上报", "cpr": "CPR 启动", "general": "通用",
 }
 
+# 服务器端一致性备份脚本（经 ssh stdin 执行；VACUUM INTO 只读源库、写新快照文件，不写任何数据行）
+BACKUP_SRC = """
+import os, sqlite3, time
+DB = "/opt/falllearn/backend/falllearn.db"
+OUT_DIR = "/opt/falllearn/backups"
+OUT = os.path.join(OUT_DIR, "falllearn_%s.db" % time.strftime("%Y%m%d_%H%M%S"))
+os.makedirs(OUT_DIR, exist_ok=True)
+c = sqlite3.connect(DB)
+c.execute("VACUUM INTO ?", (OUT,))
+c.close()
+print(OUT)
+"""
+
 
 def sh(args, timeout=60):
     """执行本地命令并返回 (rc, stdout, stderr)。"""
@@ -46,6 +60,47 @@ def sh(args, timeout=60):
 
 def ssh(cmd, timeout=60):
     return sh(["ssh", "-i", KEY, HOST, cmd], timeout)
+
+
+def ssh_stdin(src, timeout=90):
+    """经 ssh stdin 在服务器执行 python 脚本（python -）。"""
+    r = subprocess.run(["ssh", "-i", KEY, HOST, "/opt/falllearn/backend/venv/bin/python -"],
+                       input=src, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=timeout)
+    return r.returncode, r.stdout, r.stderr
+
+
+def daily_backup():
+    """每天第一次采集时：服务器一致性快照 + scp 下载到本地 _backups/（学生做题数据的保险）。
+
+    只读语义：VACUUM INTO 不修改源库；服务器侧仅保留最近 7 份，本地全保留。"""
+    today = time.strftime("%Y%m%d")
+    bdir = OUT_DIR / "_backups"
+    bdir.mkdir(parents=True, exist_ok=True)
+    if list(bdir.glob("falllearn_%s_*.db" % today)):
+        return
+    rc, out, err = ssh_stdin(BACKUP_SRC)
+    if rc != 0:
+        print("每日备份失败:", err[:200])
+        return
+    srv_path = out.strip().splitlines()[-1]
+    name = srv_path.replace("\\", "/").split("/")[-1]
+    # scp 对含中文的本地路径不可靠：先下到 C:\temp 再本地移动
+    tmp = Path(r"C:\temp") / name
+    rc, _, err = sh(["scp", "-i", KEY, "%s:%s" % (HOST, srv_path), str(tmp)], timeout=120)
+    if rc != 0:
+        print("备份下载失败:", err[:200])
+        return
+    # 完整性校验：scp 超时可能留下截断文件（实测踩过：本地 655KB vs 服务器 1.5MB）
+    rc, out, _ = ssh("stat -c %%s %s" % srv_path)
+    srv_size = int(out.strip()) if out.strip().isdigit() else -1
+    local_size = tmp.stat().st_size
+    if local_size != srv_size:
+        tmp.unlink(missing_ok=True)
+        print("备份校验失败：本地 %d != 服务器 %d（已删除截断文件，明日重试）" % (local_size, srv_size))
+        return
+    shutil.move(str(tmp), str(bdir / name))
+    sh(["ssh", "-i", KEY, HOST, "ls -1t /opt/falllearn/backups/*.db 2>/dev/null | tail -n +8 | xargs -r rm -f"])
+    print("每日备份完成:", name)
 
 
 def ensure_probe():
@@ -75,6 +130,10 @@ def main():
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     ensure_probe()
     j = collect()
+    try:
+        daily_backup()  # 备份失败不中断采集
+    except Exception as e:
+        print("每日备份异常:", repr(e))
     now = datetime.now()
     stamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
