@@ -400,7 +400,7 @@ onBeforeUnmount(stopSlides)
           <li v-for="(kp, i) in (CLUSTER_KNOWLEDGE[kdetail.id] || [])" :key="i">{{ kp }}</li>
         </ul>
         <div style="font-size: 12px; color: var(--text-3); margin-top: 12px; line-height: 1.8">
-          💡 点「问 AI」，AI 老师按【岗】【课】【赛】【证】四栏讲透这一簇，每栏标注知识库原文出处。
+          💡 点「问 AI」，AI 老师为你连贯讲透这一簇，逐条标注知识库原文出处。
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap">
           <button class="btn sm" @click="askCluster()">问 AI 讲这一簇</button>

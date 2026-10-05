@@ -38,7 +38,8 @@ check("考试记录列表", "items" in r, f"{len(r.get('items', []))} 条")
 if r["items"]:
     aid = r["items"][0]["id"]
     d = requests.get(BASE + f"/api/admin/exams/{aid}", headers=H, timeout=10).json()
-    check("考试逐题明细", len(d["items"]) == 10 and "attempt" in d)
+    # 口径：逐题明细条数 ≥1 且含 attempt 信息（卷型有 10 题模拟考 / 20 题练习 / 教师卷，不再硬编码 ==10）
+    check("考试逐题明细", len(d["items"]) >= 1 and "attempt" in d, f"{len(d['items'])} 题")
 r = requests.get(BASE + "/api/admin/exams/export", headers=H, timeout=15)
 check("考试 CSV 导出", r.status_code == 200 and "学号" in r.text[:50])
 

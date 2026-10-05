@@ -317,7 +317,7 @@ const diffName = (n) => ({ 1: '低', 2: '中', 3: '高' }[n] || n)
       <div v-if="kbNew" class="card">
         <div class="card-title">新增知识库文档<span class="more" style="float: right" @click="kbNew = null">✕</span></div>
         <div class="field"><label>相对路径（二级以内，.md）</label><input v-model="kbNew.path" placeholder="如：05-元数据/补充说明.md 或 03-赛/新增扣分点.md" /></div>
-        <div class="field"><label>内容（Markdown）</label><textarea v-model="kbNew.content" rows="8" placeholder="# 标题&#10;正文…（AI 会按四栏取材并标注来源）"></textarea></div>
+        <div class="field"><label>内容（Markdown）</label><textarea v-model="kbNew.content" rows="8" placeholder="# 标题&#10;正文…（AI 会检索知识库取材并标注来源）"></textarea></div>
         <div style="display: flex; gap: 10px"><button class="btn sm" @click="saveKbNew">写入知识库</button><button class="btn sm ghost" @click="kbNew = null">取消</button></div>
       </div>
     </template>

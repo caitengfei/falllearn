@@ -146,7 +146,7 @@ async function doReset() {
         </div>
         <div class="mcard clickable" @click="onCardClick('asks')">
           <span class="hint">画像 ↗</span>
-          <div class="mk">AI 问答总量</div><div class="mv">{{ data.cards.asks }}</div><div class="ms">四栏格式问答</div>
+          <div class="mk">AI 问答总量</div><div class="mv">{{ data.cards.asks }}</div><div class="ms">可溯源问答</div>
         </div>
         <div class="mcard clickable" @click="onCardClick('practices')">
           <span class="hint">记录 ↗</span>
@@ -292,7 +292,7 @@ async function doReset() {
       <div class="modal">
         <div class="modal-h">演示数据重置<span class="more" @click="showReset = false">✕</span></div>
         <p style="font-size: 13.5px; color: var(--text-2); line-height: 1.9">
-          将清空 3 个演示学生（S2026001-3）的积分、掌握度、练习/模拟考记录、错题、对话、学时，并删除他们生成的考卷，把 S2026001 恢复到标准演示基线（128 分 / 3 道错题 / 一条四栏问答），S2026001-3 与 T2026 的密码将重置为 123456。其余账号、题库（含 AI 生成题）与管理数据不受影响。
+          将清空 3 个演示学生（S2026001-3）的积分、掌握度、练习/模拟考记录、错题、对话、学时，并删除他们生成的考卷，把 S2026001 恢复到标准演示基线（128 分 / 3 道错题 / 一条问答记录），S2026001-3 与 T2026 的密码将重置为 123456。其余账号、题库（含 AI 生成题）与管理数据不受影响。
         </p>
         <div style="display: flex; gap: 10px; margin-top: 18px">
           <button class="btn sm" @click="doReset">确认重置</button>

@@ -138,8 +138,8 @@ function goMock() {
         <div>
           <div style="font-size: 17px; font-weight: 700">岗课赛证融通资料库</div>
           <div style="font-size: 13px; color: var(--text-2); margin-top: 4px; line-height: 1.8">
-            46 份真实文档（世赛/全国赛/省赛规程与正式赛题 · 官方评分标准 · 三证国标与题库 · 教材教案 · 岗位标准），全部带官方来源分级。
-            点「问 AI 讲解」可让 AI 老师按【岗】【课】【赛】【证】四栏拆解，并标注原文出处。
+            46 份真实文档（世赛/全国赛/省赛规程与正式赛题 · 官方评分标准 · 两证国标与题库 · 教材教案 · 岗位标准），全部带官方来源分级。
+            点「问 AI 讲解」可获得标注原文出处的可溯源讲解；未命中材料时显式提示，绝不编造。
           </div>
           <div style="margin-top: 10px; display: flex; gap: 8px">
             <button class="btn sm" @click="goMock">按竞赛标准做 12 分钟模拟考</button>

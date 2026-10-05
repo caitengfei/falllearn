@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, auth, clusterName, clusterColor } from '../api'
 
@@ -122,6 +122,39 @@ onMounted(async () => {
   startTick()
   window.addEventListener('beforeunload', warnLeave)
 })
+
+// 「再练一组（重新组卷）」push 新 attempt 时路由参数变化但组件被复用——
+// 必须重读 sessionStorage 重置全部状态，否则停留旧成绩页（学生反馈 2026-10-05）
+watch(() => route.params.attemptId, async () => {
+  items.value = JSON.parse(sessionStorage.getItem('exam_items') || '[]')
+  kind.value = sessionStorage.getItem('exam_kind') || 'daily'
+  timeLimit.value = parseInt(sessionStorage.getItem('exam_time_limit') || '0', 10)
+  answers.value = JSON.parse(sessionStorage.getItem('exam_answers') || '{}')
+  cur.value = 0
+  picked.value = answers.value[String(curItem.value?.question_id)] || ''
+  submitted.value = false
+  submitBusy.value = false
+  result.value = null
+  openQ.value = {}
+  onlyWrong.value = false
+  left.value = timeLimit.value
+  stopTick()
+  if (!reviewJustShown()) {
+    if (!items.value.length) return
+    startTick()
+    window.scrollTo({ top: 0 })
+  }
+})
+
+function reviewJustShown() {
+  const rid = sessionStorage.getItem('exam_review')
+  if (rid) {
+    sessionStorage.removeItem('exam_review')
+    api.quizResult(Number(rid)).then((r) => { result.value = r; submitted.value = true }).catch(() => {})
+    return true
+  }
+  return false
+}
 function warnLeave(e) {
   if (submitted.value || !items.value.length) return
   e.preventDefault()
@@ -140,7 +173,8 @@ function weakAgain() {
   const ws = Object.entries(result.value?.per_cluster || {})
     .filter(([, v]) => (v.total || 0) - (v.correct || 0) > 0)
     .map(([k]) => k)
-  router.push(ws.length ? { path: '/learn', query: { cluster: ws[0] } } : '/practice')
+  // 跳知识地图并自动展开最薄弱簇的知识点（/map?cluster= 深链，Map.vue 原生支持）
+  router.push(ws.length ? { path: '/map', query: { cluster: ws[0] } } : '/practice')
 }
 
 /* —— 成绩页：逐题对错与讲解 —— */
@@ -211,7 +245,7 @@ async function restart() {
     <!-- 结果页 -->
     <div v-else-if="result" class="card" style="padding: 30px">
       <div class="score-ring">
-        <div class="v mono" style="font-size: 34px">{{ result.score }}</div>
+        <div class="v mono">{{ result.score }}</div>
         <div class="k">总分（{{ result.max }}）</div>
       </div>
       <div class="grid-3 mt16">

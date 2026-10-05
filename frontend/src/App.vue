@@ -94,7 +94,14 @@ function goGuide(g) {
           <span class="logo-mark">康</span>
           <span>康养智行</span>
         </div>
-        <span class="slogan hide-md" v-if="!isAdmin">智慧养老“岗课赛证”融通智能体</span>
+        <div class="slogan-block hide-md" v-if="!isAdmin">
+          <span class="slogan">智慧养老“岗课赛证”融通智能体</span>
+          <div class="topbar-chips">
+            <span>🎯 跌倒预防与应急处置</span>
+            <span>📚 岗 · 课 · 赛 · 证</span>
+            <span>🚀 全技能照护可扩展</span>
+          </div>
+        </div>
         <span class="slogan hide-md" v-else style="color: var(--primary-text); font-weight: 600">教师管理后台</span>
         <div class="searchbox hide-sm" v-if="!isAdmin">
           🔍
