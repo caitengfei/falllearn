@@ -150,6 +150,11 @@ def _migrate(db):
     if "tag" not in cols4:
         db.execute("ALTER TABLE banners ADD COLUMN tag TEXT DEFAULT ''")
         db.execute("ALTER TABLE banners ADD COLUMN sub TEXT DEFAULT ''")
+    # 班级归属（P2.12）：users.class_name 由注册时邀请码带入；invite_codes.class_name 由教师建码时填写
+    for _t in ("users", "invite_codes"):
+        _c = {r[1] for r in db.execute(f"PRAGMA table_info({_t})")}  # nosec B608（表名为白名单常量）
+        if "class_name" not in _c:
+            db.execute(f"ALTER TABLE {_t} ADD COLUMN class_name TEXT DEFAULT ''")  # nosec B608
     # 题目讲解（错题本「看讲解」/成绩页逐题解析）：旧行为空，由 tools/gen_explanations.py 批量填充
     cols_q = {r[1] for r in db.execute("PRAGMA table_info(questions)")}
     if "explanation" not in cols_q:

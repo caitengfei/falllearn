@@ -4,21 +4,34 @@ import { api, clusterName, clusterColor } from '../../api'
 
 const data = ref(null)
 const err = ref('')
+const cls = ref('')            // ''=全部班级
+const classes = ref([])
 
 async function load() {
   err.value = ''
   try {
-    data.value = await api.statsWrong()
+    const r = await api.statsWrong(cls.value)
+    data.value = r
+    classes.value = r.classes || []
   } catch (e) {
     err.value = e.message
   }
+}
+function switchCls(c) {
+  cls.value = c
+  load()
 }
 onMounted(load)
 </script>
 
 <template>
   <div class="page" v-if="data">
-    <div style="font-size: 19px; font-weight: 700; margin-bottom: 16px">班级错题分析</div>
+    <div style="font-size: 19px; font-weight: 700; margin-bottom: 12px">班级错题分析</div>
+    <div class="pills" style="margin-bottom: 14px">
+      <span class="pill" :class="{ on: cls === '' }" @click="switchCls('')">全部班级</span>
+      <span v-for="c in classes" :key="c" class="pill" :class="{ on: cls === c }" @click="switchCls(c)">{{ c }}</span>
+      <span class="pill" :class="{ on: cls === '__none__' }" @click="switchCls('__none__')">未分班</span>
+    </div>
     <div class="card">
       <div class="card-title">班级 · 各知识点正确率（全部作答）</div>
       <div v-if="data.correct_rate.length">

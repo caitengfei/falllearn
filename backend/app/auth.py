@@ -268,11 +268,13 @@ def register(body: RegisterIn, request: Request):
             raise HTTPException(400, "邀请码使用人数已达上限，请向老师索取新的邀请码")
         # 并发闸门②：学号由「当前最大序号 +1」生成，两个并发请求可能算出同一号 → 唯一约束冲突自动换号重试
         sno = ""
+        cls = (inv["class_name"] if "class_name" in inv.keys() else "") or ""
         for _ in range(4):
             sno = _gen_student_no(d)
             try:
-                d.execute("INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,1,?)",
-                          (sno, name, "student", h, now))
+                d.execute("INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at,class_name) "
+                          "VALUES(?,?,?,?,1,?,?)",
+                          (sno, name, "student", h, now, cls.strip()[:30]))
                 break
             except sqlite3.IntegrityError:
                 sno = ""

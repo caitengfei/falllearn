@@ -149,9 +149,11 @@ quizWeak: () => request('/api/quiz/weak'),
   adminAssignDelete: (id) => request(`/api/admin/assignments/${id}`, { method: 'DELETE' }),
   metaClusters: () => request('/api/meta/clusters'),
 
-  adminStudents: () => request('/api/admin/students'),
+  adminStudents: (cls = '') => request('/api/admin/students' + (cls ? `?cls=${encodeURIComponent(cls)}` : '')),
   studentCreate: (s) => request('/api/admin/students', { method: 'POST', body: s }),
   studentUpdate: (id, s) => request(`/api/admin/students/${id}`, { method: 'PUT', body: s }),
+  studentsSetClass: (ids, class_name) =>
+    request('/api/admin/students/class', { method: 'POST', body: { ids, class_name } }),
   accounts: () => request('/api/admin/accounts'),
   accountCreate: (a) => request('/api/admin/accounts', { method: 'POST', body: a }),
   accountBatch: (a) => request('/api/admin/accounts/batch', { method: 'POST', body: a }),
@@ -175,7 +177,7 @@ quizWeak: () => request('/api/quiz/weak'),
 
   statsOverview: () => request('/api/admin/stats/overview'),
   statsTrainings: () => request('/api/admin/stats/trainings'),
-  statsWrong: () => request('/api/admin/stats/wrong'),
+  statsWrong: (cls = '') => request('/api/admin/stats/wrong' + (cls ? `?cls=${encodeURIComponent(cls)}` : '')),
   asksRecent: (limit = 20) => request(`/api/admin/asks/recent?limit=${limit}`),
 
   kbSearch: (q, dim) => request(`/api/kb/search?q=${encodeURIComponent(q || '')}${dim ? `&dim=${encodeURIComponent(dim)}` : ''}`),

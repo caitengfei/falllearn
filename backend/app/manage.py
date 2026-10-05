@@ -460,11 +460,21 @@ def exam_detail(attempt_id: int, u: dict = Depends(require_teacher)):
 
 # ================= 学生管理 / 账号管理 =================
 @router.get("/students")
-def students_list(u: dict = Depends(require_teacher)):
-    """学生列表：8 个聚合各一条批量 GROUP BY（原逐人 8 查询 → N×8 全表扫描）。"""
+def students_list(u: dict = Depends(require_teacher), cls: str = ""):
+    """学生列表：8 个聚合各一条批量 GROUP BY（原逐人 8 查询 → N×8 全表扫描）。
+
+    cls 过滤：不传=全部；'__none__'=未分班（class_name 为空）；其他值=精确匹配班级名。"""
     d = db.get_db()
+    wcls = ""
+    params: list = []
+    if cls == "__none__":
+        wcls = " AND (class_name='' OR class_name IS NULL)"
+    elif cls:
+        wcls = " AND class_name=?"
+        params.append(cls)
     rows = d.execute(
-        "SELECT id, student_no, name, role, enabled, created_at FROM users WHERE role='student' ORDER BY id").fetchall()
+        "SELECT id, student_no, name, role, enabled, created_at, class_name FROM users "
+        "WHERE role='student'" + wcls + " ORDER BY id", params).fetchall()
     ids = [r["id"] for r in rows]
     stats = {i: {"points": 0, "mastery": {}, "practice_count": 0, "ai_ask": 0,
                  "wrong_active": 0, "badge_count": 0, "enroll_count": 0, "hours": 0.0} for i in ids}
@@ -486,6 +496,8 @@ def students_list(u: dict = Depends(require_teacher)):
             stats[r["student_id"]]["enroll_count"] = r["c"]
         for r in d.execute(f"SELECT student_id, COALESCE(SUM(minutes),0) m FROM study_events WHERE student_id IN ({ph}) GROUP BY student_id", ids):  # nosec B608（人工确认：参数化/白名单常量拼接）
             stats[r["student_id"]]["hours"] = round(r["m"] or 0, 1)
+    classes = [r[0] for r in d.execute(
+        "SELECT DISTINCT class_name FROM users WHERE role='student' AND class_name!='' ORDER BY class_name")]
     d.close()
     items = []
     for r in rows:
@@ -493,7 +505,7 @@ def students_list(u: dict = Depends(require_teacher)):
         lv = s["mastery"]
         s["avg_mastery"] = round(sum(lv.values()) / len(lv), 1) if lv else 0
         items.append({**dict(r), **s})
-    return {"items": items}
+    return {"items": items, "classes": classes}
 
 
 class StudentIn(BaseModel):
@@ -501,6 +513,23 @@ class StudentIn(BaseModel):
     student_no: str = ""
     password: str = "123456"
     enabled: int = 1
+    class_name: str = ""
+
+
+@router.post("/students/class")
+def students_set_class(b: dict, u: dict = Depends(require_teacher)):
+    """批量设置学生班级（教师按名单补分班/调整班级）。"""
+    ids = [int(i) for i in (b.get("ids") or [])]
+    cls = (b.get("class_name") or "").strip()[:30]
+    if not ids:
+        raise HTTPException(400, "未选择学生")
+    d = db.get_db()
+    ph = ",".join("?" * len(ids))
+    cur = d.execute(f"UPDATE users SET class_name=? WHERE id IN ({ph}) AND role='student'",  # nosec B608
+                    [cls] + ids)
+    d.commit()
+    d.close()
+    return {"ok": True, "updated": cur.rowcount}
 
 
 @router.post("/students")
@@ -518,8 +547,8 @@ def students_create(s: StudentIn, u: dict = Depends(require_teacher)):
         raise HTTPException(400, "学号已存在")
     h = bcrypt.hashpw(_clean_pwd(s.password).encode(), bcrypt.gensalt(10)).decode()
     cur = d.execute(
-        "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at) VALUES(?,?,?,?,?,?)",
-        (sno, s.name, "student", h, s.enabled, int(time.time())))
+        "INSERT INTO users(student_no,name,role,pwd_hash,enabled,created_at,class_name) VALUES(?,?,?,?,?,?,?)",
+        (sno, s.name, "student", h, s.enabled, int(time.time()), (s.class_name or "").strip()[:30]))
     d.commit()
     d.close()
     return {"ok": True, "id": cur.lastrowid, "student_no": sno}
@@ -996,10 +1025,22 @@ def stats_trainings(u: dict = Depends(require_teacher)):
 
 
 @router.get("/stats/wrong")
-def stats_wrong(u: dict = Depends(require_teacher)):
-    """班级错题分析：高频错题 TOP10（多少名学生在错题本）+ 各知识点正确率 + 错题分布。"""
+def stats_wrong(u: dict = Depends(require_teacher), cls: str = ""):
+    """班级错题分析：高频错题 TOP10（多少名学生在错题本）+ 各知识点正确率 + 错题分布。
+
+    cls 按班级过滤：不传=全部学生；'__none__'=未分班；其他值=精确班级名。"""
     d = db.get_db()
-    sids = [r[0] for r in d.execute("SELECT id FROM users WHERE role='student' AND enabled=1 ORDER BY id")]
+    wcls = ""
+    cls_params: list = []
+    if cls == "__none__":
+        wcls = " AND (class_name='' OR class_name IS NULL)"
+    elif cls:
+        wcls = " AND class_name=?"
+        cls_params.append(cls)
+    sids = [r[0] for r in d.execute(
+        "SELECT id FROM users WHERE role='student' AND enabled=1" + wcls + " ORDER BY id", cls_params)]
+    classes = [r[0] for r in d.execute(
+        "SELECT DISTINCT class_name FROM users WHERE role='student' AND class_name!='' ORDER BY class_name")]
     top_wrong, correct_rate, wrong_by_cluster = [], [], []
     if sids:
         ph = ",".join("?" * len(sids))
@@ -1027,7 +1068,8 @@ def stats_wrong(u: dict = Depends(require_teacher)):
                             for cid, p in per.items()]
         wrong_by_cluster.sort(key=lambda x: -(x["active"] + x["mastered"]))
     d.close()
-    return {"top_wrong": top_wrong, "correct_rate": correct_rate, "wrong_by_cluster": wrong_by_cluster}
+    return {"top_wrong": top_wrong, "correct_rate": correct_rate,
+            "wrong_by_cluster": wrong_by_cluster, "classes": classes}
 
 
 # ---------- 邀请码（学生自助批量加入 · 替代逐个建号） ----------
@@ -1035,6 +1077,7 @@ class InviteIn(BaseModel):
     note: str = ""          # 备注（如「2026 级养老 1 班」）
     max_uses: int = 60      # 人数上限
     days: int = 30          # 有效期（天）
+    class_name: str = ""    # 班级名：学生注册时自动归入该班
 
 
 @router.post("/invites")
@@ -1046,6 +1089,7 @@ def invites_create(b: InviteIn, u: dict = Depends(require_teacher)):
     if not 1 <= b.days <= 365:
         raise HTTPException(400, "有效期 1–365 天")
     note = (b.note or "").strip()[:40]
+    cls = (b.class_name or "").strip()[:30]
     d = db.get_db()
     now = int(time.time())
     # 去掉易混字符（0/O、1/I/L）的 6 位码：FD-XXXXXX
@@ -1056,11 +1100,11 @@ def invites_create(b: InviteIn, u: dict = Depends(require_teacher)):
         if not d.execute("SELECT 1 FROM invite_codes WHERE code=?", (code,)).fetchone():
             break
     exp = now + b.days * 86400
-    d.execute("INSERT INTO invite_codes(code,note,created_by,max_uses,used_count,expires_at,enabled,created_at) "
-              "VALUES(?,?,?,?,0,?,1,?)", (code, note, u["id"], b.max_uses, exp, now))
+    d.execute("INSERT INTO invite_codes(code,note,class_name,created_by,max_uses,used_count,expires_at,enabled,created_at) "
+              "VALUES(?,?,?,?,0,?,1,?,?)", (code, note, cls, u["id"], b.max_uses, exp, now))
     d.commit()
     d.close()
-    return {"ok": True, "code": code, "note": note, "max_uses": b.max_uses,
+    return {"ok": True, "code": code, "note": note, "class_name": cls, "max_uses": b.max_uses,
             "expires_at": exp, "path": f"/register?code={code}"}
 
 
@@ -1073,7 +1117,9 @@ def invites_list(u: dict = Depends(require_teacher)):
     items = []
     for r in rows:
         items.append({
-            "id": r["id"], "code": r["code"], "note": r["note"], "created_by": r["created_by"],
+            "id": r["id"], "code": r["code"], "note": r["note"],
+            "class_name": r["class_name"] if "class_name" in r.keys() else "",
+            "created_by": r["created_by"],
             "max_uses": r["max_uses"], "used_count": r["used_count"],
             "expires_at": r["expires_at"], "enabled": bool(r["enabled"]),
             "expired": int(r["expires_at"]) < now,

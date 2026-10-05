@@ -24,7 +24,7 @@ onMounted(() => { load(); loadInvites() })
 const invites = ref([])
 const invOpen = ref(false)
 const invBusy = ref(false)
-const invForm = ref({ note: '', max_uses: 60, days: 30 })
+const invForm = ref({ note: '', max_uses: 60, days: 30, class_name: '' })
 const invNew = ref(null)
 async function loadInvites() {
   try {
@@ -37,6 +37,7 @@ async function doCreateInvite() {
   try {
     invNew.value = await api.inviteCreate({
       note: (invForm.value.note || '').trim(),
+      class_name: (invForm.value.class_name || '').trim(),
       max_uses: Math.floor(Number(invForm.value.max_uses)) || 60,
       days: Math.floor(Number(invForm.value.days)) || 30,
     })
@@ -143,6 +144,7 @@ async function doBatch() {
 
       <div v-if="invOpen" style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: flex-end">
         <div class="field" style="width: 200px"><label>班级备注（仅教师可见）</label><input v-model="invForm.note" placeholder="如：2026 级养老 1 班" /></div>
+        <div class="field" style="width: 260px"><label>归属班级（学生注册时自动归入）</label><input v-model="invForm.class_name" placeholder="如：2026级高职医养照护服务1班" /></div>
         <div class="field" style="width: 110px"><label>人数上限</label><input v-model="invForm.max_uses" /></div>
         <div class="field" style="width: 110px"><label>有效期（天）</label><input v-model="invForm.days" /></div>
         <button class="btn sm" :disabled="invBusy" @click="doCreateInvite">{{ invBusy ? '生成中…' : '生成邀请码' }}</button>
