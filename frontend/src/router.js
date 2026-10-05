@@ -25,6 +25,7 @@ const routes = [
   { path: '/admin/accounts', component: () => import('./views/admin/AdminAccounts.vue'), meta: T },
   { path: '/admin/trainings', component: () => import('./views/admin/AdminTrainings.vue'), meta: T },
   { path: '/admin/stats', component: () => import('./views/admin/AdminStats.vue'), meta: T },
+  { path: '/admin/wrong', component: () => import('./views/admin/AdminWrong.vue'), meta: T },
   { path: '/admin/ai', component: () => import('./views/admin/AdminAi.vue'), meta: T },
   { path: '/:pathMatch(.*)*', component: () => import('./views/NotFound.vue') }
 ]

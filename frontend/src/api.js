@@ -239,7 +239,7 @@ export const DEMO_GUIDE = {
   ],
   teacher: [
     { ic: '📝', t: '布置练习', d: '按知识点出全班练习（自动标题 / 截止 / 积分）', to: '/admin/exams' },
-    { ic: '📈', t: '班级错题分析', d: '高频错题 TOP10 + 知识点正确率，精准教学', to: '/admin/stats?tab=wrong' },
+    { ic: '📈', t: '班级错题分析', d: '高频错题 TOP10 + 知识点正确率，精准教学', to: '/admin/wrong' },
     { ic: '📊', t: '数据总览', d: '全班活跃 / 学时 / AI 问答 / 掌握度，卡片下钻', to: '/admin' },
     { ic: '🤖', t: 'AI 管理', d: '直连通道模型选择 · AI 出题判卷', to: '/admin/ai' }
   ]

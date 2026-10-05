@@ -47,6 +47,7 @@ const sideNav = [
     { to: '/admin/trainings', ic: '🗂', label: '培训管理' }
   ]},
   { group: '统计分析', items: [
+    { to: '/admin/wrong', ic: '❗', label: '班级错题分析' },
     { to: '/admin/stats', ic: '📈', label: '培训情况统计' }
   ]},
   { group: 'AI 管理', items: [
