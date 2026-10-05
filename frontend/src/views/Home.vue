@@ -274,8 +274,8 @@ onBeforeUnmount(stopSlides)
         </div>
       </div>
 
-      <!-- 右：弱项提醒 -->
-      <div>
+      <!-- 右：弱项提醒（纵向 flex + stretch：积分卡拉伸补齐，与中列等高对称） -->
+      <div style="display: flex; flex-direction: column; align-self: stretch">
         <div class="card">
           <div class="card-title">今日弱项提醒</div>
           <template v-if="weakTip">
@@ -287,7 +287,7 @@ onBeforeUnmount(stopSlides)
           </template>
           <div v-else style="font-size: 13.5px; color: var(--text-2)">全簇达标！挑战 12 分钟模拟考吧 🏆</div>
         </div>
-        <div class="card mt16" style="cursor: pointer" @click="router.push('/mine')">
+        <div class="card mt16" style="flex: 1; cursor: pointer" @click="router.push('/mine')">
           <div class="card-title">积分与勋章</div>
           <div style="font-size: 12.5px; color: var(--text-3)">看积分明细与勋章墙 · 积分商城（C 期上线）</div>
         </div>
