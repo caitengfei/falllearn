@@ -154,6 +154,8 @@ quizWeak: () => request('/api/quiz/weak'),
   studentUpdate: (id, s) => request(`/api/admin/students/${id}`, { method: 'PUT', body: s }),
   studentsSetClass: (ids, class_name) =>
     request('/api/admin/students/class', { method: 'POST', body: { ids, class_name } }),
+  studentsClassRoster: (class_name, text) =>
+    request('/api/admin/students/class-roster', { method: 'POST', body: { class_name, text } }),
   accounts: () => request('/api/admin/accounts'),
   accountCreate: (a) => request('/api/admin/accounts', { method: 'POST', body: a }),
   accountBatch: (a) => request('/api/admin/accounts/batch', { method: 'POST', body: a }),

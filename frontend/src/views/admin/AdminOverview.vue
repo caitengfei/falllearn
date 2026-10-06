@@ -291,13 +291,15 @@ async function doReset() {
             </div>
           </div>
           <div class="card">
-            <div class="card-title">班级弱项（答错率 Top）</div>
+            <div class="card-title">班级弱项（答错率 Top · 首行为自动定位最弱簇）</div>
             <table class="atable">
               <tbody>
-                <tr v-for="w in data.weak_clusters.slice(0, 5)" :key="w.cluster">
-                  <td>{{ w.name }}</td>
+                <tr v-for="(w, i) in data.weak_clusters.slice(0, 5)" :key="w.cluster" :style="{ background: i === 0 ? '#fef2f2' : '' }">
+                  <td>{{ w.name }}
+                    <span v-if="i === 0" class="tag" style="margin-left: 8px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 11px">自动定位 · 最弱簇</span>
+                  </td>
                   <td style="color: var(--text-3); font-size: 12px">{{ w.n }} 次作答</td>
-                  <td class="num" style="text-align: right; font-weight: 700" :style="{ color: w.rate > 50 ? 'var(--primary)' : 'var(--text-2)' }">{{ w.rate }}%</td>
+                  <td class="num" style="text-align: right; font-weight: 700" :style="{ color: w.rate > 50 ? 'var(--primary)' : 'var(--text-2)' }">答错 {{ w.rate }}% · 正确 {{ w.correct }}%</td>
                 </tr>
                 <tr v-if="!data.weak_clusters.length"><td style="color: var(--text-3); text-align: center; padding: 18px">暂无作答数据</td></tr>
               </tbody>

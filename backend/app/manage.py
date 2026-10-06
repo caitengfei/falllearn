@@ -339,18 +339,75 @@ def assignments_create(b: AssignIn, u: dict = Depends(require_teacher)):
 
 @router.get("/assignments")
 def assignments_list(u: dict = Depends(require_teacher)):
-    """布置列表（含完成统计：完成人数 / 在读学生总数 / 完成率）。"""
+    """布置列表（完成统计 + 成绩统计：平均分/满分人数/得分分布/各簇正确率/自动定位最弱簇，总体与分班双口径）。"""
     d = db.get_db()
     total_students = d.execute("SELECT COUNT(*) c FROM users WHERE role='student' AND enabled=1").fetchone()["c"]
     out = []
     for ex in d.execute("SELECT * FROM exams WHERE kind='teacher' ORDER BY created_at DESC, id DESC"):
         cfg = json.loads(ex["config"] or "{}")
-        done = d.execute("SELECT COUNT(*) c FROM attempts WHERE exam_id=? AND status='done'",
-                         (ex["id"],)).fetchone()["c"]
-        out.append({"exam_id": ex["id"], "title": ex["title"], "clusters": cfg.get("clusters", []),
-                    "n": cfg.get("n", 0), "minutes": cfg.get("minutes", 0), "due_at": cfg.get("due_at", 0),
-                    "created_at": ex["created_at"], "done": done, "total_students": total_students,
-                    "rate": round(done * 100 / total_students) if total_students else 0})
+        done_rows = d.execute(
+            "SELECT a.score, u.class_name FROM attempts a JOIN users u ON u.id=a.student_id "
+            "WHERE a.exam_id=? AND a.status='done'", (ex["id"],)).fetchall()
+        scores = [r["score"] for r in done_rows if r["score"] is not None]
+        max_score = d.execute(
+            "SELECT COALESCE(SUM(score),0) m FROM exam_items WHERE exam_id=?", (ex["id"],)).fetchone()["m"] or 1
+        dist = {}
+        for s in scores:
+            dist[s] = dist.get(s, 0) + 1
+
+        # 各簇正确率：总体 + 分班（各一条 GROUP BY）
+        cl_all, cl_by_cls = {}, {}
+        for r in d.execute(
+                "SELECT q.cluster_id cid, COUNT(*) n, SUM(a.correct) ok FROM answers a "
+                "JOIN attempts t ON t.id=a.attempt_id JOIN questions q ON q.id=a.question_id "
+                "WHERE t.exam_id=? AND t.status='done' GROUP BY q.cluster_id", (ex["id"],)):
+            cl_all[r["cid"]] = (r["n"], r["ok"] or 0)
+        for r in d.execute(
+                "SELECT u.class_name cls, q.cluster_id cid, COUNT(*) n, SUM(a.correct) ok FROM answers a "
+                "JOIN attempts t ON t.id=a.attempt_id JOIN users u ON u.id=t.student_id "
+                "JOIN questions q ON q.id=a.question_id "
+                "WHERE t.exam_id=? AND t.status='done' GROUP BY u.class_name, q.cluster_id", (ex["id"],)):
+            cl_by_cls.setdefault(r["cls"] or "", {})[r["cid"]] = (r["n"], r["ok"] or 0)
+
+        def _clusters_stat(cm):
+            rows = [{"cluster": cid, "name": db.CLUSTER_NAMES.get(cid, cid), "n": n, "ok": ok,
+                     "rate": round(ok * 100 / n, 1)} for cid, (n, ok) in cm.items() if n]
+            rows.sort(key=lambda x: x["rate"])
+            return rows
+
+        def _weakest(rows):
+            return ({"cluster": rows[0]["cluster"], "name": rows[0]["name"],
+                     "rate": rows[0]["rate"], "n": rows[0]["n"]} if rows else None)
+
+        all_c = _clusters_stat(cl_all)
+        item = {
+            "exam_id": ex["id"], "title": ex["title"], "clusters": cfg.get("clusters", []),
+            "n": cfg.get("n", 0), "minutes": cfg.get("minutes", 0), "due_at": cfg.get("due_at", 0),
+            "created_at": ex["created_at"],
+            "done": len(done_rows), "total_students": total_students,
+            "rate": round(len(done_rows) * 100 / total_students) if total_students else 0,
+            "max_score": max_score,
+            "avg_score": round(sum(scores) / len(scores), 1) if scores else None,
+            "full_count": sum(1 for s in scores if s == max_score),
+            "score_dist": {str(k): v for k, v in sorted(dist.items(), reverse=True)},
+            "clusters_stat": all_c,
+            "weakest": _weakest(all_c),
+            "per_class": [],
+        }
+        # 分班口径（未分班单独成组，排最后）
+        cls_groups = {}
+        for r in done_rows:
+            cls_groups.setdefault(r["class_name"] or "", []).append(r["score"])
+        for cname, cs in sorted(cls_groups.items(), key=lambda kv: (kv[0] == "", kv[0])):
+            crow = _clusters_stat(cl_by_cls.get(cname, {}))
+            item["per_class"].append({
+                "class": cname or "未分班",
+                "done": len(cs),
+                "avg_score": round(sum(cs) / len(cs), 1) if cs else None,
+                "full_count": sum(1 for s in cs if s == max_score),
+                "weakest": _weakest(crow),
+            })
+        out.append(item)
     d.close()
     return {"items": out}
 
@@ -530,6 +587,30 @@ def students_set_class(b: dict, u: dict = Depends(require_teacher)):
     d.commit()
     d.close()
     return {"ok": True, "updated": cur.rowcount}
+
+
+@router.post("/students/class-roster")
+def students_class_roster(b: dict, u: dict = Depends(require_teacher)):
+    """按名单批量分班：粘贴学号串（换行/逗号/空格混合分隔均可）→ 一次性归入指定班级。
+
+    class_name 留空 = 移为未分班。返回更新数与未找到的学号（前 50 个）。"""
+    import re
+    nos = [t.strip() for t in re.split(r"[\s,，;；、]+", b.get("text") or "") if t.strip()]
+    if not nos:
+        raise HTTPException(400, "请粘贴学号（换行、逗号、空格均可分隔）")
+    nos = list(dict.fromkeys(nos))
+    cn = (b.get("class_name") or "").strip()[:30]
+    d = db.get_db()
+    valid = [r[0] for r in d.execute(
+        "SELECT DISTINCT student_no FROM users WHERE role='student' AND student_no IN (" +
+        ",".join("?" * len(nos)) + ")", nos)]
+    if valid:
+        d.execute("UPDATE users SET class_name=? WHERE role='student' AND student_no IN (" +
+                  ",".join("?" * len(valid)) + ")", [cn] + valid)
+        d.commit()
+    missing = [n for n in nos if n not in set(valid)]
+    d.close()
+    return {"updated": len(valid), "not_found": missing[:50], "class_name": cn or "未分班"}
 
 
 @router.post("/students")
@@ -934,9 +1015,10 @@ def stats_overview(u: dict = Depends(require_teacher)):
             "SELECT q.cluster_id, COUNT(*) n, SUM(1-a.correct) wrong FROM answers a "
             "JOIN questions q ON q.id=a.question_id WHERE a.graded_by LIKE 'rules%' GROUP BY q.cluster_id"):
         if r["n"] and r["cluster_id"] in db.CLUSTER_NAMES:
+            wr = round((r["wrong"] or 0) * 100 / r["n"], 1)
             weak.append({"cluster": r["cluster_id"], "name": db.CLUSTER_NAMES[r["cluster_id"]],
-                         "n": r["n"], "wrong": r["wrong"] or 0,
-                         "rate": round((r["wrong"] or 0) * 100 / r["n"], 1)})
+                         "n": r["n"], "wrong": r["wrong"] or 0, "rate": wr,
+                         "correct": round(100 - wr, 1)})
     weak.sort(key=lambda x: -x["rate"])
 
     # 学生学时表（上面 hrs 已算好）
@@ -1067,9 +1149,47 @@ def stats_wrong(u: dict = Depends(require_teacher), cls: str = ""):
         wrong_by_cluster = [{"cluster": cid, "active": p.get("active", 0), "mastered": p.get("mastered", 0)}
                             for cid, p in per.items()]
         wrong_by_cluster.sort(key=lambda x: -(x["active"] + x["mastered"]))
+    # 分班对比：各班 人数 / 活跃错题 / 已掌握 / 总体正确率 / 最弱簇（自动定位）
+    per_class = []
+    cls_cnt = {}
+    for r in d.execute("SELECT COALESCE(NULLIF(class_name,''),'__none__') c, COUNT(*) c2 "
+                       "FROM users WHERE role='student' AND enabled=1 GROUP BY 1"):
+        cls_cnt[r["c"]] = r["c2"]
+    if cls_cnt:
+        wstat = {}
+        for r in d.execute(
+                "SELECT COALESCE(NULLIF(u.class_name,''),'__none__') c, w.status, COUNT(*) c "
+                "FROM wrong_records w JOIN users u ON u.id=w.student_id "
+                "WHERE u.role='student' AND u.enabled=1 GROUP BY 1,2"):
+            wstat.setdefault(r["c"], {}).setdefault(r["status"], 0)
+            wstat[r["c"]][r["status"]] += r["c"]
+        ar2 = {}
+        for r in d.execute(
+                "SELECT COALESCE(NULLIF(u.class_name,''),'__none__') c, q.cluster_id cid, COUNT(*) n, SUM(a.correct) ok "
+                "FROM answers a JOIN attempts t ON t.id=a.attempt_id JOIN users u ON u.id=t.student_id "
+                "JOIN questions q ON q.id=a.question_id "
+                "WHERE u.role='student' AND u.enabled=1 GROUP BY 1,2"):
+            ar2.setdefault(r["c"], {})[r["cid"]] = (r["n"], r["ok"] or 0)
+        for cname, nstu in sorted(cls_cnt.items(), key=lambda kv: (kv[0] != "__none__", kv[0])):
+            ws = wstat.get(cname, {})
+            cm = ar2.get(cname, {})
+            tot_n = sum(n for n, _ in cm.values())
+            tot_ok = sum(ok for _, ok in cm.values())
+            rows = sorted([{"cluster": cid, "name": db.CLUSTER_NAMES.get(cid, cid),
+                            "rate": round(ok * 100 / n, 1)} for cid, (n, ok) in cm.items() if n],
+                          key=lambda x: x["rate"])
+            per_class.append({
+                "class": "未分班" if cname == "__none__" else cname,
+                "students": nstu,
+                "active": ws.get("active", 0),
+                "mastered": ws.get("mastered", 0),
+                "rate": round(tot_ok * 100 / tot_n, 1) if tot_n else None,
+                "weakest": ({"cluster": rows[0]["cluster"], "name": rows[0]["name"], "rate": rows[0]["rate"]}
+                            if rows else None),
+            })
     d.close()
     return {"top_wrong": top_wrong, "correct_rate": correct_rate,
-            "wrong_by_cluster": wrong_by_cluster, "classes": classes}
+            "wrong_by_cluster": wrong_by_cluster, "classes": classes, "per_class": per_class}
 
 
 # ---------- 邀请码（学生自助批量加入 · 替代逐个建号） ----------

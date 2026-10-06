@@ -61,6 +61,17 @@ async function delAssign(a) {
 }
 const fmtDue = (t) => t ? new Date(t * 1000).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : '—'
 
+// 布置成绩统计（平均分/满分/分布/各簇正确率/最弱簇/分班）
+const asgDetail = ref(null)
+function openAsgDetail(a) { asgDetail.value = a }
+function fmtDist(a) {
+  if (!a.score_dist || !Object.keys(a.score_dist).length) return '暂无交卷'
+  return Object.entries(a.score_dist).map(([s, c]) => `${s}分×${c}`).join(' · ')
+}
+function fullPct(a) {
+  return a.done ? Math.round((a.full_count || 0) * 100 / a.done) : 0
+}
+
 async function load() {
   loading.value = true
   err.value = ''
@@ -176,10 +187,10 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
       </div>
 
       <table class="atable" style="margin-top: 14px">
-        <thead><tr><th>布置</th><th>知识簇</th><th>题量</th><th>限时</th><th>截止</th><th>完成情况</th><th style="width: 70px">操作</th></tr></thead>
+        <thead><tr><th>布置</th><th>知识簇</th><th>题量</th><th>限时</th><th>截止</th><th>完成情况</th><th>平均分</th><th>满分</th><th>最弱簇（自动定位）</th><th style="width: 150px">操作</th></tr></thead>
         <tbody>
           <tr v-for="a in asgList" :key="a.exam_id">
-            <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ a.title }}</td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" :title="a.title">{{ a.title }}</td>
             <td style="font-size: 12px; color: var(--text-2)">{{ a.clusters.length ? a.clusters.map(clusterName).join('·') : '综合' }}</td>
             <td class="num">{{ a.n }}</td>
             <td class="num">{{ a.minutes ? a.minutes + ' 分钟' : '不限时' }}</td>
@@ -187,9 +198,18 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
             <td>
               <span class="tag" :class="a.rate >= 60 ? 'green' : a.rate >= 30 ? 'blue' : 'gray'">{{ a.done }}/{{ a.total_students }} 人 · {{ a.rate }}%</span>
             </td>
-            <td><button class="btn sm ghost" @click="delAssign(a)">删除</button></td>
+            <td class="num" style="font-weight: 700">{{ a.avg_score != null ? a.avg_score + ' / ' + a.max_score : '—' }}</td>
+            <td class="num"><b :style="{ color: (a.full_count || 0) ? '#b45309' : 'var(--text-3)' }">{{ a.full_count || 0 }}</b><span style="font-size: 11px; color: var(--text-3)"> 人（{{ fullPct(a) }}%）</span></td>
+            <td>
+              <span v-if="a.weakest" class="tag" style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca">{{ a.weakest.name }} · {{ a.weakest.rate }}%</span>
+              <span v-else style="color: var(--text-3); font-size: 12px">—</span>
+            </td>
+            <td>
+              <button class="btn sm" @click="openAsgDetail(a)">成绩统计</button>
+              <button class="btn sm ghost" @click="delAssign(a)">删除</button>
+            </td>
           </tr>
-          <tr v-if="!asgList.length"><td colspan="7" style="color: var(--text-3); text-align: center; padding: 20px">还没有布置过练习 —— 选好知识簇点「＋ 布置」</td></tr>
+          <tr v-if="!asgList.length"><td colspan="10" style="color: var(--text-3); text-align: center; padding: 20px">还没有布置过练习 —— 选好知识簇点「＋ 布置」</td></tr>
         </tbody>
       </table>
     </div>
@@ -227,6 +247,51 @@ const dStem = (s) => s.length > 60 ? s.slice(0, 60) + '…' : s
           <tr v-if="!items.length"><td colspan="9" style="color: var(--text-3); text-align: center; padding: 28px">暂无考试记录 —— 学生在「练习考试」完成日常练习/模拟考并交卷后，记录会出现在这里</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- 布置成绩统计弹窗（总体 + 各簇正确率 + 分班） -->
+    <div v-if="asgDetail" class="mask" @click.self="asgDetail = null">
+      <div class="modal" style="max-width: 720px">
+        <div class="modal-h">
+          {{ asgDetail.title }} · 成绩统计
+          <span class="more" @click="asgDetail = null">✕</span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px">
+          <div class="tag" style="background: #f8fafc; border: 1px solid var(--line); font-size: 13px; padding: 8px 14px">
+            平均分 <b style="font-size: 15px; color: var(--primary)">{{ asgDetail.avg_score != null ? asgDetail.avg_score : '—' }}</b> / {{ asgDetail.max_score }}
+          </div>
+          <div class="tag" style="background: #fffbeb; border: 1px solid #fde68a; font-size: 13px; padding: 8px 14px">
+            满分 <b style="font-size: 15px; color: #b45309">{{ asgDetail.full_count || 0 }}</b> 人（{{ fullPct(asgDetail) }}%）
+          </div>
+          <div class="tag" style="background: #f8fafc; border: 1px solid var(--line); font-size: 12.5px; padding: 8px 14px">
+            得分分布 {{ fmtDist(asgDetail) }}
+          </div>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 8px">各知识点正确率<span v-if="asgDetail.weakest" style="margin-left: 8px; font-weight: 400; color: var(--text-3)">最弱：{{ asgDetail.weakest.name }}（{{ asgDetail.weakest.rate }}%）</span></div>
+        <div v-for="c in (asgDetail.clusters_stat || [])" :key="c.cluster" class="bar-row" style="margin-bottom: 7px">
+          <div class="bl" style="min-width: 86px">{{ c.name }}</div>
+          <div class="bt" style="flex: 1"><i :style="{ width: c.rate + '%', background: c.cluster === asgDetail.weakest?.cluster ? '#ef4444' : (c.rate >= 80 ? '#22c55e' : c.rate >= 60 ? '#f5a623' : '#ef4444') }"></i></div>
+          <div class="bv">{{ c.rate }}%（{{ c.ok }}/{{ c.n }}）</div>
+        </div>
+        <div v-if="!(asgDetail.clusters_stat || []).length" style="color: var(--text-3); font-size: 13px; padding: 8px 0">还没有学生交卷</div>
+        <div style="font-size: 13px; font-weight: 700; margin: 16px 0 8px">分班统计<span style="margin-left: 8px; font-weight: 400; color: var(--text-3)">按学生所属班级分开</span></div>
+        <table class="atable">
+          <thead><tr><th>班级</th><th>交卷</th><th>平均分</th><th>满分</th><th>最弱簇</th></tr></thead>
+          <tbody>
+            <tr v-for="p in (asgDetail.per_class || [])" :key="p.class">
+              <td style="font-weight: 600">{{ p.class }}</td>
+              <td class="num">{{ p.done }} 人</td>
+              <td class="num" style="font-weight: 700">{{ p.avg_score != null ? p.avg_score + ' / ' + asgDetail.max_score : '—' }}</td>
+              <td class="num">{{ p.full_count || 0 }} 人</td>
+              <td>
+                <span v-if="p.weakest" class="tag" style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca">{{ p.weakest.name }} · {{ p.weakest.rate }}%</span>
+                <span v-else style="color: var(--text-3); font-size: 12px">—</span>
+              </td>
+            </tr>
+            <tr v-if="!(asgDetail.per_class || []).length"><td colspan="5" style="color: var(--text-3); text-align: center; padding: 14px">暂无交卷记录</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- 逐题明细弹窗 -->

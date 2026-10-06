@@ -32,6 +32,32 @@ onMounted(load)
       <span v-for="c in classes" :key="c" class="pill" :class="{ on: cls === c }" @click="switchCls(c)">{{ c }}</span>
       <span class="pill" :class="{ on: cls === '__none__' }" @click="switchCls('__none__')">未分班</span>
     </div>
+    <!-- 分班对比（按班级分开 · 最弱簇自动定位） -->
+    <div class="card" style="margin-bottom: 14px">
+      <div class="card-title">分班对比<span style="font-size: 11px; color: var(--text-3); font-weight: 400; margin-left: 8px">各班作答正确率与错题情况 · 最弱簇按该班全部作答自动定位</span></div>
+      <table class="atable">
+        <thead><tr><th>班级</th><th>学生</th><th>活跃错题</th><th>已掌握</th><th>总体正确率</th><th>最弱簇（自动定位）</th></tr></thead>
+        <tbody>
+          <tr v-for="p in (data.per_class || [])" :key="p.class">
+            <td style="font-weight: 600">{{ p.class }}</td>
+            <td class="num">{{ p.students }}</td>
+            <td class="num" :style="{ color: p.active ? 'var(--primary)' : 'var(--text-3)' }">{{ p.active }}</td>
+            <td class="num">{{ p.mastered }}</td>
+            <td class="num" style="font-weight: 700">{{ p.rate != null ? p.rate + '%' : '—' }}</td>
+            <td>
+              <span v-if="p.weakest" class="tag" style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca">
+                {{ p.weakest.name }} · 正确率 {{ p.weakest.rate }}%
+              </span>
+              <span v-else style="color: var(--text-3); font-size: 12px">暂无作答记录</span>
+            </td>
+          </tr>
+          <tr v-if="!(data.per_class || []).length"><td colspan="6" style="color: var(--text-3); text-align: center; padding: 18px">暂无学生数据</td></tr>
+        </tbody>
+      </table>
+      <div v-if="!(data.classes || []).length" style="font-size: 12px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-top: 10px">
+        当前还没有班级（学生都未分班）——到「学生管理 → 按名单批量分班」把学号名单粘贴归班后，这里会自动按班分开统计。
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">班级 · 各知识点正确率（全部作答）</div>
       <div v-if="data.correct_rate.length">
