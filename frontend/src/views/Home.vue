@@ -363,7 +363,7 @@ onBeforeUnmount(stopSlides)
     <div v-if="myTrainings.length" class="card mt16">
       <div class="card-title">
         🎫 我的培训
-        <span style="font-size: 11px; color: var(--text-3); font-weight: 400">教师端报名 · 完成状态实时同步</span>
+        <span style="font-size: 11px; color: var(--text-3); font-weight: 400">教师端报名 · 完成状态实时同步</span><span class="more" @click="router.push('/trainings')">全部 ›</span>
       </div>
       <div class="trows">
         <div v-for="t in myTrainings" :key="t.id" class="trow-i">

@@ -27,6 +27,7 @@ const tabs = [
   { to: '/', label: '首页' },
   { to: '/learn', label: '学习中心' },
   { to: '/kb', label: '知识库' },
+  { to: '/trainings', label: '我的培训' },
   { to: '/practice', label: '练习考试' },
   { to: '/report', label: '学习报告' },
   { to: '/competition', label: '比赛资料' },
@@ -44,7 +45,8 @@ const sideNav = [
     { to: '/admin/exams', ic: '📝', label: '考试管理' },
     { to: '/admin/students', ic: '🎓', label: '学生管理' },
     { to: '/admin/accounts', ic: '👥', label: '账号管理' },
-    { to: '/admin/trainings', ic: '🗂', label: '培训管理' }
+    { to: '/admin/trainings', ic: '🗂', label: '培训管理' },
+    { to: '/admin/kb', ic: '📚', label: '知识库管理' }
   ]},
   { group: '统计分析', items: [
     { to: '/admin/wrong', ic: '❗', label: '班级错题分析' },

@@ -21,6 +21,7 @@ from .admin import router as admin_router
 from .manage import router as manage_router, content_router, meta_router  # noqa: F401
 from .aiops import router as aiops_router
 from .kb import router as kb_router
+from .kb_admin import router as kb_admin_router
 
 # 生产关闭交互式 API 文档（/docs、/redoc、/openapi.json 会向匿名访问者暴露全部端点与模型）。
 # 本地开发需要时置环境变量 FALLLEARN_ENABLE_DOCS=1。
@@ -132,7 +133,7 @@ async def validation_handler(_: Request, exc: RequestValidationError):
 db.init_db()
 
 for r in (auth_router, quiz_router, wrong_router, game_router, learn_router, admin_router,
-          manage_router, content_router, meta_router, aiops_router, kb_router):
+          manage_router, content_router, meta_router, aiops_router, kb_router, kb_admin_router):
     app.include_router(r)
 
 

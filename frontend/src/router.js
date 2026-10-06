@@ -11,6 +11,7 @@ const routes = [
   // 知识地图独立页（原与 AI 问答同屏；同事反馈：点 AI 问答时不应同时出现知识地图）
   { path: '/map', component: () => import('./views/Map.vue') },
   { path: '/kb', component: () => import('./views/Kb.vue') },
+  { path: '/trainings', component: () => import('./views/MyTrainings.vue') },
   { path: '/competition', component: () => import('./views/Competition.vue') },
   { path: '/practice', component: () => import('./views/Practice.vue') },
   { path: '/report', component: () => import('./views/Report.vue') },
@@ -24,6 +25,7 @@ const routes = [
   { path: '/admin/students', component: () => import('./views/admin/AdminStudents.vue'), meta: T },
   { path: '/admin/accounts', component: () => import('./views/admin/AdminAccounts.vue'), meta: T },
   { path: '/admin/trainings', component: () => import('./views/admin/AdminTrainings.vue'), meta: T },
+  { path: '/admin/kb', component: () => import('./views/admin/AdminKbAdmin.vue'), meta: T },
   { path: '/admin/stats', component: () => import('./views/admin/AdminStats.vue'), meta: T },
   { path: '/admin/wrong', component: () => import('./views/admin/AdminWrong.vue'), meta: T },
   { path: '/admin/ai', component: () => import('./views/admin/AdminAi.vue'), meta: T },

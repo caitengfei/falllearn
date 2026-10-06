@@ -73,7 +73,7 @@ async function remove(t) {
   <div class="page">
     <div style="display: flex; align-items: center; margin-bottom: 16px">
       <div style="font-size: 19px; font-weight: 700">培训管理</div>
-      <span style="font-size: 12px; color: var(--text-3); margin-left: 10px">{{ trainings.length }} 期培训 · 报名 / 完成状态 → 统计页可见</span>
+      <span style="font-size: 12px; color: var(--text-3); margin-left: 10px">{{ trainings.length }} 期培训 · 报名后学生在学生端「我的培训」页查看进度</span>
       <button class="btn sm" style="margin-left: auto" @click="openCreate">＋ 新建培训</button>
     </div>
 

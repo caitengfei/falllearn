@@ -119,6 +119,11 @@ CREATE TABLE IF NOT EXISTS knowledge_points(
   id INTEGER PRIMARY KEY AUTOINCREMENT, cluster_id TEXT, seq INTEGER,
   title TEXT, content TEXT
 );
+CREATE TABLE IF NOT EXISTS kb_embeddings(
+  id INTEGER PRIMARY KEY, doc_path TEXT, chunk_idx INTEGER, chunk_text TEXT,
+  model TEXT, vector BLOB, created_at INTEGER,
+  UNIQUE(doc_path, chunk_idx, model)
+);
 """
 
 CLUSTER_KEY_MAP = {
@@ -192,6 +197,7 @@ def _migrate(db):
         "CREATE INDEX IF NOT EXISTS idx_enrolls_student ON training_enrolls(student_id)",
         "CREATE INDEX IF NOT EXISTS idx_checkins_date ON checkins(date)",
         "CREATE INDEX IF NOT EXISTS idx_ai_grades_attempt ON ai_grades(attempt_id)",
+        "CREATE INDEX IF NOT EXISTS idx_kb_emb_model ON kb_embeddings(model)",
     ):
         db.execute(idx)
     # ai_grades 幂等：同一 attempt 只保留一条 AI 判卷

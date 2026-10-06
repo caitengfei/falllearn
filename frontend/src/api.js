@@ -176,6 +176,23 @@ quizWeak: () => request('/api/quiz/weak'),
   trainingSetStatus: (tid, sid, status) =>
     request(`/api/admin/trainings/${tid}/students/${sid}/status`, { method: 'POST', body: { status } }),
   trainingDelete: (id) => request(`/api/admin/trainings/${id}`, { method: 'DELETE' }),
+  // 教师端知识库管理（P2.15）：knowledge/ 目录为唯一事实源，学生端 /kb 与 AI 问答同源
+  kbAdmin: () => request('/api/admin/kb'),
+  kbSave: (b) => request('/api/admin/kb', { method: 'POST', body: b }),
+  kbUpload: (file, dim, title) => {
+    const fd = new FormData()
+    fd.append('file', file); fd.append('dim', dim); fd.append('title', title)
+    return fetch('/api/admin/kb/upload', { method: 'POST', headers: { authorization: `Bearer ${auth.token}` }, body: fd })
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(j.detail || `上传失败（${r.status}）`)
+        return j
+      })
+  },
+  kbDelete: (path) => request(`/api/admin/kb?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
+  kbConfig: () => request('/api/admin/kb/config'),
+  kbConfigSave: (kind, b) => request(`/api/admin/kb/config/${kind}`, { method: 'PUT', body: b }),
+  kbEmbed: (path) => request('/api/admin/kb/embed', { method: 'POST', body: { path: path || '' } }),
 
   statsOverview: () => request('/api/admin/stats/overview'),
   statsTrainings: () => request('/api/admin/stats/trainings'),

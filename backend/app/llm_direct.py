@@ -81,7 +81,10 @@ def kb_fresh(max_age=300):
     if _kb_cache["files"] is None or time.time() - _kb_cache["at"] > max_age:
         try:
             files = []
-            for root, _dirs, fns in os.walk(KB_DIR):
+            for root, dirs, fns in os.walk(KB_DIR):
+                # 跳过隐藏目录（.trash 回收站）与 uploads/（教师上传原件存档）：
+                # 已删除/非知识文件不得进入学生端检索与 AI 上下文
+                dirs[:] = [x for x in dirs if not x.startswith(".") and x != "uploads"]
                 for f in sorted(fns):
                     if f.endswith(".md"):
                         p = os.path.join(root, f)
