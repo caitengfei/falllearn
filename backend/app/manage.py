@@ -1158,11 +1158,11 @@ def stats_wrong(u: dict = Depends(require_teacher), cls: str = ""):
     if cls_cnt:
         wstat = {}
         for r in d.execute(
-                "SELECT COALESCE(NULLIF(u.class_name,''),'__none__') c, w.status, COUNT(*) c "
+                "SELECT COALESCE(NULLIF(u.class_name,''),'__none__') cls, w.status, COUNT(*) c2 "
                 "FROM wrong_records w JOIN users u ON u.id=w.student_id "
                 "WHERE u.role='student' AND u.enabled=1 GROUP BY 1,2"):
-            wstat.setdefault(r["c"], {}).setdefault(r["status"], 0)
-            wstat[r["c"]][r["status"]] += r["c"]
+            wstat.setdefault(r["cls"], {}).setdefault(r["status"], 0)
+            wstat[r["cls"]][r["status"]] += r["c2"]
         ar2 = {}
         for r in d.execute(
                 "SELECT COALESCE(NULLIF(u.class_name,''),'__none__') c, q.cluster_id cid, COUNT(*) n, SUM(a.correct) ok "
