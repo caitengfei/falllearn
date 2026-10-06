@@ -290,7 +290,8 @@ async def direct_test(u: dict = Depends(require_teacher)):
 def kb_list(u: dict = Depends(require_teacher)):
     d = db.get_db()
     items = []
-    for root, _dirs, files in os.walk(KB):
+    for root, dirs, files in os.walk(KB):
+        dirs[:] = [x for x in dirs if not x.startswith(".")]  # 跳过 .trash 回收站
         for f in sorted(files):
             if not f.endswith(".md"):
                 continue
@@ -339,7 +340,12 @@ def kb_write(b: KbWriteIn, u: dict = Depends(require_teacher)):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         f.write(b.content)
-    return {"ok": True, "path": os.path.relpath(p, KB), "overwritten": existed}
+    rel = os.path.relpath(p, KB).replace("\\", "/")
+    if existed:
+        from .kb_admin import _clean_vecs
+        _clean_vecs(rel)  # 覆盖写入 → 旧向量作废（教师重新向量化前不参与语义检索）
+    llm_direct.invalidate()
+    return {"ok": True, "path": rel, "overwritten": existed}
 
 
 class KbDeleteIn(BaseModel):
@@ -351,8 +357,15 @@ def kb_delete(b: KbDeleteIn, u: dict = Depends(require_teacher)):
     p = _kb_abs(b.path)
     if not os.path.isfile(p):
         raise HTTPException(404, "文件不存在")
-    os.remove(p)
-    return {"ok": True}
+    rel = os.path.relpath(p, KB).replace("\\", "/")
+    # 删除 = 移入 knowledge/.trash/（可人工恢复），与「知识库管理」页行为一致
+    tdir = os.path.join(KB, ".trash")
+    os.makedirs(tdir, exist_ok=True)
+    os.replace(p, os.path.join(tdir, time.strftime("%Y%m%d%H%M%S_") + os.path.basename(p)))
+    from .kb_admin import _clean_vecs
+    _clean_vecs(rel)
+    llm_direct.invalidate()
+    return {"ok": True, "trashed": True}
 
 
 # ================= AI 出题 =================

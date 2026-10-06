@@ -1,6 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { api, CLUSTERS, clusterName } from '../../api'
+
+const router = useRouter()
 
 const tab = ref('model')
 const tabs = [
@@ -162,7 +165,7 @@ async function saveKbNew() {
   } catch (e) { alert(e.message) }
 }
 async function delKb(f) {
-  if (!confirm(`删除知识库文件\n${f.path}？（AI 后续将无法检索该文档）`)) return
+  if (!confirm(`移入回收站\n${f.path}？（AI 与学生端检索立即不可见；文件存于 knowledge/.trash/ 可恢复）`)) return
   try {
     await api.aiKbDelete(f.path)
     await loadKb()
@@ -294,6 +297,18 @@ const diffName = (n) => ({ 1: '低', 2: '中', 3: '高' }[n] || n)
 
     <!-- ============ 知识库 ============ -->
     <template v-if="tab === 'kb'">
+      <div class="card" style="margin-bottom: 14px; border-color: #e8d5a3; background: #fdf9ef">
+        <span style="font-size: 13px">📚 需要<b>文件上传（txt/pdf/docx）、编辑、分类统计、向量语义检索</b>？请使用功能更全的「知识库管理」页：</span>
+        <button class="btn sm" style="margin-left: 10px" @click="router.push('/admin/kb')">前往 知识库管理 ›</button>
+      </div>
+
+      <div v-if="kbNew" class="card" style="margin-bottom: 14px; border-color: #b6d7fe">
+        <div class="card-title">新增知识库文档<span class="more" style="float: right" @click="kbNew = null">✕</span></div>
+        <div class="field"><label>相对路径（二级以内，.md）</label><input v-model="kbNew.path" placeholder="如：05-元数据/补充说明.md 或 03-赛/新增扣分点.md" /></div>
+        <div class="field"><label>内容（Markdown）</label><textarea v-model="kbNew.content" rows="8" placeholder="# 标题&#10;正文…（AI 会检索知识库取材并标注来源）"></textarea></div>
+        <div style="display: flex; gap: 10px"><button class="btn sm" @click="saveKbNew">写入知识库</button><button class="btn sm ghost" @click="kbNew = null">取消</button></div>
+      </div>
+
       <div class="card" style="margin-bottom: 14px">
         <div class="card-title">知识库文档（{{ kb.length }}）
           <span class="more" style="float: right" @click="kbNew = { path: '05-元数据/补充说明.md', content: '' }">＋ 新增文档</span>
@@ -312,13 +327,6 @@ const diffName = (n) => ({ 1: '低', 2: '中', 3: '高' }[n] || n)
           <div class="kb-meta num">{{ kbSize(f.size) }}<br />{{ new Date(f.mtime * 1000).toLocaleDateString('zh-CN') }}</div>
           <button class="btn sm ghost" style="color: #b91c1c; flex-shrink: 0" @click="delKb(f)">删除</button>
         </div>
-      </div>
-
-      <div v-if="kbNew" class="card">
-        <div class="card-title">新增知识库文档<span class="more" style="float: right" @click="kbNew = null">✕</span></div>
-        <div class="field"><label>相对路径（二级以内，.md）</label><input v-model="kbNew.path" placeholder="如：05-元数据/补充说明.md 或 03-赛/新增扣分点.md" /></div>
-        <div class="field"><label>内容（Markdown）</label><textarea v-model="kbNew.content" rows="8" placeholder="# 标题&#10;正文…（AI 会检索知识库取材并标注来源）"></textarea></div>
-        <div style="display: flex; gap: 10px"><button class="btn sm" @click="saveKbNew">写入知识库</button><button class="btn sm ghost" @click="kbNew = null">取消</button></div>
       </div>
     </template>
 
